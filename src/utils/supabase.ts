@@ -7,3 +7,4 @@ const supabaseKey =
   '';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
+
