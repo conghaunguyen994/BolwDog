@@ -42,49 +42,55 @@ export const orderService = {
     }[];
   }): Promise<Order> {
     if (isSupabaseConfigured && supabase) {
-      // Call secure atomic database RPC to calculate real server prices & avoid tampering
-      const { data, error } = await supabase.rpc('create_secure_order', {
-        p_customer_name: payload.customerName,
-        p_customer_phone: payload.customerPhone,
-        p_customer_email: payload.customerEmail || null,
-        p_shipping_address: payload.shippingAddress,
-        p_notes: payload.notes || null,
-        p_items: payload.items.map((i) => ({
-          product_id: i.productId,
-          variant_id: i.variantId || null,
-          quantity: i.quantity,
-          customization_data: i.customization,
-        })),
-      });
+      try {
+        // Call secure atomic database RPC to calculate real server prices & avoid tampering
+        const { data, error } = await supabase.rpc('create_secure_order', {
+          p_customer_name: payload.customerName,
+          p_customer_phone: payload.customerPhone,
+          p_customer_email: payload.customerEmail || null,
+          p_shipping_address: payload.shippingAddress,
+          p_notes: payload.notes || null,
+          p_items: payload.items.map((i) => ({
+            product_id: i.productId,
+            variant_id: i.variantId || null,
+            quantity: i.quantity,
+            customization_data: i.customization,
+          })),
+        });
 
-      if (error) throw error;
-
-      return {
-        id: data.order_id,
-        order_reference: data.order_reference,
-        customer_name: payload.customerName,
-        customer_phone: payload.customerPhone,
-        customer_email: payload.customerEmail,
-        shipping_address: payload.shippingAddress,
-        subtotal: data.subtotal,
-        shipping_fee: data.shipping_fee,
-        total_amount: data.total_amount,
-        deposit_amount: data.deposit_amount,
-        order_status: data.order_status,
-        payment_status: data.payment_status,
-        notes: payload.notes,
-        created_at: new Date().toISOString(),
-        items: payload.items.map((it) => ({
-          product_id: it.productId,
-          product_name: it.productName,
-          unit_price: it.unitPrice,
-          quantity: it.quantity,
-          customization_data: it.customization,
-          variant_name: it.variantName,
-          variant_value: it.variantValue,
-          image_url: it.imageUrl,
-        })),
-      };
+        if (!error && data) {
+          return {
+            id: data.order_id,
+            order_reference: data.order_reference,
+            customer_name: payload.customerName,
+            customer_phone: payload.customerPhone,
+            customer_email: payload.customerEmail,
+            shipping_address: payload.shippingAddress,
+            subtotal: data.subtotal,
+            shipping_fee: data.shipping_fee,
+            total_amount: data.total_amount,
+            deposit_amount: data.deposit_amount,
+            order_status: data.order_status,
+            payment_status: data.payment_status,
+            notes: payload.notes,
+            created_at: new Date().toISOString(),
+            items: payload.items.map((it) => ({
+              product_id: it.productId,
+              product_name: it.productName,
+              unit_price: it.unitPrice,
+              quantity: it.quantity,
+              customization_data: it.customization,
+              variant_name: it.variantName,
+              variant_value: it.variantValue,
+              image_url: it.imageUrl,
+            })),
+          };
+        } else {
+          console.warn('Supabase create_secure_order RPC not found or returned error, falling back to local store:', error);
+        }
+      } catch (err) {
+        console.warn('Supabase connection failed, falling back to local store:', err);
+      }
     }
 
     // Mock store mode
@@ -137,12 +143,15 @@ export const orderService = {
 
   async getOrderByReferenceAndPhone(orderRef: string, phone: string): Promise<Order | null> {
     if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.rpc('get_guest_order', {
-        p_order_ref: orderRef.trim(),
-        p_phone: phone.trim(),
-      });
-      if (error) return null;
-      return data;
+      try {
+        const { data, error } = await supabase.rpc('get_guest_order', {
+          p_order_ref: orderRef.trim(),
+          p_phone: phone.trim(),
+        });
+        if (!error && data) return data;
+      } catch (e) {
+        // Fall back to local store
+      }
     }
 
     const orders = getStoredMockOrders();

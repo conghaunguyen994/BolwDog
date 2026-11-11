@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// Mock Supabase client to test local security logic deterministically without network latency
+vi.mock('../services/supabase/client', () => ({
+  isSupabaseConfigured: false,
+  supabase: null,
+}));
+
 import { orderService } from '../services/orderService';
 
 describe('Security & Privacy: Guest Order Isolation & Reference Randomness', () => {

@@ -13,13 +13,35 @@ function calculateCartTotals(items: CartItem[]) {
   return { subtotal, shippingFee, total, depositAmount };
 }
 
+function saveCartToStorage(items: CartItem[]) {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    }
+  } catch (err) {
+    console.error('Failed to save cart to localStorage', err);
+  }
+}
+
+function clearCartStorage() {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(CART_STORAGE_KEY);
+    }
+  } catch (err) {
+    console.error('Failed to remove cart from localStorage', err);
+  }
+}
+
 function loadInitialCart(): CartState {
   try {
-    const saved = localStorage.getItem(CART_STORAGE_KEY);
-    if (saved) {
-      const items: CartItem[] = JSON.parse(saved);
-      const totals = calculateCartTotals(items);
-      return { items, ...totals };
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const saved = window.localStorage.getItem(CART_STORAGE_KEY);
+      if (saved) {
+        const items: CartItem[] = JSON.parse(saved);
+        const totals = calculateCartTotals(items);
+        return { items, ...totals };
+      }
     }
   } catch (e) {
     console.error('Failed to parse cart storage:', e);
@@ -53,7 +75,7 @@ export const cartSlice = createSlice({
       
       // Create a deterministic key based on product ID, variant ID, and serialized customization
       const customHash = JSON.stringify(customization);
-      const itemId = `${product.id}-${variant?.id || 'base'}-${btoa(unescape(encodeURIComponent(customHash))).slice(0, 10)}`;
+      const itemId = `${product.id}-${variant?.id || 'base'}-${customHash}`;
 
       const existingIndex = state.items.findIndex((it) => it.id === itemId);
       if (existingIndex > -1) {
@@ -75,11 +97,7 @@ export const cartSlice = createSlice({
       state.total = totals.total;
       state.depositAmount = totals.depositAmount;
 
-      try {
-        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(state.items));
-      } catch (err) {
-        console.error('Failed to save cart to localStorage', err);
-      }
+      saveCartToStorage(state.items);
     },
 
     removeFromCart: (state, action: PayloadAction<string>) => {
@@ -90,7 +108,7 @@ export const cartSlice = createSlice({
       state.total = totals.total;
       state.depositAmount = totals.depositAmount;
 
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(state.items));
+      saveCartToStorage(state.items);
     },
 
     updateQuantity: (state, action: PayloadAction<{ id: string; quantity: number }>) => {
@@ -108,7 +126,7 @@ export const cartSlice = createSlice({
       state.total = totals.total;
       state.depositAmount = totals.depositAmount;
 
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(state.items));
+      saveCartToStorage(state.items);
     },
 
     updateCustomization: (
@@ -118,7 +136,7 @@ export const cartSlice = createSlice({
       const item = state.items.find((it) => it.id === action.payload.id);
       if (item) {
         item.customization = { ...item.customization, ...action.payload.customization };
-        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(state.items));
+        saveCartToStorage(state.items);
       }
     },
 
@@ -128,7 +146,7 @@ export const cartSlice = createSlice({
       state.shippingFee = 0;
       state.total = 0;
       state.depositAmount = 0;
-      localStorage.removeItem(CART_STORAGE_KEY);
+      clearCartStorage();
     },
   },
 });
