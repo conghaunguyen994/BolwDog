@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-cute-pink: #F8DDE5;
+    --color-cute-cream: #FFF9F2;
+    --color-cute-lavender: #EAE3F8;
+    --color-cute-peach: #F9E6D7;
+    --color-cute-brown: #6B514A;
+  }
+
+  body {
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #ECA5BB;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #DF7B9A;
+  }
+}
+
+@layer components {
+  .cute-card {
+    @apply bg-white dark:bg-cute-surface-dark border border-cute-border-light dark:border-cute-border-dark rounded-3xl transition-all duration-300;
+  }
+
+  .cute-btn-primary {
+    @apply bg-cute-pink-300 hover:bg-cute-pink-400 text-cute-brown font-semibold px-6 py-3 rounded-full transition-all duration-200 shadow-sm hover:shadow-cute hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .cute-btn-secondary {
+    @apply bg-cute-lavender hover:bg-cute-lavender-200 text-cute-brown dark:text-cute-cream px-5 py-2.5 rounded-full font-medium transition-all duration-200 border border-cute-border-light dark:border-cute-border-dark hover:-translate-y-0.5 active:translate-y-0;
+  }
+
+  .cute-pill {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-wide;
+  }
+}
