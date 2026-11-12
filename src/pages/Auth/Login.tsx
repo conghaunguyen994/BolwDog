@@ -143,7 +143,7 @@ export const LoginPage: React.FC = () => {
           <p className="text-xs text-cute-brown-light dark:text-cute-muted">
             {isRegister
               ? 'Tạo tài khoản mới trên hệ thống bảo mật BolwDog'
-              : 'Nhập tài khoản để kiểm tra quyền '}
+              : ''}
           </p>
         </div>
 
@@ -156,8 +156,8 @@ export const LoginPage: React.FC = () => {
               setError(null);
             }}
             className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${!isRegister
-                ? 'bg-white dark:bg-cute-surface-dark text-cute-brown dark:text-cute-cream shadow-sm'
-                : 'text-cute-brown-light hover:text-cute-brown'
+              ? 'bg-white dark:bg-cute-surface-dark text-cute-brown dark:text-cute-cream shadow-sm'
+              : 'text-cute-brown-light hover:text-cute-brown'
               }`}
           >
             <LogIn className="w-3.5 h-3.5" />
@@ -170,8 +170,8 @@ export const LoginPage: React.FC = () => {
               setError(null);
             }}
             className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${isRegister
-                ? 'bg-white dark:bg-cute-surface-dark text-cute-brown dark:text-cute-cream shadow-sm'
-                : 'text-cute-brown-light hover:text-cute-brown'
+              ? 'bg-white dark:bg-cute-surface-dark text-cute-brown dark:text-cute-cream shadow-sm'
+              : 'text-cute-brown-light hover:text-cute-brown'
               }`}
           >
             <UserPlus className="w-3.5 h-3.5" />
@@ -179,15 +179,7 @@ export const LoginPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Notice when redirected from /admin/* */}
-        {adminRequired && (
-          <div className="p-3.5 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-xs text-purple-800 dark:text-purple-200 flex items-start gap-2">
-            <ShieldCheck className="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" />
-            <span>
-              <strong>Cổng bảo mật Admin:</strong> Vui lòng đăng nhập bằng tài khoản chủ tiệm để hệ thống kiểm tra quyền trước khi mở trang <code>/admin/*</code>.
-            </span>
-          </div>
-        )}
+
 
         {lockoutSeconds > 0 && (
           <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-start gap-2">

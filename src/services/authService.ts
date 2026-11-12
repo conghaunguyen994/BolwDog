@@ -6,6 +6,8 @@ const ALLOWED_ADMIN_EMAILS = [
   'conghaunguyen994@gmail.com',
   'conghaunguyen994@gmail.com.vn',
   'conghaunguyen994@gmai.com',
+  'haudev99@gmail.com.vn',
+  'haudev99@gmail.com',
 ];
 
 export function isOwnerAdminEmail(email?: string | null): boolean {
@@ -149,9 +151,17 @@ export const authService = {
     });
 
     if (error) {
+      if (
+        error.message.includes('rate limit') ||
+        (error as any).code === 'over_email_send_rate_limit'
+      ) {
+        throw new Error(
+          'Supabase đã chạm giới hạn gửi email xác nhận (tối đa 2 email/giờ ở gói miễn phí). Bạn hãy vào Supabase -> Authentication -> Providers -> Email -> TẮT mục "Confirm email", hoặc chạy file supabase/FIX_AUTH_AND_SEED_DB.sql trong SQL Editor rồi chuyển sang tab "Đăng nhập" với mật khẩu Conghau@123!'
+        );
+      }
       if (error.message.includes('Database error saving new user')) {
         throw new Error(
-          'Lỗi Trigger cơ sở dữ liệu khi tạo tài khoản mới. Vui lòng chạy đoạn mã SQL sửa lỗi Trigger trong Supabase SQL Editor (xem hướng dẫn hoặc file supabase/FIX_AUTH_AND_SEED_DB.sql).'
+          'Lỗi Trigger cơ sở dữ liệu khi tạo tài khoản mới. Vui lòng chạy đoạn mã SQL trong file supabase/FIX_AUTH_AND_SEED_DB.sql trên Supabase SQL Editor.'
         );
       }
       throw new Error(error.message || 'Không thể đăng ký tài khoản');

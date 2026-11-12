@@ -1,9 +1,11 @@
 -- ====================================================================
--- BOLWDOG - BẢN VÁ LỖI TẠO TÀI KHOẢN (SIGNUP) & NẠP DỮ LIỆU GỐC VÀO DB
+-- BOLWDOG - KHỞI TẠO TRỰC TIẾP TÀI KHOẢN ADMIN (KHÔNG CẦN GỬI EMAIL) & NẠP DỮ LIỆU DB
 -- Hướng dẫn: Copy toàn bộ nội dung file này dán vào Supabase -> SQL Editor -> bấm RUN
 -- ====================================================================
 
--- PHẦN 1: SỬA LỖI TRIGGER "Database error saving new user" KHI ĐĂNG KÝ TÀI KHOẢN
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+
+-- PHẦN 1: CẬP NHẬT HÀM BẢO MẬT & TRIGGER TRÊN SUPABASE
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -14,7 +16,9 @@ BEGIN
   RETURN lower(coalesce(auth.jwt() ->> 'email', '')) IN (
     'conghaunguyen994@gmail.com',
     'conghaunguyen994@gmail.com.vn',
-    'conghaunguyen994@gmai.com'
+    'conghaunguyen994@gmai.com',
+    'haudev99@gmail.com.vn',
+    'haudev99@gmail.com'
   );
 END;
 $$;
@@ -51,7 +55,9 @@ BEGIN
       WHEN lower(NEW.email) IN (
         'conghaunguyen994@gmail.com',
         'conghaunguyen994@gmail.com.vn',
-        'conghaunguyen994@gmai.com'
+        'conghaunguyen994@gmai.com',
+        'haudev99@gmail.com.vn',
+        'haudev99@gmail.com'
       ) THEN 'admin'::public.user_role
       ELSE 'customer'::public.user_role
     END
@@ -60,7 +66,6 @@ BEGIN
   SET full_name = EXCLUDED.full_name;
   RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
-  -- Tuyệt đối không bao giờ làm gián đoạn quá trình đăng ký tài khoản của Supabase Auth
   RETURN NEW;
 END;
 $$;
@@ -70,22 +75,113 @@ CREATE TRIGGER on_auth_user_created
 AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
-DROP POLICY IF EXISTS "Profiles are viewable by owner or admin" ON public.profiles;
-CREATE POLICY "Profiles are viewable by owner or admin"
-ON public.profiles FOR SELECT
-USING (auth.uid() = id OR public.is_admin());
+-- PHẦN 2: TẠO TRỰC TIẾP TÀI KHOẢN ADMIN (MẬT KHẨU: Conghau@123) VÀ KÍCH HOẠT LUÔN KHÔNG CẦN QUA EMAIL
+ALTER TABLE public.profiles DISABLE TRIGGER tr_protect_profile_role;
 
-DROP POLICY IF EXISTS "Profiles insertable by owner" ON public.profiles;
-CREATE POLICY "Profiles insertable by owner"
-ON public.profiles FOR INSERT
-WITH CHECK (auth.uid() = id OR public.is_admin());
+DO $$
+DECLARE
+  v_email TEXT;
+  v_user_id UUID;
+BEGIN
+  -- Tự động kích hoạt mọi tài khoản đã đăng ký trước đó nhưng bị kẹt chờ xác thực email
+  UPDATE auth.users
+  SET email_confirmed_at = COALESCE(email_confirmed_at, NOW()),
+      updated_at = NOW()
+  WHERE email_confirmed_at IS NULL;
 
-DROP POLICY IF EXISTS "Profiles updateable by owner" ON public.profiles;
-CREATE POLICY "Profiles updateable by owner"
-ON public.profiles FOR UPDATE
-USING (auth.uid() = id OR public.is_admin());
+  -- Tạo / Cập nhật tài khoản Admin chính chủ với mật khẩu: Conghau@123
+  FOREACH v_email IN ARRAY ARRAY[
+    'conghaunguyen994@gmail.com',
+    'conghaunguyen994@gmail.com.vn',
+    'haudev99@gmail.com.vn',
+    'haudev99@gmail.com'
+  ]
+  LOOP
+    SELECT id INTO v_user_id FROM auth.users WHERE lower(email) = v_email LIMIT 1;
 
--- PHẦN 2: NẠP DỮ LIỆU DANH MỤC, SẢN PHẨM, BIẾN THỂ & CẤU HÌNH TIỆM VÀO DATABASE THẬT
+    IF v_user_id IS NULL THEN
+      v_user_id := gen_random_uuid();
+      INSERT INTO auth.users (
+        instance_id,
+        id,
+        aud,
+        role,
+        email,
+        encrypted_password,
+        email_confirmed_at,
+        raw_app_meta_data,
+        raw_user_meta_data,
+        created_at,
+        updated_at,
+        confirmation_token,
+        email_change,
+        email_change_token_new,
+        recovery_token
+      ) VALUES (
+        '00000000-0000-0000-0000-000000000000',
+        v_user_id,
+        'authenticated',
+        'authenticated',
+        v_email,
+        extensions.crypt('Conghau@123', extensions.gen_salt('bf')),
+        NOW(),
+        '{"provider":"email","providers":["email"]}'::jsonb,
+        '{"full_name":"Nguyễn Công Hậu"}'::jsonb,
+        NOW(),
+        NOW(),
+        '',
+        '',
+        '',
+        ''
+      );
+
+      INSERT INTO auth.identities (
+        id,
+        user_id,
+        provider_id,
+        identity_data,
+        provider,
+        last_sign_in_at,
+        created_at,
+        updated_at
+      ) VALUES (
+        gen_random_uuid(),
+        v_user_id,
+        v_user_id::text,
+        jsonb_build_object(
+          'sub', v_user_id::text,
+          'email', v_email,
+          'email_verified', true,
+          'phone_verified', false
+        ),
+        'email',
+        NOW(),
+        NOW(),
+        NOW()
+      );
+    ELSE
+      UPDATE auth.users
+      SET encrypted_password = extensions.crypt('Conghau@123', extensions.gen_salt('bf')),
+          email_confirmed_at = COALESCE(email_confirmed_at, NOW()),
+          confirmation_token = COALESCE(confirmation_token, ''),
+          email_change = COALESCE(email_change, ''),
+          email_change_token_new = COALESCE(email_change_token_new, ''),
+          recovery_token = COALESCE(recovery_token, ''),
+          updated_at = NOW()
+      WHERE id = v_user_id;
+    END IF;
+
+    INSERT INTO public.profiles (id, full_name, role)
+    VALUES (v_user_id, 'Nguyễn Công Hậu', 'admin'::public.user_role)
+    ON CONFLICT (id) DO UPDATE
+    SET role = 'admin'::public.user_role,
+        full_name = 'Nguyễn Công Hậu';
+  END LOOP;
+END $$;
+
+ALTER TABLE public.profiles ENABLE TRIGGER tr_protect_profile_role;
+
+-- PHẦN 3: NẠP DỮ LIỆU DANH MỤC, SẢN PHẨM, BIẾN THỂ & CẤU HÌNH TIỆM VÀO DATABASE THẬT
 INSERT INTO public.categories (id, name, slug, description, icon, display_order)
 VALUES
   ('a1111111-1111-4111-8111-111111111111', 'Bát Ăn Cho Chó Mèo', 'bat-an-cho-cho', 'Bát ăn chống gù 15° kèm đế khoang chứa nước chống kiến, bát inox tháo rời tiện lợi', 'UtensilsCrossed', 1),
@@ -205,4 +301,3 @@ VALUES
     "transfer_note_prefix": "BD"
   }'::jsonb)
 ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value;
-
