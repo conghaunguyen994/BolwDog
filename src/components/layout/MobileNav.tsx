@@ -47,8 +47,8 @@ export const MobileNav: React.FC<MobileNavProps> = ({ onOpenCart }) => {
           onClick={onOpenCart}
           className="relative -top-3 flex flex-col items-center"
         >
-          <div className="w-13 h-13 rounded-full bg-gradient-to-tr from-cute-pink to-cute-peach p-3 shadow-cute-lg border-2 border-white dark:border-cute-surface-dark active:scale-95 transition-transform flex items-center justify-center">
-            <ShoppingBag className="w-6 h-6 text-cute-brown" />
+          <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-cute-pink to-cute-peach p-3 shadow-cute-lg border-2 border-white dark:border-cute-surface-dark active:scale-95 transition-transform flex items-center justify-center">
+            <ShoppingBag className="w-5 h-5 text-cute-brown" />
             {totalItems > 0 && (
               <span className="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center animate-pulse-gentle">
                 {totalItems > 9 ? '9+' : totalItems}

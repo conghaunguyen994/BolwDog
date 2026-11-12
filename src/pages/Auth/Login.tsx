@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Lock, Mail, User, ShieldAlert, ShieldCheck, CheckCircle2, LogIn, UserPlus } from 'lucide-react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { Lock, Mail, User, ShieldAlert, ShieldCheck, CheckCircle2, LogIn, UserPlus, LogOut, Store, PackageCheck } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { setUser } from '../../features/auth/authSlice';
+import { setUser, logout } from '../../features/auth/authSlice';
 import { authService } from '../../services/authService';
 import { Button } from '../../components/common/Button';
 
@@ -27,15 +27,21 @@ export const LoginPage: React.FC = () => {
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
 
   const locationState = (location.state as { from?: { pathname?: string }; adminRequired?: boolean }) || {};
-  const from = locationState.from?.pathname || '/admin/dashboard';
+  const from = locationState.from?.pathname || '/';
   const adminRequired = Boolean(locationState.adminRequired || from.startsWith('/admin'));
 
-  // Nếu đã đăng nhập là Admin rồi thì cho phép đi thẳng tới /admin/dashboard
+  // Nếu người dùng bị chặn từ /admin/* và đã đăng nhập là Admin thì chuyển tiếp tới trang đích
   useEffect(() => {
-    if (auth.isAuthenticated && auth.isAdmin) {
-      navigate(from.startsWith('/admin') ? from : '/admin/dashboard', { replace: true });
+    if (auth.isAuthenticated && auth.isAdmin && from.startsWith('/admin')) {
+      navigate(from, { replace: true });
     }
   }, [auth.isAuthenticated, auth.isAdmin, from, navigate]);
+
+  const handleLogoutAccount = async () => {
+    await authService.logout();
+    dispatch(logout());
+    navigate('/');
+  };
 
   useEffect(() => {
     const checkLockout = () => {
@@ -128,6 +134,85 @@ export const LoginPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (auth.isAuthenticated && auth.user) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-md cute-card p-6 sm:p-8 space-y-6 shadow-cute-lg text-center">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cute-pink to-cute-lavender flex items-center justify-center mx-auto text-2xl shadow-sm">
+            🐾
+          </div>
+
+          <div className="space-y-1">
+            <h1 className="text-xl sm:text-2xl font-black text-cute-brown dark:text-cute-cream">
+              Xin chào, {auth.user.fullName}!
+            </h1>
+            <p className="text-xs text-cute-brown-light dark:text-cute-muted">
+              {auth.user.email}
+            </p>
+            <div className="pt-2">
+              <span
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                  auth.isAdmin
+                    ? 'bg-purple-100 text-purple-700 border border-purple-200'
+                    : 'bg-cute-pink/50 text-cute-brown border border-cute-pink-300'
+                }`}
+              >
+                {auth.isAdmin ? (
+                  <>
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Quản trị viên chính chủ</span>
+                  </>
+                ) : (
+                  <>
+                    <User className="w-3.5 h-3.5" />
+                    <span>Thành viên BolwDog</span>
+                  </>
+                )}
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-2.5 pt-2">
+            {auth.isAdmin && (
+              <Link
+                to="/admin/dashboard"
+                className="w-full py-3 px-4 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-colors"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>Vào Cổng Quản Trị Xưởng (Admin)</span>
+              </Link>
+            )}
+
+            <Link
+              to="/track"
+              className="w-full py-3 px-4 rounded-2xl bg-cute-cream dark:bg-cute-surface-dark border border-cute-border-light dark:border-cute-border-dark text-cute-brown dark:text-cute-cream font-bold text-xs sm:text-sm flex items-center justify-center gap-2 hover:bg-cute-pink/30 transition-colors"
+            >
+              <PackageCheck className="w-4 h-4 text-cute-pink-500" />
+              <span>Tra cứu đơn hàng của tôi</span>
+            </Link>
+
+            <Link
+              to="/"
+              className="w-full py-3 px-4 rounded-2xl bg-cute-cream dark:bg-cute-surface-dark border border-cute-border-light dark:border-cute-border-dark text-cute-brown dark:text-cute-cream font-bold text-xs sm:text-sm flex items-center justify-center gap-2 hover:bg-cute-pink/30 transition-colors"
+            >
+              <Store className="w-4 h-4 text-cute-pink-500" />
+              <span>Về Trang Chủ Mua Sắm</span>
+            </Link>
+
+            <button
+              type="button"
+              onClick={handleLogoutAccount}
+              className="w-full py-3 px-4 rounded-2xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Đăng Xuất Tài Khoản</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">

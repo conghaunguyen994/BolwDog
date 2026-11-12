@@ -40,30 +40,32 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
   return (
     <header className="sticky top-0 z-40 bg-white/85 dark:bg-cute-cream-dark/85 backdrop-blur-md border-b border-cute-border-light dark:border-cute-border-dark transition-colors duration-200">
       {/* Top Cute Announcement Bar */}
-      <div className="bg-gradient-to-r from-cute-pink/40 via-cute-peach/40 to-cute-lavender/40 dark:from-cute-pink-dark/20 dark:to-cute-lavender-dark/20 py-1.5 px-4 text-center text-xs font-semibold text-cute-brown dark:text-cute-cream flex items-center justify-center gap-2">
-        <Heart className="w-3.5 h-3.5 text-cute-pink-400 fill-cute-pink-400 animate-pulse-gentle" />
-        <span>Tiệm in 3D sinh học thân thiện với bé yêu & miễn phí khắc tên theo yêu cầu!</span>
+      <div className="bg-gradient-to-r from-cute-pink/40 via-cute-peach/40 to-cute-lavender/40 dark:from-cute-pink-dark/20 dark:to-cute-lavender-dark/20 py-1.5 px-3 sm:px-4 text-center text-[11px] sm:text-xs font-semibold text-cute-brown dark:text-cute-cream flex items-center justify-center gap-1.5 sm:gap-2">
+        <Heart className="w-3.5 h-3.5 text-cute-pink-400 fill-cute-pink-400 animate-pulse-gentle flex-shrink-0" />
+        <span className="truncate">
+          Tiệm in 3D sinh học thân thiện với bé yêu & miễn phí khắc tên theo yêu cầu!
+        </span>
         <span className="hidden sm:inline-block">🐾</span>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 sm:h-20 gap-2">
           
           {/* Logo & Brand */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cute-pink to-cute-lavender flex items-center justify-center shadow-cute group-hover:scale-105 transition-transform duration-300">
-              <span className="text-2xl select-none">🐾</span>
+          <Link to="/" className="flex items-center gap-2 sm:gap-3 group flex-shrink-0">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-cute-pink to-cute-lavender flex items-center justify-center shadow-cute group-hover:scale-105 transition-transform duration-300">
+              <span className="text-xl sm:text-2xl select-none">🐾</span>
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-2xl font-extrabold tracking-tight text-cute-brown dark:text-cute-cream font-sans">
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <span className="text-lg sm:text-2xl font-extrabold tracking-tight text-cute-brown dark:text-cute-cream font-sans">
                   Bolw<span className="text-cute-pink-400">Dog</span>
                 </span>
-                <span className="text-xs bg-cute-peach/70 dark:bg-cute-peach-dark px-1.5 py-0.5 rounded-full font-bold text-cute-brown dark:text-cute-cream">
+                <span className="hidden xs:inline-block text-[10px] sm:text-xs bg-cute-peach/70 dark:bg-cute-peach-dark px-1.5 py-0.5 rounded-full font-bold text-cute-brown dark:text-cute-cream">
                   Studio
                 </span>
               </div>
-              <p className="text-[11px] text-cute-brown-light dark:text-cute-muted font-medium tracking-wide">
+              <p className="hidden sm:block text-[11px] text-cute-brown-light dark:text-cute-muted font-medium tracking-wide">
                 Bát ăn & phụ kiện 3D cho bé cưng
               </p>
             </div>
@@ -105,15 +107,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
           </nav>
 
           {/* Right Action Icons */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
             {/* Search Button & Popover */}
             <div className="relative">
               <button
                 onClick={() => setSearchOpen(!searchOpen)}
                 aria-label="Tìm kiếm sản phẩm"
-                className="p-2.5 rounded-full bg-cute-cream dark:bg-cute-surface-dark border border-cute-border-light dark:border-cute-border-dark text-cute-brown dark:text-cute-cream hover:bg-cute-pink/40 transition-colors shadow-sm"
+                className="p-2 sm:p-2.5 rounded-full bg-cute-cream dark:bg-cute-surface-dark border border-cute-border-light dark:border-cute-border-dark text-cute-brown dark:text-cute-cream hover:bg-cute-pink/40 transition-colors shadow-sm"
               >
-                <Search className="w-5 h-5" />
+                <Search className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
 
               {searchOpen && (
@@ -145,12 +147,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
             <button
               onClick={onOpenCart}
               aria-label="Giỏ nhà bé"
-              className="relative flex items-center gap-2 px-3.5 py-2 rounded-full bg-cute-pink/70 hover:bg-cute-pink dark:bg-cute-pink-dark/40 dark:hover:bg-cute-pink-dark/60 text-cute-brown dark:text-cute-cream border border-cute-pink-300/60 shadow-cute hover:shadow-cute-lg transition-all duration-200 active:scale-95 group"
+              className="relative flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-2 rounded-full bg-cute-pink/70 hover:bg-cute-pink dark:bg-cute-pink-dark/40 dark:hover:bg-cute-pink-dark/60 text-cute-brown dark:text-cute-cream border border-cute-pink-300/60 shadow-cute hover:shadow-cute-lg transition-all duration-200 active:scale-95 group"
             >
               <div className="relative">
-                <ShoppingBag className="w-5 h-5 text-cute-brown dark:text-cute-cream group-hover:-rotate-6 transition-transform" />
+                <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 text-cute-brown dark:text-cute-cream group-hover:-rotate-6 transition-transform" />
                 {totalItems > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-rose-500 text-white text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-sm animate-pulse-gentle">
+                  <span className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] sm:text-[11px] font-bold w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center shadow-sm animate-pulse-gentle">
                     {totalItems > 99 ? '99+' : totalItems}
                   </span>
                 )}
@@ -160,39 +162,46 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
               </span>
             </button>
 
-            {/* Authentication & Admin Portal Action */}
+            {/* Authentication & Admin Portal Action (Visible on both Mobile & Desktop) */}
             {!auth.isAuthenticated ? (
               <Link
                 to="/login"
                 title="Đăng nhập tài khoản / Quản trị viên"
-                className="flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-full bg-cute-lavender/70 hover:bg-cute-lavender dark:bg-cute-lavender-dark text-cute-brown dark:text-cute-cream border border-cute-lavender font-bold transition-colors shadow-sm"
+                className="flex items-center gap-1.5 text-xs px-2.5 sm:px-3.5 py-2 rounded-full bg-cute-lavender/70 hover:bg-cute-lavender dark:bg-cute-lavender-dark text-cute-brown dark:text-cute-cream border border-cute-lavender font-bold transition-colors shadow-sm"
               >
                 <LogIn className="w-4 h-4 text-purple-600 dark:text-purple-300" />
                 <span className="hidden sm:inline">Đăng nhập</span>
               </Link>
             ) : (
-              <div className="hidden md:flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 {auth.isAdmin ? (
                   <Link
                     to="/admin/dashboard"
                     title="Vào Cổng Quản Trị Xưởng"
-                    className="flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-bold transition-colors shadow-sm"
+                    className="flex items-center gap-1 text-[11px] sm:text-xs px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-bold transition-colors shadow-sm"
                   >
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>Vào Admin</span>
+                    <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                    <span className="hidden sm:inline">Vào Admin</span>
+                    <span className="sm:hidden">Admin</span>
                   </Link>
                 ) : (
-                  <span className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full bg-cute-cream border border-cute-border-light font-semibold text-cute-brown">
-                    <User className="w-3.5 h-3.5 text-cute-pink-500" />
-                    <span className="max-w-[100px] truncate">{auth.user?.fullName}</span>
-                  </span>
+                  <Link
+                    to="/login"
+                    title="Tài khoản của bạn"
+                    className="flex items-center gap-1 text-[11px] sm:text-xs px-2.5 sm:px-3 py-1.5 rounded-full bg-cute-cream dark:bg-cute-surface-dark border border-cute-border-light dark:border-cute-border-dark font-semibold text-cute-brown dark:text-cute-cream"
+                  >
+                    <User className="w-3.5 h-3.5 text-cute-pink-500 flex-shrink-0" />
+                    <span className="max-w-[65px] sm:max-w-[100px] truncate">
+                      {auth.user?.fullName || 'Tài khoản'}
+                    </span>
+                  </Link>
                 )}
                 <button
                   onClick={handleLogout}
                   title="Đăng xuất"
-                  className="p-2 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors"
+                  className="p-1.5 sm:p-2 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors"
                 >
-                  <LogOut className="w-4 h-4" />
+                  <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </button>
               </div>
             )}
@@ -200,10 +209,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
             {/* Mobile Hamburger Menu */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2.5 rounded-full bg-cute-cream dark:bg-cute-surface-dark border border-cute-border-light text-cute-brown dark:text-cute-cream"
+              className="md:hidden p-2 rounded-full bg-cute-cream dark:bg-cute-surface-dark border border-cute-border-light text-cute-brown dark:text-cute-cream"
               aria-label="Mở menu"
             >
-              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {isMobileMenuOpen ? <X className="w-4 h-4 sm:w-5 sm:h-5" /> : <Menu className="w-4 h-4 sm:w-5 sm:h-5" />}
             </button>
           </div>
         </div>
