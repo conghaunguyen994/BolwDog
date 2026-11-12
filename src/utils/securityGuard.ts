@@ -370,3 +370,4 @@ export function assertHumanNotBot(honeypotValue?: string): void {
     throw new Error('Hệ thống chống Bot tự động đã từ chối yêu cầu này.');
   }
 }
+

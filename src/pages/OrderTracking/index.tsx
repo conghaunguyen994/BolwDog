@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   Search,
   PackageCheck,
   Clock,
   CheckCircle2,
   AlertCircle,
-  Truck,
-  Printer,
   QrCode,
   ShieldAlert,
+  Sparkles,
+  Edit3,
+  ZoomIn,
+  X,
 } from 'lucide-react';
 import { orderService } from '../../services/orderService';
 import { settingsService } from '../../services/settingsService';
-import { Order, OrderStatus } from '../../types/order';
+import { DemoReviewStatus, Order, OrderStatus } from '../../types/order';
 import { ShopSettings } from '../../types/settings';
 import { defaultShopSettings as initialSettings } from '../../constants/defaultSettings';
 import { formatVND } from '../../utils/currency';
@@ -23,6 +25,9 @@ import {
   getPaymentStatusLabel,
   getOrderStatusBadgeClass,
   getPaymentStatusBadgeClass,
+  getOrderDemoPreview,
+  getDemoReviewStatusLabel,
+  getDemoReviewBadgeClass,
 } from '../../utils/statusLabels';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -41,6 +46,13 @@ export const OrderTrackingPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState<ShopSettings>(initialSettings);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+
+  // States cho tính năng Khách xem Demo 3D & Chốt In
+  const [showRevisionForm, setShowRevisionForm] = useState(false);
+  const [customerFeedback, setCustomerFeedback] = useState('');
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewMessage, setReviewMessage] = useState<string | null>(null);
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
 
   useEffect(() => {
     settingsService.getSettings().then(setSettings).catch(() => {});
@@ -62,6 +74,8 @@ export const OrderTrackingPage: React.FC = () => {
 
     setLoading(true);
     setError(null);
+    setReviewMessage(null);
+    setShowRevisionForm(false);
     try {
       const foundList = await orderService.lookupOrders(r, p);
       if (!foundList || foundList.length === 0) {
@@ -78,6 +92,53 @@ export const OrderTrackingPage: React.FC = () => {
       setOrder(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSubmitDemoReview = async (status: DemoReviewStatus) => {
+    if (!order) return;
+    if (status === 'revision_requested' && !customerFeedback.trim()) {
+      setReviewMessage('⚠️ Ba mẹ vui lòng nhập chi tiết điểm muốn chỉnh sửa trên mẫu 3D nhé!');
+      return;
+    }
+
+    setReviewLoading(true);
+    setReviewMessage(null);
+    try {
+      const updatedDemo = await orderService.submitCustomerDemoReview(order, {
+        status,
+        customerFeedback: customerFeedback.trim() || undefined,
+      });
+
+      const updatedItems = order.items.map((it, idx) =>
+        idx === 0
+          ? {
+              ...it,
+              customization_data: {
+                ...(it.customization_data || {}),
+                demoPreview: updatedDemo,
+              },
+            }
+          : it
+      );
+      const nextOrder: Order = { ...order, items: updatedItems };
+      setOrder(nextOrder);
+      setOrders((prev) => prev.map((o) => (o.id === nextOrder.id ? nextOrder : o)));
+      setShowRevisionForm(false);
+
+      if (status === 'approved') {
+        setReviewMessage(
+          '🎉 Cảm ơn ba mẹ đã chốt mẫu 3D! Xưởng đã nhận xác nhận và sẽ tiến hành bấm máy in 3D cho bé ngay.'
+        );
+      } else {
+        setReviewMessage(
+          '✍️ Đã gửi yêu cầu chỉnh sửa mẫu 3D tới xưởng! Nghệ nhân sẽ điều chỉnh lại file 3D và cập nhật bản demo mới tại đây nhé.'
+        );
+      }
+    } catch (err: any) {
+      setReviewMessage(`❌ ${err.message || 'Không thể gửi phản hồi duyệt mẫu.'}`);
+    } finally {
+      setReviewLoading(false);
     }
   };
 
@@ -271,6 +332,215 @@ export const OrderTrackingPage: React.FC = () => {
             </div>
           )}
 
+          {/* =================================================================
+              KHU VỰC KHÁCH HÀNG XEM TRƯỚC BẢN DEMO FILE 3D & CHỐT IN
+          ================================================================= */}
+          {(() => {
+            const demoPreview = getOrderDemoPreview(order);
+            if (!demoPreview) {
+              return (
+                <div className="p-4 sm:p-5 rounded-3xl bg-purple-50/70 dark:bg-cute-surface-dark border border-purple-200 dark:border-purple-800 flex items-center gap-3 text-xs text-cute-brown dark:text-cute-cream">
+                  <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center flex-shrink-0 text-lg">
+                    🎨
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="font-black block text-purple-900 dark:text-purple-200">
+                      Bản Demo File 3D đang được nghệ nhân thiết kế
+                    </span>
+                    <p className="text-[11px] text-cute-brown-light dark:text-cute-muted">
+                      Sau khi dựng xong file 3D theo tên & màu sắc của bé, xưởng sẽ gửi hình Demo 3D tại đây để ba mẹ xem trước và bấm <strong>&ldquo;Chốt In&rdquo;</strong> nhé!
+                    </p>
+                  </div>
+                </div>
+              );
+            }
+
+            const gallery =
+              demoPreview.images && demoPreview.images.length > 0
+                ? demoPreview.images
+                : [demoPreview.imageUrl];
+
+            return (
+              <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-purple-50 via-cute-pink/30 to-sky-50 dark:from-cute-surface-dark dark:to-cute-cream-dark border-2 border-purple-300 dark:border-purple-700 space-y-5 shadow-cute">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-purple-200/80">
+                  <div className="space-y-0.5">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-black text-purple-700 dark:text-purple-300 uppercase tracking-wide">
+                      <Sparkles className="w-4 h-4" />
+                      Bản Demo File 3D Trước Khi In
+                    </span>
+                    <h3 className="text-base sm:text-lg font-black text-cute-brown dark:text-cute-cream">
+                      Ba mẹ kiểm tra mẫu thiết kế 3D & xác nhận chốt in cho bé nhé!
+                    </h3>
+                  </div>
+                  <span
+                    className={`self-start sm:self-auto px-3 py-1 rounded-full text-xs font-bold ${getDemoReviewBadgeClass(
+                      demoPreview.status
+                    )}`}
+                  >
+                    {getDemoReviewStatusLabel(demoPreview.status)}
+                  </span>
+                </div>
+
+                {/* Lời nhắn từ Admin / Nghệ nhân */}
+                {demoPreview.adminNote && (
+                  <div className="p-3.5 rounded-2xl bg-white/90 dark:bg-cute-surface-dark border border-purple-200 text-xs space-y-1">
+                    <span className="font-bold text-purple-800 dark:text-purple-300 block">
+                      💬 Lời nhắn từ Xưởng In 3D BolwDog:
+                    </span>
+                    <p className="text-cute-brown dark:text-cute-cream leading-relaxed">
+                      &ldquo;{demoPreview.adminNote}&rdquo;
+                    </p>
+                    <span className="text-[10px] text-cute-brown-light block">
+                      Cập nhật lúc: {formatDate(demoPreview.sentAt)}
+                    </span>
+                  </div>
+                )}
+
+                {/* Hình ảnh bản dựng 3D (Bấm vào để phóng to) */}
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-cute-brown dark:text-cute-cream block">
+                    📸 Hình ảnh mô phỏng file 3D (Bấm vào ảnh để phóng to xem chi tiết):
+                  </span>
+                  <div
+                    className={`grid gap-3 ${
+                      gallery.length === 1
+                        ? 'grid-cols-1 max-w-xl mx-auto'
+                        : 'grid-cols-1 sm:grid-cols-2'
+                    }`}
+                  >
+                    {gallery.map((imgSrc, i) => (
+                      <div
+                        key={i}
+                        onClick={() => setZoomImage(imgSrc)}
+                        className="group relative cursor-pointer rounded-2xl overflow-hidden border-2 border-white shadow-md bg-white aspect-video flex items-center justify-center"
+                      >
+                        <img
+                          src={imgSrc}
+                          alt={`Bản Demo 3D góc ${i + 1}`}
+                          className="w-full h-full object-contain bg-neutral-900/5 group-hover:scale-[1.02] transition-transform duration-200"
+                        />
+                        <div className="absolute bottom-2 right-2 px-2.5 py-1 rounded-full bg-black/65 text-white text-[10px] font-bold flex items-center gap-1">
+                          <ZoomIn className="w-3 h-3" />
+                          <span>Phóng to góc {i + 1}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {reviewMessage && (
+                  <div className="p-3.5 rounded-2xl bg-white border border-purple-300 text-xs font-bold text-purple-900 shadow-sm">
+                    {reviewMessage}
+                  </div>
+                )}
+
+                {/* Trạng thái & Nút bấm Duyệt Chốt In hoặc Yêu cầu chỉnh sửa */}
+                {demoPreview.status === 'approved' ? (
+                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <span className="font-black text-sm flex items-center gap-1.5 text-emerald-700">
+                        <CheckCircle2 className="w-5 h-5" />
+                        Ba mẹ đã xác nhận CHỐT IN bản thiết kế 3D này!
+                      </span>
+                      <p className="text-[11px] opacity-85">
+                        Xưởng đang tiến hành đưa file vào máy in 3D cho bé yêu.
+                        {demoPreview.reviewedAt ? ` (Chốt lúc: ${formatDate(demoPreview.reviewedAt)})` : ''}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowRevisionForm(!showRevisionForm)}
+                      className="px-3 py-1.5 rounded-xl bg-white border border-emerald-300 text-emerald-800 font-bold text-[11px] hover:bg-emerald-100 transition-colors self-start sm:self-auto"
+                    >
+                      Gửi thêm ghi chú cho xưởng
+                    </button>
+                  </div>
+                ) : demoPreview.status === 'revision_requested' ? (
+                  <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-xs text-amber-900 space-y-2">
+                    <span className="font-black flex items-center gap-1.5 text-amber-800">
+                      <Edit3 className="w-4 h-4" />
+                      Ba mẹ đã gửi yêu cầu chỉnh sửa file 3D:
+                    </span>
+                    <p className="p-2.5 rounded-xl bg-white border border-amber-200 font-semibold text-cute-brown">
+                      &ldquo;{demoPreview.customerFeedback}&rdquo;
+                    </p>
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                      <span className="text-[11px] text-amber-800">
+                        Nghệ nhân đang sửa lại file 3D và sẽ cập nhật ảnh mới tại đây. Hoặc nếu ba mẹ đổi ý muốn chốt luôn mẫu hiện tại:
+                      </span>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => handleSubmitDemoReview('approved')}
+                        isLoading={reviewLoading}
+                        leftIcon={<CheckCircle2 className="w-4 h-4" />}
+                      >
+                        Chốt In Mẫu Hiện Tại Luôn
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3 pt-1">
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        type="button"
+                        disabled={reviewLoading}
+                        onClick={() => handleSubmitDemoReview('approved')}
+                        className="flex-1 py-3.5 px-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="w-5 h-5" />
+                        <span>✅ Ưng Ý 100% – Xác Nhận Chốt In Ngay!</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={reviewLoading}
+                        onClick={() => setShowRevisionForm(!showRevisionForm)}
+                        className="py-3.5 px-5 rounded-2xl bg-white hover:bg-rose-50 text-rose-600 border-2 border-rose-200 font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                        <span>✏️ Yêu Cầu Chỉnh Sửa Thêm</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Form nhập nội dung muốn chỉnh sửa file 3D */}
+                {showRevisionForm && (
+                  <div className="p-4 rounded-2xl bg-white border border-rose-200 space-y-3 animate-in fade-in duration-200">
+                    <label className="block text-xs font-bold text-cute-brown">
+                      Ba mẹ muốn xưởng điều chỉnh chi tiết nào trên file 3D? (Ví dụ: đổi cỡ chữ, đổi vị trí icon, sửa lại tên bé...)
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={customerFeedback}
+                      onChange={(e) => setCustomerFeedback(e.target.value)}
+                      placeholder="Nhập yêu cầu chỉnh sửa của ba mẹ..."
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-cute-border-light bg-cute-cream/30 text-xs text-cute-brown focus:outline-none focus:ring-2 focus:ring-rose-300 resize-none"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowRevisionForm(false)}
+                        className="px-3.5 py-2 rounded-xl text-xs font-bold text-cute-brown-light hover:bg-gray-100"
+                      >
+                        Hủy
+                      </button>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        isLoading={reviewLoading}
+                        onClick={() => handleSubmitDemoReview('revision_requested')}
+                      >
+                        Gửi Yêu Cầu Chỉnh Sửa Cho Xưởng
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Payment QR notice if unpaid or pending */}
           {order.payment_status === 'deposit_pending' && (
             <div className="p-4 rounded-3xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -354,6 +624,31 @@ export const OrderTrackingPage: React.FC = () => {
           order={order}
           settings={settings}
         />
+      )}
+
+      {/* Lightbox phóng to ảnh Demo 3D */}
+      {zoomImage && (
+        <div
+          onClick={() => setZoomImage(null)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+        >
+          <div className="relative max-w-4xl w-full max-h-[90vh] flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setZoomImage(null)}
+              className="absolute -top-10 right-0 px-3 py-1.5 rounded-full bg-white text-cute-brown font-bold text-xs flex items-center gap-1 shadow-md"
+            >
+              <X className="w-4 h-4" />
+              <span>Đóng</span>
+            </button>
+            <img
+              src={zoomImage}
+              alt="Phóng to bản Demo 3D"
+              className="max-w-full max-h-[85vh] rounded-2xl object-contain bg-white shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

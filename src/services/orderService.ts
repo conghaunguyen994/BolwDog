@@ -1,5 +1,5 @@
 import { supabase } from './supabase/client';
-import { Order, OrderStatus, PaymentStatus } from '../types/order';
+import { Demo3DPreview, DemoReviewStatus, Order, OrderStatus, PaymentStatus } from '../types/order';
 import {
   assertCsrfAndSameOrigin,
   assertHumanNotBot,
@@ -317,6 +317,152 @@ export const orderService = {
         .eq('id', orderId);
 
       if (error) throw new Error(error.message);
+    });
+  },
+
+  /**
+   * Admin gửi ảnh chụp / render bản Demo file 3D để khách hàng xem trước và chốt in
+   */
+  async sendDemo3DPreview(
+    order: Order,
+    payload: {
+      imageUrl: string;
+      images?: string[];
+      adminNote?: string;
+    }
+  ): Promise<Demo3DPreview> {
+    return withActionLock(`send_demo_${order.id}`, async () => {
+      assertCsrfAndSameOrigin();
+      enforceRateLimit('admin_mutation');
+
+      if (!payload.imageUrl || !payload.imageUrl.trim()) {
+        throw new Error('Vui lòng chọn ảnh chụp file 3D hoặc dán link ảnh demo.');
+      }
+
+      if (containsXssPayload(payload.adminNote)) {
+        throw new Error('Lời nhắn chứa ký tự không hợp lệ.');
+      }
+
+      const db = requireSupabase();
+      const firstItem = order.items?.[0];
+      if (!firstItem) {
+        throw new Error('Đơn hàng không có sản phẩm để gắn bản demo 3D.');
+      }
+
+      const demoPreview: Demo3DPreview = {
+        imageUrl: payload.imageUrl.trim(),
+        images: payload.images && payload.images.length > 0 ? payload.images : [payload.imageUrl.trim()],
+        adminNote: payload.adminNote ? sanitizeText(payload.adminNote, 500) : undefined,
+        sentAt: new Date().toISOString(),
+        status: 'pending_review',
+      };
+
+      const updatedCustomization = {
+        ...(firstItem.customization_data || {}),
+        demoPreview,
+      };
+
+      let query = db
+        .from('order_items')
+        .update({ customization_data: updatedCustomization });
+
+      if (firstItem.id) {
+        query = query.eq('id', firstItem.id);
+      } else {
+        query = query.eq('order_id', order.id);
+      }
+
+      const { error } = await query;
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return demoPreview;
+    });
+  },
+
+  /**
+   * Khách hàng xác nhận Chốt In ('approved') hoặc Yêu cầu chỉnh sửa thêm ('revision_requested')
+   */
+  async submitCustomerDemoReview(
+    order: Order,
+    payload: {
+      status: DemoReviewStatus;
+      customerFeedback?: string;
+    }
+  ): Promise<Demo3DPreview> {
+    return withActionLock(`review_demo_${order.id}`, async () => {
+      assertCsrfAndSameOrigin();
+      enforceRateLimit('submit_payment_proof');
+
+      if (containsXssPayload(payload.customerFeedback)) {
+        throw new Error('Nội dung phản hồi chứa mã lệnh không an toàn.');
+      }
+
+      const cleanFeedback = payload.customerFeedback
+        ? sanitizeText(payload.customerFeedback, 500)
+        : undefined;
+      const nowIso = new Date().toISOString();
+
+      const firstItem = order.items?.[0];
+      const existingDemo = firstItem?.customization_data?.demoPreview;
+      if (!existingDemo) {
+        throw new Error('Chưa có bản demo 3D trên đơn hàng này.');
+      }
+
+      const updatedDemo: Demo3DPreview = {
+        ...existingDemo,
+        status: payload.status,
+        customerFeedback: cleanFeedback,
+        reviewedAt: nowIso,
+      };
+
+      const updatedCustomization = {
+        ...(firstItem.customization_data || {}),
+        demoPreview: updatedDemo,
+      };
+
+      const db = requireSupabase();
+      let savedViaOrderItems = false;
+
+      // 1. Thử gọi RPC submit_order_demo_review (nếu đã tạo trong SQL)
+      const { error: rpcErr } = await db.rpc('submit_order_demo_review', {
+        p_order_id: order.id,
+        p_status: payload.status,
+        p_feedback: cleanFeedback || '',
+      });
+      if (!rpcErr) {
+        savedViaOrderItems = true;
+      }
+
+      // 2. Thử cập nhật trực tiếp order_items (thành công ngay nếu là chủ đơn / Admin)
+      if (!savedViaOrderItems) {
+        let updateQuery = db
+          .from('order_items')
+          .update({ customization_data: updatedCustomization });
+
+        if (firstItem.id) {
+          updateQuery = updateQuery.eq('id', firstItem.id);
+        } else {
+          updateQuery = updateQuery.eq('order_id', order.id);
+        }
+
+        const { error: itemErr } = await updateQuery;
+        if (!itemErr) {
+          savedViaOrderItems = true;
+        }
+      }
+
+      // 3. Ghi đồng thời vào bảng payments (hỗ trợ cả khách vãng lai chưa đăng nhập ngay lập tức)
+      await db.from('payments').insert({
+        order_id: order.id,
+        amount: 0,
+        payment_method: 'bank_transfer',
+        payment_status: 'pending_verification',
+        proof_image_url: `DEMO_REVIEW::${payload.status}::${cleanFeedback || ''}`,
+      });
+
+      return updatedDemo;
     });
   },
 };

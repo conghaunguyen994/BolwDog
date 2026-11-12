@@ -351,6 +351,21 @@ BEGIN
         )
         FROM public.order_items oi
         WHERE oi.order_id = o.id
+      ), '[]'::jsonb),
+      'payments', COALESCE((
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'id', p.id,
+            'order_id', p.order_id,
+            'amount', p.amount,
+            'payment_method', p.payment_method,
+            'payment_status', p.payment_status,
+            'proof_image_url', p.proof_image_url,
+            'created_at', p.created_at
+          )
+        )
+        FROM public.payments p
+        WHERE p.order_id = o.id
       ), '[]'::jsonb)
     ) AS order_obj
     FROM public.orders o
@@ -364,5 +379,53 @@ BEGIN
   ) sub;
 
   RETURN v_orders;
+END;
+$$;
+
+-- ====================================================================
+-- 7. HÀM KHÁCH HÀNG DUYỆT BẢN DEMO 3D & CHỐT IN TRỰC TIẾP
+-- ====================================================================
+CREATE OR REPLACE FUNCTION public.submit_order_demo_review(
+  p_order_id UUID,
+  p_status TEXT,
+  p_feedback TEXT DEFAULT ''
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_item_id UUID;
+  v_custom JSONB;
+BEGIN
+  IF p_status NOT IN ('approved', 'revision_requested') THEN
+    RAISE EXCEPTION 'Trạng thái duyệt mẫu 3D không hợp lệ';
+  END IF;
+
+  SELECT id, COALESCE(customization_data, '{}'::jsonb)
+  INTO v_item_id, v_custom
+  FROM public.order_items
+  WHERE order_id = p_order_id
+  ORDER BY id ASC
+  LIMIT 1;
+
+  IF v_item_id IS NULL THEN
+    RETURN FALSE;
+  END IF;
+
+  UPDATE public.order_items
+  SET customization_data = jsonb_set(
+    v_custom,
+    '{demoPreview}',
+    COALESCE(v_custom->'demoPreview', '{}'::jsonb) || jsonb_build_object(
+      'status', p_status,
+      'customerFeedback', COALESCE(p_feedback, ''),
+      'reviewedAt', to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+    ),
+    true
+  )
+  WHERE id = v_item_id;
+
+  RETURN TRUE;
 END;
 $$;

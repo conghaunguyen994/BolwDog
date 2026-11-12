@@ -1,5 +1,23 @@
 export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipping' | 'completed' | 'cancelled';
 export type PaymentStatus = 'unpaid' | 'deposit_pending' | 'partially_paid' | 'paid' | 'refunded';
+export type DemoReviewStatus = 'pending_review' | 'approved' | 'revision_requested';
+
+export interface Demo3DPreview {
+  /** Ảnh chụp màn hình / render 3D chính (DataURL nén hoặc link https) */
+  imageUrl: string;
+  /** Danh sách nhiều góc chụp file 3D (nếu có) */
+  images?: string[];
+  /** Lời nhắn của Admin gửi kèm bản demo */
+  adminNote?: string;
+  /** Thời điểm Admin gửi bản demo */
+  sentAt: string;
+  /** Trạng thái khách duyệt: chờ duyệt | đã chốt in | yêu cầu sửa lại */
+  status: DemoReviewStatus;
+  /** Ý kiến phản hồi / yêu cầu chỉnh sửa của khách hàng */
+  customerFeedback?: string;
+  /** Thời điểm khách bấm chốt in hoặc gửi yêu cầu chỉnh sửa */
+  reviewedAt?: string;
+}
 
 export interface PetCustomization {
   petName?: string;
@@ -18,6 +36,8 @@ export interface PetCustomization {
   keychainDesign?: string;
   customText?: string;
   phoneOnTag?: string;
+  // Bản demo file 3D để khách hàng xem trước & chốt in
+  demoPreview?: Demo3DPreview;
 }
 
 export interface OrderItem {
