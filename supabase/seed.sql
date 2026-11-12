@@ -96,10 +96,10 @@ VALUES
   ('s1111111-1111-1111-1111-111111111111', 'general_info', '{
     "shop_name": "BolwDog Boutique",
     "tagline": "Bát ăn chống gù, chống kiến & phụ kiện in 3D cá nhân hóa gửi trọn yêu thương cho bé cưng",
-    "owner_name": "Nguyễn Thanh Hà",
-    "phone": "0987 654 321",
-    "email": "cskh@bowldog.vn",
-    "address": "128 Đường Hoa Hồng, Phường 2, Quận Phú Nhuận, TP. Hồ Chí Minh",
+    "owner_name": "Nguyễn Công Hậu",
+    "phone": "0345553913",
+    "email": "conghaunguyen994@gmail.com.vn",
+    "address": "200 Phường Quy Nhơn Nam , Thành Phố Quy Nhơn , Tỉnh Gia Lai",
     "support_hours": "08:30 - 21:00 (Thứ 2 - Chủ Nhật)"
   }'::jsonb),
   ('s2222222-2222-2222-2222-222222222222', 'social_links', '{
@@ -108,10 +108,10 @@ VALUES
     "instagram": "https://instagram.com/bowldog.petboutique"
   }'::jsonb),
   ('s3333333-3333-3333-3333-333333333333', 'bank_transfer', '{
-    "bank_name": "Ngân hàng TMCP Ngoại Thương Việt Nam (Vietcombank)",
-    "bank_code": "VCB",
-    "account_number": "1029384756",
-    "account_holder": "NGUYEN THANH HA",
+    "bank_name": "Ngân hàng TMCP Đầu  Tư Và Phát Triển Việt Nam (BIDV)",
+    "bank_code": "BIDV",
+    "account_number": "5801769728",
+    "account_holder": "NGUYEN CONG HAU",
     "deposit_percentage": 50,
     "qr_template": "compact2",
     "transfer_note_prefix": "BD"
