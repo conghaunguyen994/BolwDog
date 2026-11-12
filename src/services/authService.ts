@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabase/client';
 import { UserProfile } from '../features/auth/authSlice';
+import { setLocalBlockedStatus } from '../utils/securityGuard';
 
 // Danh sách email chủ tiệm duy nhất được phép truy cập quyền Quản trị viên (Admin)
 const ALLOWED_ADMIN_EMAILS = [
@@ -37,6 +38,11 @@ export const authService = {
         .maybeSingle();
 
       const isVerifiedAdmin = isOwnerAdminEmail(user.email);
+      const isBlocked = !isVerifiedAdmin && Boolean(profile?.is_blocked);
+      const blockedReason = profile?.blocked_reason;
+
+      // Cập nhật trạng thái block vào bộ nhớ client
+      setLocalBlockedStatus(isBlocked, blockedReason);
 
       return {
         id: user.id,
@@ -47,6 +53,8 @@ export const authService = {
           (isVerifiedAdmin ? 'Nguyễn Công Hậu' : 'Khách Yêu'),
         phone: profile?.phone,
         role: isVerifiedAdmin ? 'admin' : 'customer',
+        isBlocked,
+        blockedReason,
       };
     } catch {
       return null;
@@ -104,6 +112,15 @@ export const authService = {
       .eq('id', data.user.id)
       .maybeSingle();
 
+    if (profile?.is_blocked && !isVerifiedAdmin) {
+      setLocalBlockedStatus(true, profile.blocked_reason);
+      await supabase.auth.signOut();
+      throw new Error(
+        profile.blocked_reason ||
+          'Tài khoản của bạn đã bị Admin chặn truy cập vào website do có hành vi phá hoại.'
+      );
+    }
+
     if (!profile) {
       await supabase
         .from('profiles')
@@ -116,12 +133,15 @@ export const authService = {
         .maybeSingle();
     }
 
+    setLocalBlockedStatus(false);
+
     return {
       id: data.user.id,
       email: data.user.email || '',
       fullName: profile?.full_name || fullName,
       phone: profile?.phone,
       role: isVerifiedAdmin ? 'admin' : 'customer',
+      isBlocked: false,
     };
   },
 
@@ -199,6 +219,61 @@ export const authService = {
     localStorage.removeItem('bowldog_mock_auth_user');
     if (isSupabaseConfigured && supabase) {
       await supabase.auth.signOut();
+    }
+  },
+
+  /**
+   * Lấy danh sách tất cả người dùng cho Admin quản lý
+   */
+  async getAllUsers(): Promise<any[]> {
+    if (!isSupabaseConfigured || !supabase) return [];
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*, orders:orders(id, total_amount, created_at)')
+      .order('created_at', { ascending: false });
+
+    if (error) throw new Error(error.message);
+
+    return (data || []).map((p: any) => {
+      const orders = p.orders || [];
+      const totalSpent = orders.reduce((acc: number, o: any) => acc + (Number(o.total_amount) || 0), 0);
+      return {
+        id: p.id,
+        email: p.email || '',
+        fullName: p.full_name || 'Khách Yêu',
+        phone: p.phone || '',
+        role: p.role || 'customer',
+        is_blocked: Boolean(p.is_blocked),
+        blocked_reason: p.blocked_reason || '',
+        blocked_at: p.blocked_at || '',
+        created_at: p.created_at || '',
+        updated_at: p.updated_at || '',
+        total_orders: orders.length,
+        total_spent: totalSpent,
+      };
+    });
+  },
+
+  /**
+   * Block hoặc Bỏ Block người dùng (Chỉ Admin mới có quyền thực thi)
+   */
+  async setBlockUser(userId: string, isBlocked: boolean, reason?: string): Promise<void> {
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Chưa kết nối Supabase.');
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        is_blocked: isBlocked,
+        blocked_reason: isBlocked ? (reason || 'Admin đã chặn tài khoản này do có hành vi phá hoại hoặc spam.') : null,
+        blocked_at: isBlocked ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId);
+
+    if (error) {
+      throw new Error(error.message || 'Không thể cập nhật trạng thái chặn người dùng.');
     }
   },
 };

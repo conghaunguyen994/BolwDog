@@ -8,6 +8,7 @@ import {
   Store,
   LogOut,
   ShieldCheck,
+  Users,
 } from 'lucide-react';
 import { useAppDispatch } from '../../app/hooks';
 import { logout } from '../../features/auth/authSlice';
@@ -28,6 +29,7 @@ export const AdminLayout: React.FC = () => {
     { to: '/admin/dashboard', label: 'Tổng quan xưởng', shortLabel: 'Tổng quan', icon: LayoutDashboard },
     { to: '/admin/orders', label: 'Quản lý đơn hàng', shortLabel: 'Đơn hàng', icon: ShoppingBag },
     { to: '/admin/products', label: 'Quản lý sản phẩm', shortLabel: 'Sản phẩm', icon: Package },
+    { to: '/admin/users', label: 'Quản lý khách & Chặn', shortLabel: 'Người dùng', icon: Users },
     { to: '/admin/settings', label: 'Cài đặt tiệm & Ngân hàng', shortLabel: 'Cài đặt', icon: Settings },
   ];
 

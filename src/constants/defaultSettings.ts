@@ -38,5 +38,6 @@ export const defaultShopSettings: ShopSettings = {
     notify_on_demo_review: true,
     notify_on_status_change: true,
   },
+  blocked_rules: [],
 };
 

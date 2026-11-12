@@ -371,3 +371,41 @@ export function assertHumanNotBot(honeypotValue?: string): void {
   }
 }
 
+/**
+ * Kiểm tra người dùng có đang bị Admin cấm / block vào website không
+ */
+const BLOCKED_CACHE_KEY = 'bowldog_client_blocked_info';
+
+export function getLocalBlockedStatus(): { isBlocked: boolean; reason?: string } {
+  try {
+    const raw = localStorage.getItem(BLOCKED_CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.isBlocked) {
+        return { isBlocked: true, reason: parsed.reason };
+      }
+    }
+  } catch {}
+  return { isBlocked: false };
+}
+
+export function setLocalBlockedStatus(isBlocked: boolean, reason?: string): void {
+  try {
+    if (isBlocked) {
+      localStorage.setItem(
+        BLOCKED_CACHE_KEY,
+        JSON.stringify({ isBlocked: true, reason: reason || 'Tài khoản hoặc thiết bị này đã bị Admin tạm khóa do vi phạm tiêu chuẩn cộng đồng hoặc có hành vi phá hoại website.' })
+      );
+    } else {
+      localStorage.removeItem(BLOCKED_CACHE_KEY);
+    }
+  } catch {}
+}
+
+export function assertNotBlocked(): void {
+  const status = getLocalBlockedStatus();
+  if (status.isBlocked) {
+    throw new Error(status.reason || 'Bạn đã bị Admin chặn truy cập vào website này.');
+  }
+}
+

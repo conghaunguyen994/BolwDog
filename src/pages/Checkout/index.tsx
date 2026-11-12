@@ -84,6 +84,24 @@ export const CheckoutPage: React.FC = () => {
     setSubmitError(null);
 
     try {
+      // Kiểm tra chặn nếu SĐT hoặc Email nằm trong Blacklist của Admin
+      const blockedRules = settings.blocked_rules || [];
+      const userPhone = data.phoneNumber.trim().replace(/\s+/g, '');
+      const userEmail = (data.email || '').trim().toLowerCase();
+
+      const matchedRule = blockedRules.find((r) => {
+        if (r.type === 'phone' && r.value.replace(/\s+/g, '') === userPhone) return true;
+        if (r.type === 'email' && userEmail && r.value.toLowerCase() === userEmail) return true;
+        return false;
+      });
+
+      if (matchedRule) {
+        throw new Error(
+          matchedRule.reason ||
+            'Số điện thoại hoặc Email này đã bị Admin chặn đặt hàng do vi phạm hoặc có hành vi phá hoại.'
+        );
+      }
+
       const order = await orderService.createOrder({
         customerName: data.fullName,
         customerPhone: data.phoneNumber,

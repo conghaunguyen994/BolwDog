@@ -23,6 +23,18 @@ BEGIN
 END;
 $$;
 
+-- Bổ sung các cột phục vụ tính năng Chặn User Phá Hoại nếu chưa có
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS blocked_reason TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS blocked_at TIMESTAMPTZ;
+
+-- Policy cho phép Admin xem & cập nhật trạng thái is_blocked của profiles
+DROP POLICY IF EXISTS "Admin can manage all profiles" ON public.profiles;
+CREATE POLICY "Admin can manage all profiles" ON public.profiles
+FOR ALL TO authenticated
+USING (public.is_admin())
+WITH CHECK (public.is_admin());
+
 CREATE OR REPLACE FUNCTION public.protect_profile_role()
 RETURNS TRIGGER
 LANGUAGE plpgsql

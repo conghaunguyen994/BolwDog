@@ -42,10 +42,19 @@ export interface EmailNotificationConfig {
   notify_on_status_change: boolean;
 }
 
+export interface BlockedClientRule {
+  id: string;
+  type: 'email' | 'phone' | 'ip_or_fingerprint';
+  value: string;
+  reason: string;
+  blocked_at: string;
+}
+
 export interface ShopSettings {
   general_info: GeneralShopInfo;
   social_links: SocialLinks;
   bank_transfer: BankTransferConfig;
   email_notifications?: EmailNotificationConfig;
+  blocked_rules?: BlockedClientRule[];
 }
 
