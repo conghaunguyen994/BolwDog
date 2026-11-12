@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Search, ShieldCheck, Heart, PackageCheck, Menu, X, LogIn, LogOut, User } from 'lucide-react';
+import { ShoppingBag, Search, ShieldCheck, Heart, PackageCheck, Menu, X, LogIn, LogOut, User, Phone, MessageCircle } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { logout } from '../../features/auth/authSlice';
 import { authService } from '../../services/authService';
@@ -40,12 +40,25 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
   return (
     <header className="sticky top-0 z-40 bg-white/85 dark:bg-cute-cream-dark/85 backdrop-blur-md border-b border-cute-border-light dark:border-cute-border-dark transition-colors duration-200">
       {/* Top Cute Announcement Bar */}
-      <div className="bg-gradient-to-r from-cute-pink/40 via-cute-peach/40 to-cute-lavender/40 dark:from-cute-pink-dark/20 dark:to-cute-lavender-dark/20 py-1.5 px-3 sm:px-4 text-center text-[11px] sm:text-xs font-semibold text-cute-brown dark:text-cute-cream flex items-center justify-center gap-1.5 sm:gap-2">
-        <Heart className="w-3.5 h-3.5 text-cute-pink-400 fill-cute-pink-400 animate-pulse-gentle flex-shrink-0" />
-        <span className="truncate">
-          Tiệm in 3D sinh học thân thiện với bé yêu & miễn phí khắc tên theo yêu cầu!
-        </span>
-        <span className="hidden sm:inline-block">🐾</span>
+      <div className="bg-gradient-to-r from-cute-pink/40 via-cute-peach/40 to-cute-lavender/40 dark:from-cute-pink-dark/20 dark:to-cute-lavender-dark/20 py-1.5 px-3 sm:px-4 text-center text-[11px] sm:text-xs font-semibold text-cute-brown dark:text-cute-cream flex items-center justify-between sm:justify-center gap-2">
+        <div className="flex items-center gap-1.5 truncate">
+          <Heart className="w-3.5 h-3.5 text-cute-pink-400 fill-cute-pink-400 animate-pulse-gentle flex-shrink-0" />
+          <span className="truncate">
+            Tiệm in 3D sinh học thân thiện với bé yêu & miễn phí khắc tên theo yêu cầu!
+          </span>
+          <span className="hidden sm:inline-block">🐾</span>
+        </div>
+
+        {/* Nổi bật Hotline/Zalo trên Announcement Bar */}
+        <a
+          href="https://zalo.me/0345553913"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#0068FF] text-white font-extrabold text-[10px] sm:text-[11px] shadow-sm hover:bg-[#0052cc] hover:scale-105 transition-all"
+        >
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
+          <span>Hotline/Zalo: <strong>0345.553.913</strong></span>
+        </a>
       </div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
@@ -104,6 +117,26 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
               <PackageCheck className="w-4 h-4 text-cute-pink-400" />
               <span>Tra cứu đơn</span>
             </Link>
+
+            {/* Hotline & Zalo Nổi Bật trên Desktop Nav */}
+            <a
+              href="https://zalo.me/0345553913"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center gap-2 pl-2.5 pr-3.5 py-1.5 rounded-full bg-gradient-to-r from-cute-pink-100 to-sky-100 dark:from-cute-surface-dark dark:to-cute-cream-dark/60 border border-cute-pink-300 dark:border-cute-pink-400/40 text-cute-brown dark:text-cute-cream shadow-sm hover:shadow-cute hover:scale-105 active:scale-95 transition-all"
+            >
+              <span className="w-6 h-6 rounded-full bg-[#0068FF] text-white flex items-center justify-center text-[10px] font-black group-hover:rotate-12 transition-transform">
+                Z
+              </span>
+              <div className="flex flex-col text-left leading-none">
+                <span className="text-[9px] uppercase font-bold text-cute-pink-500 dark:text-cute-pink-300">
+                  Zalo / Hotline 24/7
+                </span>
+                <span className="text-xs font-black text-cute-brown dark:text-cute-cream tracking-wide">
+                  0345.553.913
+                </span>
+              </div>
+            </a>
           </nav>
 
           {/* Right Action Icons */}
@@ -265,6 +298,30 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
               <PackageCheck className="w-4 h-4 text-cute-pink-400" />
               <span>Tra cứu đơn yêu thương</span>
             </Link>
+
+            {/* Hotline & Zalo nổi bật trên Mobile Drawer */}
+            <div className="pt-2 pb-1">
+              <a
+                href="https://zalo.me/0345553913"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-[#0068FF] to-[#0084FF] text-white font-bold shadow-md active:scale-95 transition-transform"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="w-8 h-8 rounded-xl bg-white text-[#0068FF] flex items-center justify-center font-black text-sm">
+                    Z
+                  </span>
+                  <div>
+                    <div className="text-[10px] text-blue-100 uppercase font-bold">Tư vấn in 3D nhanh</div>
+                    <div className="text-sm font-black tracking-wide">Zalo 0345.553.913</div>
+                  </div>
+                </div>
+                <span className="text-[11px] bg-white/20 px-2.5 py-1 rounded-full font-bold">
+                  Nhắn ngay
+                </span>
+              </a>
+            </div>
             <div className="pt-2 border-t border-cute-border-light dark:border-cute-border-dark space-y-2">
               {!auth.isAuthenticated ? (
                 <Link

@@ -189,7 +189,7 @@ export const AdminDashboard: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-cute-border-light/60 dark:divide-cute-border-dark/60">
               {orders.slice(0, 5).map((o) => (
-                <tr key={o.id} className="hover:bg-cute-cream/40 transition-colors">
+                <tr key={o.id} className="hover:bg-cute-cream/40  transition-colors">
                   <td className="py-3 px-2 font-mono font-bold text-cute-brown dark:text-cute-cream">
                     {o.order_reference}
                   </td>

@@ -81,13 +81,29 @@ export const Footer: React.FC = () => {
               <span>Chăm Sóc Ba Mẹ Bé</span>
             </h4>
             <div className="space-y-2.5 text-xs text-cute-brown-light dark:text-cute-muted">
-              <p className="flex items-start gap-2">
+              {/* Box Hotline & Zalo Nổi Bật Trong Footer */}
+              <a
+                href={`https://zalo.me/${info.phone.replace(/\s+/g, '') || '0345553913'}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 p-3 rounded-2xl bg-[#0068FF] hover:bg-[#0052cc] text-white shadow-md hover:scale-[1.02] transition-all group"
+              >
+                <div className="w-8 h-8 rounded-xl bg-white text-[#0068FF] flex items-center justify-center font-black text-sm flex-shrink-0 group-hover:rotate-12 transition-transform">
+                  Z
+                </div>
+                <div>
+                  <div className="text-[10px] text-blue-100 uppercase font-extrabold tracking-wider">
+                    Hotline & Zalo Tư Vấn 24/7
+                  </div>
+                  <div className="text-sm font-black tracking-wide">
+                    {info.phone || '0345553913'}
+                  </div>
+                </div>
+              </a>
+
+              <p className="flex items-start gap-2 pt-1">
                 <Clock className="w-4 h-4 text-cute-pink-400 flex-shrink-0 mt-0.5" />
                 <span>Giờ hỗ trợ: {info.support_hours}</span>
-              </p>
-              <p className="flex items-start gap-2">
-                <Phone className="w-4 h-4 text-cute-pink-400 flex-shrink-0 mt-0.5" />
-                <span>Hotline / Zalo: <strong className="text-cute-brown dark:text-cute-cream">{info.phone}</strong></span>
               </p>
               <p className="flex items-start gap-2">
                 <Mail className="w-4 h-4 text-cute-pink-400 flex-shrink-0 mt-0.5" />

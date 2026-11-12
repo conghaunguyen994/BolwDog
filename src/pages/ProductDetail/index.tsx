@@ -519,6 +519,31 @@ export const ProductDetailPage: React.FC = () => {
                 </Link>
               </div>
             )}
+
+            {/* Banner Zalo Hỗ Trợ Riêng Cho Từng Sản Phẩm */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-50 to-sky-50 dark:from-cute-surface-dark dark:to-cute-cream-dark/40 border border-blue-200 dark:border-blue-800 flex items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#0068FF] text-white flex items-center justify-center font-black text-sm flex-shrink-0">
+                  Z
+                </div>
+                <div>
+                  <span className="font-bold text-cute-brown dark:text-cute-cream block">
+                    Cần tư vấn phối màu riêng theo bé?
+                  </span>
+                  <span className="text-[11px] text-cute-brown-light dark:text-cute-muted">
+                    Zalo nghệ nhân: <strong>0345.553.913</strong>
+                  </span>
+                </div>
+              </div>
+              <a
+                href="https://zalo.me/0345553913"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 rounded-xl bg-[#0068FF] hover:bg-[#0052cc] text-white font-extrabold text-[11px] shadow-sm hover:scale-105 active:scale-95 transition-all flex-shrink-0"
+              >
+                Nhắn Zalo ngay
+              </a>
+            </div>
           </div>
 
           {/* Assurance info */}

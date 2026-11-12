@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { Footer } from './Footer';
 import { MobileNav } from './MobileNav';
 import { CartDrawer } from '../cart/CartDrawer';
+import { FloatingHotline } from '../common/FloatingHotline';
 
 export const MainLayout: React.FC = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -19,6 +20,9 @@ export const MainLayout: React.FC = () => {
       <Footer />
       <MobileNav onOpenCart={() => setIsCartOpen(true)} />
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+
+      {/* Nút Hotline / Zalo nổi bật trôi theo màn hình */}
+      <FloatingHotline phone="0345553913" zaloPhone="0345553913" />
     </div>
   );
 };
