@@ -18,6 +18,12 @@ import { ShopSettings } from '../../types/settings';
 import { initialSettings } from '../../services/mock/mockData';
 import { formatVND } from '../../utils/currency';
 import { formatDate } from '../../utils/date';
+import {
+  getOrderStatusLabel,
+  getPaymentStatusLabel,
+  getOrderStatusBadgeClass,
+  getPaymentStatusBadgeClass,
+} from '../../utils/statusLabels';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { BankTransferQRModal } from '../../components/checkout/BankTransferQRModal';
@@ -179,16 +185,12 @@ export const OrderTrackingPage: React.FC = () => {
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-cute-pink/60 text-cute-brown">
-                Trạng thái: <strong>{order.order_status}</strong>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`text-xs font-semibold px-3 py-1.5 rounded-full ${getOrderStatusBadgeClass(order.order_status)}`}>
+                Trạng thái: <strong>{getOrderStatusLabel(order.order_status)}</strong>
               </span>
-              <span className={`text-xs font-semibold px-3 py-1.5 rounded-full ${
-                order.payment_status === 'paid' || order.payment_status === 'partially_paid'
-                  ? 'bg-emerald-100 text-emerald-800'
-                  : 'bg-amber-100 text-amber-800'
-              }`}>
-                Thanh toán: <strong>{order.payment_status}</strong>
+              <span className={`text-xs font-semibold px-3 py-1.5 rounded-full ${getPaymentStatusBadgeClass(order.payment_status)}`}>
+                Thanh toán: <strong>{getPaymentStatusLabel(order.payment_status)}</strong>
               </span>
             </div>
           </div>

@@ -151,15 +151,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
               </span>
             </button>
 
-            {/* Admin Portal Shortcut */}
-            <Link
-              to="/admin/dashboard"
-              title="Khu vực Quản trị (Admin Portal)"
-              className="hidden lg:flex items-center gap-1.5 text-xs px-3 py-2 rounded-full bg-cute-lavender/60 hover:bg-cute-lavender dark:bg-cute-lavender-dark text-cute-brown dark:text-cute-cream border border-cute-lavender font-semibold transition-colors"
-            >
-              <ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-300" />
-              <span>Admin</span>
-            </Link>
+            {/* Admin Portal Shortcut (chỉ hiển thị khi chủ tiệm đã đăng nhập xác thực Admin) */}
+            {auth.isAdmin && (
+              <Link
+                to="/admin/dashboard"
+                title="Khu vực Quản trị"
+                className="hidden lg:flex items-center gap-1.5 text-xs px-3 py-2 rounded-full bg-cute-lavender/60 hover:bg-cute-lavender dark:bg-cute-lavender-dark text-cute-brown dark:text-cute-cream border border-cute-lavender font-semibold transition-colors"
+              >
+                <ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-300" />
+                <span>Quản trị</span>
+              </Link>
+            )}
 
             {/* Mobile Hamburger Menu */}
             <button
@@ -220,16 +222,18 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
               <PackageCheck className="w-4 h-4 text-cute-pink-400" />
               <span>Tra cứu đơn yêu thương</span>
             </Link>
-            <div className="pt-2 border-t border-cute-border-light dark:border-cute-border-dark">
-              <Link
-                to="/admin/dashboard"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="py-1.5 flex items-center gap-2 text-purple-600 dark:text-purple-300"
-              >
-                <ShieldCheck className="w-4 h-4" />
-                <span>Trang Quản trị Admin</span>
-              </Link>
-            </div>
+            {auth.isAdmin && (
+              <div className="pt-2 border-t border-cute-border-light dark:border-cute-border-dark">
+                <Link
+                  to="/admin/dashboard"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="py-1.5 flex items-center gap-2 text-purple-600 dark:text-purple-300"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Cổng Quản trị Xưởng</span>
+                </Link>
+              </div>
+            )}
           </nav>
         </div>
       )}

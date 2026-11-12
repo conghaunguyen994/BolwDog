@@ -17,6 +17,12 @@ import { Order } from '../../types/order';
 import { Product } from '../../types/product';
 import { formatVND } from '../../utils/currency';
 import { formatDate } from '../../utils/date';
+import {
+  getOrderStatusLabel,
+  getPaymentStatusLabel,
+  getOrderStatusBadgeClass,
+  getPaymentStatusBadgeClass,
+} from '../../utils/statusLabels';
 import { Badge } from '../../components/common/Badge';
 
 export const AdminDashboard: React.FC = () => {
@@ -197,18 +203,14 @@ export const AdminDashboard: React.FC = () => {
                   <td className="py-3 px-2 font-bold text-rose-500">
                     {formatVND(o.deposit_amount)}
                   </td>
-                  <td className="py-3 px-2">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      o.payment_status === 'paid' || o.payment_status === 'partially_paid'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-amber-100 text-amber-800'
-                    }`}>
-                      {o.payment_status}
+                  <td className="py-3 px-2 whitespace-nowrap">
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getPaymentStatusBadgeClass(o.payment_status)}`}>
+                      {getPaymentStatusLabel(o.payment_status)}
                     </span>
                   </td>
-                  <td className="py-3 px-2">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cute-pink/60 text-cute-brown">
-                      {o.order_status}
+                  <td className="py-3 px-2 whitespace-nowrap">
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getOrderStatusBadgeClass(o.order_status)}`}>
+                      {getOrderStatusLabel(o.order_status)}
                     </span>
                   </td>
                   <td className="py-3 px-2 text-cute-brown-light text-[11px]">

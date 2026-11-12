@@ -117,3 +117,17 @@ VALUES
     "transfer_note_prefix": "BD"
   }'::jsonb)
 ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value;
+
+-- 6. ĐẢM BẢO CHỈ DUY NHẤT CHỦ TIỆM NGUYỄN CÔNG HẬU CÓ QUYỀN ADMIN TRONG BẢNG PROFILES
+ALTER TABLE public.profiles DISABLE TRIGGER tr_protect_profile_role;
+
+UPDATE public.profiles p
+SET role = CASE
+  WHEN lower(u.email) IN ('conghaunguyen994@gmail.com', 'conghaunguyen994@gmail.com.vn') THEN 'admin'::user_role
+  ELSE 'customer'::user_role
+END
+FROM auth.users u
+WHERE p.id = u.id;
+
+ALTER TABLE public.profiles ENABLE TRIGGER tr_protect_profile_role;
+

@@ -1,117 +1,166 @@
 import { supabase, isSupabaseConfigured } from './supabase/client';
 import { UserProfile } from '../features/auth/authSlice';
 
-const MOCK_CURRENT_USER_KEY = 'bowldog_mock_auth_user';
+// Danh sách email chủ tiệm duy nhất được phép truy cập quyền Quản trị viên (Admin)
+const ALLOWED_ADMIN_EMAILS = [
+  'conghaunguyen994@gmail.com',
+  'conghaunguyen994@gmail.com.vn',
+];
+
+export function isOwnerAdminEmail(email?: string | null): boolean {
+  if (!email) return false;
+  return ALLOWED_ADMIN_EMAILS.includes(email.trim().toLowerCase());
+}
 
 export const authService = {
+  /**
+   * Kiểm tra phiên đăng nhập hiện tại trực tiếp với máy chủ xác thực Supabase (JWT verification).
+   * Tuyệt đối không tin tưởng dữ liệu lưu trong localStorage để cấp quyền Admin.
+   */
   async getInitialUser(): Promise<UserProfile | null> {
-    if (isSupabaseConfigured && supabase) {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return null;
+    // Xóa bỏ key mock cũ nếu có để tránh bị lợi dụng qua DevTools
+    localStorage.removeItem('bowldog_mock_auth_user');
 
-      // Query profile role
+    if (!isSupabaseConfigured || !supabase) {
+      return null;
+    }
+
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error || !user) return null;
+
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .single();
 
-      return {
-        id: session.user.id,
-        email: session.user.email || '',
-        fullName: profile?.full_name || session.user.user_metadata?.full_name || 'Khách Yêu',
-        phone: profile?.phone,
-        role: profile?.role || 'customer',
-      };
-    }
+      const isVerifiedAdmin =
+        isOwnerAdminEmail(user.email) &&
+        (profile?.role === 'admin' || isOwnerAdminEmail(user.email));
 
-    const saved = localStorage.getItem(MOCK_CURRENT_USER_KEY);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return null;
+      return {
+        id: user.id,
+        email: user.email || '',
+        fullName: profile?.full_name || user.user_metadata?.full_name || 'Nguyễn Công Hậu',
+        phone: profile?.phone,
+        role: isVerifiedAdmin ? 'admin' : 'customer',
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Xác thực lại phiên Admin trực tiếp với Supabase Server trước khi cho phép vào trang /admin/*
+   */
+  async verifyAdminSession(): Promise<boolean> {
+    if (!isSupabaseConfigured || !supabase) {
+      return false;
+    }
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error || !user || !isOwnerAdminEmail(user.email)) {
+        return false;
       }
-    }
-    return null;
-  },
-
-  async login(email: string, pass: string): Promise<UserProfile> {
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password: pass,
-      });
-      if (error) throw error;
-      if (!data.user) throw new Error('Không thể đăng nhập');
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
 
-      return {
-        id: data.user.id,
-        email: data.user.email || '',
-        fullName: profile?.full_name || data.user.user_metadata?.full_name || 'Khách Yêu',
-        phone: profile?.phone,
-        role: profile?.role || 'customer',
-      };
+      // Nếu bảng profiles đã khởi tạo và có role khác admin thì từ chối
+      if (profile && profile.role !== 'admin' && !isOwnerAdminEmail(user.email)) {
+        return false;
+      }
+
+      return true;
+    } catch {
+      return false;
     }
-
-    // Mock Login: recognize admin credentials or default customer
-    const isAdmin = email.toLowerCase().includes('admin') || pass === 'admin123';
-    const profile: UserProfile = {
-      id: isAdmin ? 'mock-admin-001' : `mock-user-${Date.now()}`,
-      email,
-      fullName: isAdmin ? 'Admin Cún Xinh' : 'Ba Mẹ Bé Cưng',
-      role: isAdmin ? 'admin' : 'customer',
-    };
-    localStorage.setItem(MOCK_CURRENT_USER_KEY, JSON.stringify(profile));
-    return profile;
   },
 
-  async register(email: string, pass: string, fullName: string, phone?: string): Promise<UserProfile> {
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password: pass,
-        options: {
-          data: {
-            full_name: fullName,
-            phone,
-          },
-        },
-      });
-      if (error) throw error;
-      if (!data.user) throw new Error('Không thể đăng ký tài khoản');
-
-      return {
-        id: data.user.id,
-        email: data.user.email || '',
-        fullName,
-        phone,
-        role: 'customer',
-      };
+  /**
+   * Đăng nhập bằng tài khoản thực trên Supabase Auth (Email + Mật khẩu được mã hóa bcrypt trên server)
+   */
+  async login(email: string, pass: string): Promise<UserProfile> {
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Hệ thống xác thực bảo mật chưa kết nối máy chủ.');
     }
 
-    const profile: UserProfile = {
-      id: `mock-user-${Date.now()}`,
-      email,
+    const normalizedEmail = email.trim().toLowerCase();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password: pass,
+    });
+
+    if (error) {
+      throw new Error('Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.');
+    }
+    if (!data.user) {
+      throw new Error('Không thể xác thực tài khoản.');
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .maybeSingle();
+
+    const isVerifiedAdmin = isOwnerAdminEmail(data.user.email);
+
+    return {
+      id: data.user.id,
+      email: data.user.email || '',
+      fullName:
+        profile?.full_name ||
+        data.user.user_metadata?.full_name ||
+        (isVerifiedAdmin ? 'Nguyễn Công Hậu' : 'Khách Yêu'),
+      phone: profile?.phone,
+      role: isVerifiedAdmin ? 'admin' : 'customer',
+    };
+  },
+
+  /**
+   * Đăng ký tài khoản khách hàng (Mọi tài khoản đăng ký mới mặc định là customer,
+   * chỉ duy nhất email chính chủ của Nguyễn Công Hậu mới được cấp quyền admin)
+   */
+  async register(email: string, pass: string, fullName: string, phone?: string): Promise<UserProfile> {
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Hệ thống đăng ký chưa kết nối máy chủ.');
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const { data, error } = await supabase.auth.signUp({
+      email: normalizedEmail,
+      password: pass,
+      options: {
+        data: {
+          full_name: fullName,
+          phone,
+        },
+      },
+    });
+
+    if (error) throw new Error(error.message || 'Không thể đăng ký tài khoản');
+    if (!data.user) throw new Error('Không thể đăng ký tài khoản');
+
+    const isVerifiedAdmin = isOwnerAdminEmail(data.user.email);
+
+    return {
+      id: data.user.id,
+      email: data.user.email || '',
       fullName,
       phone,
-      role: 'customer',
+      role: isVerifiedAdmin ? 'admin' : 'customer',
     };
-    localStorage.setItem(MOCK_CURRENT_USER_KEY, JSON.stringify(profile));
-    return profile;
   },
 
   async logout(): Promise<void> {
+    localStorage.removeItem('bowldog_mock_auth_user');
     if (isSupabaseConfigured && supabase) {
       await supabase.auth.signOut();
     }
-    localStorage.removeItem(MOCK_CURRENT_USER_KEY);
   },
 };
-

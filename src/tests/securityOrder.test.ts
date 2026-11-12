@@ -7,6 +7,8 @@ vi.mock('../services/supabase/client', () => ({
 }));
 
 import { orderService } from '../services/orderService';
+import { isOwnerAdminEmail } from '../services/authService';
+import { getOrderStatusLabel, getPaymentStatusLabel } from '../utils/statusLabels';
 
 describe('Security & Privacy: Guest Order Isolation & Reference Randomness', () => {
   beforeEach(() => {
@@ -76,5 +78,23 @@ describe('Security & Privacy: Guest Order Isolation & Reference Randomness', () 
     );
 
     expect(maliciousLookup).toBeNull();
+  });
+
+  it('should strictly allow ONLY owner Nguyen Cong Hau email as Admin and block all other emails', () => {
+    expect(isOwnerAdminEmail('conghaunguyen994@gmail.com')).toBe(true);
+    expect(isOwnerAdminEmail('CONGHAUNGUYEN994@GMAIL.COM.VN')).toBe(true);
+    expect(isOwnerAdminEmail('admin@bowldog.vn')).toBe(false);
+    expect(isOwnerAdminEmail('hacker@gmail.com')).toBe(false);
+    expect(isOwnerAdminEmail('')).toBe(false);
+    expect(isOwnerAdminEmail(null)).toBe(false);
+  });
+
+  it('should translate all order and payment status codes into pure Vietnamese', () => {
+    expect(getPaymentStatusLabel('deposit_pending')).toBe('Chờ chuyển cọc');
+    expect(getPaymentStatusLabel('partially_paid')).toBe('Đã cọc 50%');
+    expect(getPaymentStatusLabel('paid')).toBe('Đã thanh toán đủ');
+    expect(getOrderStatusLabel('pending')).toBe('Chờ xác nhận');
+    expect(getOrderStatusLabel('processing')).toBe('Đang in 3D');
+    expect(getOrderStatusLabel('completed')).toBe('Đã hoàn thành');
   });
 });

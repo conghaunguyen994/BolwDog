@@ -3,12 +3,16 @@
 -- ====================================================================
 
 -- 1. SECURE HELPER FUNCTION FOR ROLE VERIFICATION
+-- Chỉ duy nhất chủ tiệm Nguyễn Công Hậu (xác thực qua JWT của Supabase Auth + role = 'admin') mới có quyền Admin
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN AS $$
 BEGIN
   RETURN EXISTS (
     SELECT 1 FROM public.profiles
     WHERE id = auth.uid() AND role = 'admin'
+  ) AND lower(coalesce(auth.jwt() ->> 'email', '')) IN (
+    'conghaunguyen994@gmail.com',
+    'conghaunguyen994@gmail.com.vn'
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
@@ -30,6 +34,7 @@ BEFORE UPDATE ON public.profiles
 FOR EACH ROW EXECUTE FUNCTION public.protect_profile_role();
 
 -- Auto-create profile on auth.users signup
+-- Tự động cấp quyền 'admin' duy nhất cho email chủ tiệm Nguyễn Công Hậu, mọi tài khoản khác mặc định là 'customer'
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -37,7 +42,10 @@ BEGIN
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
-    'customer'
+    CASE
+      WHEN lower(NEW.email) IN ('conghaunguyen994@gmail.com', 'conghaunguyen994@gmail.com.vn') THEN 'admin'::user_role
+      ELSE 'customer'::user_role
+    END
   );
   RETURN NEW;
 END;

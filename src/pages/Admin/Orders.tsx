@@ -17,6 +17,12 @@ import { orderService } from '../../services/orderService';
 import { Order, OrderStatus, PaymentStatus } from '../../types/order';
 import { formatVND } from '../../utils/currency';
 import { formatDate } from '../../utils/date';
+import {
+  getOrderStatusLabel,
+  getPaymentStatusLabel,
+  getOrderStatusBadgeClass,
+  getPaymentStatusBadgeClass,
+} from '../../utils/statusLabels';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
 import { Badge } from '../../components/common/Badge';
@@ -149,12 +155,12 @@ export const AdminOrders: React.FC = () => {
               className="px-3 py-1.5 rounded-xl border border-cute-border-light bg-white dark:bg-cute-surface-dark font-semibold text-cute-brown dark:text-cute-cream focus:outline-none"
             >
               <option value="all">Tất cả trạng thái</option>
-              <option value="pending">Chờ xác nhận (Pending)</option>
-              <option value="confirmed">Đã duyệt cọc (Confirmed)</option>
-              <option value="processing">Đang in 3D (Processing)</option>
-              <option value="shipping">Đang giao hàng (Shipping)</option>
-              <option value="completed">Đã hoàn tất (Completed)</option>
-              <option value="cancelled">Đã hủy (Cancelled)</option>
+              <option value="pending">Chờ xác nhận</option>
+              <option value="confirmed">Đã duyệt cọc</option>
+              <option value="processing">Đang in 3D</option>
+              <option value="shipping">Đang giao hàng</option>
+              <option value="completed">Đã hoàn thành</option>
+              <option value="cancelled">Đã hủy đơn</option>
             </select>
           </div>
 
@@ -167,9 +173,9 @@ export const AdminOrders: React.FC = () => {
               className="px-3 py-1.5 rounded-xl border border-cute-border-light bg-white dark:bg-cute-surface-dark font-semibold text-cute-brown dark:text-cute-cream focus:outline-none"
             >
               <option value="all">Tất cả thanh toán</option>
-              <option value="deposit_pending">Chờ cọc (Deposit Pending)</option>
-              <option value="partially_paid">Đã nhận cọc 50% (Partially Paid)</option>
-              <option value="paid">Đã thanh toán 100% (Paid)</option>
+              <option value="deposit_pending">Chờ chuyển cọc</option>
+              <option value="partially_paid">Đã cọc 50%</option>
+              <option value="paid">Đã thanh toán đủ</option>
               <option value="unpaid">Chưa thanh toán</option>
               <option value="refunded">Đã hoàn tiền</option>
             </select>
@@ -250,17 +256,13 @@ export const AdminOrders: React.FC = () => {
                       {formatVND(o.deposit_amount)}
                     </td>
                     <td className="py-3 px-3 whitespace-nowrap">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                        o.payment_status === 'paid' || o.payment_status === 'partially_paid'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {o.payment_status}
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${getPaymentStatusBadgeClass(o.payment_status)}`}>
+                        {getPaymentStatusLabel(o.payment_status)}
                       </span>
                     </td>
                     <td className="py-3 px-3 whitespace-nowrap">
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-cute-pink/60 text-cute-brown">
-                        {o.order_status}
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${getOrderStatusBadgeClass(o.order_status)}`}>
+                        {getOrderStatusLabel(o.order_status)}
                       </span>
                     </td>
                     <td className="py-3 px-3 text-[11px] text-cute-brown-light whitespace-nowrap">
@@ -300,7 +302,7 @@ export const AdminOrders: React.FC = () => {
                   Tiền cọc cần đối soát (50%): <strong className="text-rose-600 text-sm font-extrabold">{formatVND(selectedOrder.deposit_amount)}</strong>
                 </span>
                 <span className="text-[11px] text-amber-700 dark:text-amber-300">
-                  Trạng thái hiện tại: <strong>{selectedOrder.payment_status}</strong>
+                  Trạng thái thanh toán: <strong>{getPaymentStatusLabel(selectedOrder.payment_status)}</strong>
                 </span>
               </div>
 
@@ -328,12 +330,12 @@ export const AdminOrders: React.FC = () => {
                   onChange={(e) => handleUpdateOrderStatus(selectedOrder.id, e.target.value as OrderStatus)}
                   className="w-full px-3 py-2 rounded-xl border border-cute-border-light bg-cute-cream font-bold text-xs"
                 >
-                  <option value="pending">Chờ xác nhận (Pending)</option>
-                  <option value="confirmed">Đã duyệt cọc (Confirmed)</option>
-                  <option value="processing">Đang in 3D (Processing)</option>
-                  <option value="shipping">Đang giao hàng (Shipping)</option>
-                  <option value="completed">Đã hoàn thành (Completed)</option>
-                  <option value="cancelled">Hủy đơn (Cancelled)</option>
+                  <option value="pending">Chờ xác nhận</option>
+                  <option value="confirmed">Đã duyệt cọc</option>
+                  <option value="processing">Đang in 3D</option>
+                  <option value="shipping">Đang giao hàng</option>
+                  <option value="completed">Đã hoàn thành</option>
+                  <option value="cancelled">Đã hủy đơn</option>
                 </select>
               </div>
 
@@ -346,11 +348,11 @@ export const AdminOrders: React.FC = () => {
                   onChange={(e) => handleUpdatePaymentStatus(selectedOrder.id, e.target.value as PaymentStatus)}
                   className="w-full px-3 py-2 rounded-xl border border-cute-border-light bg-cute-cream font-bold text-xs"
                 >
-                  <option value="unpaid">Chưa thanh toán (Unpaid)</option>
-                  <option value="deposit_pending">Chờ cọc (Deposit Pending)</option>
-                  <option value="partially_paid">Đã cọc 50% (Partially Paid)</option>
-                  <option value="paid">Đã thanh toán 100% (Paid)</option>
-                  <option value="refunded">Đã hoàn trả (Refunded)</option>
+                  <option value="unpaid">Chưa thanh toán</option>
+                  <option value="deposit_pending">Chờ chuyển cọc</option>
+                  <option value="partially_paid">Đã cọc 50%</option>
+                  <option value="paid">Đã thanh toán đủ</option>
+                  <option value="refunded">Đã hoàn tiền</option>
                 </select>
               </div>
             </div>

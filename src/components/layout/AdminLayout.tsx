@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { logout } from '../../features/auth/authSlice';
+import { authService } from '../../services/authService';
 import { ThemeToggle } from '../common/ThemeToggle';
 
 export const AdminLayout: React.FC = () => {
@@ -21,13 +22,14 @@ export const AdminLayout: React.FC = () => {
   const auth = useAppSelector((state) => state.auth);
 
   const navLinks = [
-    { to: '/admin/dashboard', label: 'Tổng quan (Dashboard)', icon: LayoutDashboard },
+    { to: '/admin/dashboard', label: 'Tổng quan xưởng', icon: LayoutDashboard },
     { to: '/admin/orders', label: 'Quản lý đơn hàng', icon: ShoppingBag },
     { to: '/admin/products', label: 'Quản lý sản phẩm', icon: Package },
     { to: '/admin/settings', label: 'Cài đặt tiệm & Ngân hàng', icon: Settings },
   ];
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authService.logout();
     dispatch(logout());
     navigate('/');
   };
