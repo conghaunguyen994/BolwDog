@@ -415,6 +415,22 @@ export const AdminSettings: React.FC = () => {
             </div>
           </div>
 
+          <div>
+            <label className="block text-xs font-bold text-cute-brown mb-1">
+              Tên miền Website chính thức (Gắn vào nút trong Email gửi khách):
+            </label>
+            <input
+              type="url"
+              value={emailConfig.production_site_url || ''}
+              onChange={(e) => updateEmailConfig({ production_site_url: e.target.value })}
+              placeholder="https://bolwdog.vercel.app"
+              className="w-full px-3.5 py-2 rounded-xl border border-cute-border-light text-xs bg-white focus:outline-none font-mono"
+            />
+            <span className="text-[10px] text-cute-brown-light dark:text-cute-muted">
+              Đường dẫn này được tự động gắn vào nút bấm duyệt Demo 3D để khách hàng mở trên điện thoại hay bất kỳ đâu cũng bấm vào xem được.
+            </span>
+          </div>
+
           {/* Tùy chọn các sự kiện gửi email */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 text-xs">
             <label className="flex items-center gap-2 p-2.5 rounded-xl bg-cute-cream/50 border border-cute-border-light cursor-pointer">

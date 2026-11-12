@@ -30,6 +30,8 @@ export interface EmailNotificationConfig {
   enabled: boolean;
   admin_email: string;
   admin_backup_email?: string;
+  /** Tên miền website chính thức (ví dụ: https://bolwdog.vercel.app) để gắn link vào Email */
+  production_site_url?: string;
   /** URL Google Apps Script hoặc Webhook gửi email 2 chiều (Admin ⇄ Khách hàng) */
   webhook_url?: string;
   /** Cấu hình EmailJS (Tùy chọn) */

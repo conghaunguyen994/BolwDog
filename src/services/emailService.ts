@@ -23,15 +23,26 @@ export interface EmailPayload {
   orderReference?: string;
 }
 
-function getBaseSiteUrl(): string {
+function getBaseSiteUrl(customConfig?: EmailNotificationConfig): string {
+  if (customConfig?.production_site_url?.trim()) {
+    return customConfig.production_site_url.trim().replace(/\/+$/, '');
+  }
   if (typeof window !== 'undefined' && window.location?.origin) {
-    return window.location.origin;
+    const origin = window.location.origin;
+    // Nếu đang test ở localhost, ưu tiên dùng domain production để link trong email bấm vào xem được trên điện thoại
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      return 'https://bolwdog.vercel.app';
+    }
+    return origin.replace(/\/+$/, '');
   }
   return 'https://bolwdog.vercel.app';
 }
 
-export function buildOrderTrackingUrl(order: Pick<Order, 'order_reference' | 'customer_phone'>): string {
-  const base = getBaseSiteUrl();
+export function buildOrderTrackingUrl(
+  order: Pick<Order, 'order_reference' | 'customer_phone'>,
+  customConfig?: EmailNotificationConfig
+): string {
+  const base = getBaseSiteUrl(customConfig);
   return `${base}/track?ref=${encodeURIComponent(order.order_reference)}&phone=${encodeURIComponent(
     order.customer_phone
   )}`;
@@ -312,7 +323,7 @@ export const emailService = {
     demo: Demo3DPreview
   ): Promise<{ sent: boolean; gmailUrl: string }> {
     const config = await getEmailConfig();
-    const trackingUrl = buildOrderTrackingUrl(order);
+    const trackingUrl = buildOrderTrackingUrl(order, config);
     const petName =
       order.items[0]?.customization_data?.petName ||
       order.items[0]?.customization_data?.customText ||
@@ -334,22 +345,88 @@ export const emailService = {
     ].join('\n');
 
     const htmlBody = `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:22px;border:2px solid #c084fc;border-radius:18px;background:#faf5ff;color:#3b251b;">
-        <h2 style="color:#7e22ce;margin-top:0;">🎨 Bản Demo File 3D Đã Sẵn Sàng Chờ Ba Mẹ Duyệt!</h2>
-        <p>Chào ba mẹ <strong>${order.customer_name}</strong>,</p>
-        <p>Xưởng vừa thiết kế xong file 3D cho đơn hàng <strong>#${order.order_reference}</strong> (Tên bé: <strong>${petName}</strong>).</p>
-        <div style="background:#ffffff;padding:14px;border-radius:12px;border:1px solid #e9d5ff;margin:14px 0;">
-          <strong>💬 Lời nhắn từ xưởng:</strong><br/>
-          <em>"${demo.adminNote || 'Ba mẹ kiểm tra mẫu thiết kế 3D rồi bấm Chốt In giúp xưởng nhé!'}"</em>
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="margin:0;padding:20px;background-color:#FFF5EE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+        <div style="max-width:580px;margin:0 auto;background:#FFFFFF;border-radius:24px;border:2px solid #FBCFE8;overflow:hidden;box-shadow:0 10px 25px rgba(244,114,182,0.15);">
+          
+          <!-- Header Banner Cute Pastel -->
+          <div style="background:linear-gradient(135deg, #FDF2F8 0%, #F5F3FF 100%);padding:28px 24px;text-align:center;border-bottom:1px solid #FBCFE8;">
+            <div style="display:inline-block;width:56px;height:56px;line-height:56px;border-radius:18px;background:#FCE7F3;font-size:28px;margin-bottom:10px;">
+              🐾
+            </div>
+            <h1 style="margin:0;font-size:22px;font-weight:900;color:#831843;letter-spacing:-0.5px;">
+              BolwDog <span style="color:#EC4899;">Studio</span>
+            </h1>
+            <p style="margin:4px 0 0;font-size:12px;color:#9D174D;font-weight:600;">
+              Xưởng in 3D sinh học cá nhân hóa cho thú cưng
+            </p>
+          </div>
+
+          <!-- Main Content -->
+          <div style="padding:28px 24px;color:#4A2810;">
+            <div style="display:inline-block;background:#FDF2F8;border:1px solid #FBCFE8;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:800;color:#DB2777;text-transform:uppercase;margin-bottom:12px;">
+              ✨ Bản Demo File 3D Hoàn Tất
+            </div>
+
+            <h2 style="margin:0 0 14px;font-size:18px;font-weight:900;color:#831843;line-height:1.4;">
+              Mẫu thiết kế 3D của bé <span style="color:#DB2777;">"${petName}"</span> đã sẵn sàng cho ba mẹ duyệt!
+            </h2>
+
+            <p style="margin:0 0 16px;font-size:13px;line-height:1.6;color:#52301B;">
+              Chào ba mẹ <strong>${order.customer_name}</strong>,<br/>
+              Nghệ nhân vừa hoàn thành mô phỏng 3D chiếc bát ăn theo đúng tên bé, phối màu và icon ba mẹ đã chọn cho đơn hàng <strong>#${order.order_reference}</strong>.
+            </p>
+
+            <!-- Lời nhắn nghệ nhân -->
+            <div style="background:#FFF1F2;border-left:4px solid #F43F5E;border-radius:14px;padding:14px 16px;margin:18px 0;">
+              <div style="font-size:11px;font-weight:800;color:#E11D48;text-transform:uppercase;margin-bottom:4px;">
+                💬 Lời nhắn từ xưởng in 3D:
+              </div>
+              <div style="font-size:13px;font-style:italic;color:#881337;line-height:1.5;">
+                "${demo.adminNote || 'Ba mẹ bấm vào link bên dưới để kiểm tra góc nhìn 3D, tên bé và phối màu rồi bấm nút Chốt In giúp xưởng nhé!'}"
+              </div>
+            </div>
+
+            <!-- Big Action Button (Link clickable 100%) -->
+            <div style="text-align:center;margin:30px 0 20px;">
+              <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:linear-gradient(135deg, #EC4899 0%, #D946EF 100%);color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:900;padding:15px 32px;border-radius:99px;box-shadow:0 8px 20px rgba(236,72,153,0.35);letter-spacing:0.3px;">
+                👉 Xem Bản Demo 3D & Bấm Chốt In Ngay
+              </a>
+              <p style="margin:10px 0 0;font-size:11px;color:#9CA3AF;">
+                (Bấm vào nút trên để xem hình ảnh 3D và chọn <strong>Ưng ý 100%</strong> hoặc <strong>Yêu cầu chỉnh sửa thêm</strong>)
+              </p>
+            </div>
+
+            <!-- Direct Link Fallback (Clickable <a>) -->
+            <div style="margin-top:20px;padding:12px 14px;background:#F9FAFB;border-radius:12px;border:1px dashed #E5E7EB;word-break:break-all;">
+              <span style="font-size:11px;color:#6B7280;font-weight:bold;display:block;margin-bottom:4px;">
+                Hoặc copy/bấm link trực tiếp dưới đây:
+              </span>
+              <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="color:#2563EB;font-size:12px;text-decoration:underline;font-weight:600;">
+                ${trackingUrl}
+              </a>
+            </div>
+
+          </div>
+
+          <!-- Footer Info -->
+          <div style="background:#FDF2F8;padding:18px 24px;border-top:1px solid #FBCFE8;text-align:center;font-size:11px;color:#831843;">
+            <p style="margin:0 0 4px;font-weight:800;">
+              🐾 BolwDog Boutique – Nguyễn Công Hậu
+            </p>
+            <p style="margin:0;color:#9D174D;">
+              Hotline / Zalo hỗ trợ 24/7: <strong>0345.553.913</strong> • Địa chỉ xưởng: Quy Nhơn, Gia Lai
+            </p>
+          </div>
+
         </div>
-        <p>Ba mẹ vui lòng bấm vào nút bên dưới để xem hình mô phỏng 3D và chọn <strong>"✅ Xác Nhận Chốt In"</strong> hoặc <strong>"✏️ Yêu Cầu Chỉnh Sửa Thêm"</strong>:</p>
-        <p style="margin:20px 0;">
-          <a href="${trackingUrl}" style="display:inline-block;padding:12px 24px;background:#7e22ce;color:#ffffff;text-decoration:none;border-radius:99px;font-weight:bold;">
-            👉 Xem Bản Demo 3D & Bấm Chốt In Ngay
-          </a>
-        </p>
-        <p style="font-size:12px;color:#6b7280;">Link trực tiếp: <a href="${trackingUrl}">${trackingUrl}</a></p>
-      </div>
+      </body>
+      </html>
     `;
 
     const gmailUrl = buildGmailComposeUrl({
@@ -393,8 +470,8 @@ export const emailService = {
     const config = await getEmailConfig();
     if (!config.enabled || !config.notify_on_demo_review) return;
 
-    const trackingUrl = buildOrderTrackingUrl(order);
-    const adminOrdersUrl = `${getBaseSiteUrl()}/admin/orders`;
+    const trackingUrl = buildOrderTrackingUrl(order, config);
+    const adminOrdersUrl = `${getBaseSiteUrl(config)}/admin/orders`;
 
     let subject = '';
     let actionHeading = '';
@@ -433,25 +510,75 @@ export const emailService = {
       .join('\n');
 
     const htmlBody = `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:22px;border:2px solid ${statusColor};border-radius:18px;background:#fffaf7;color:#3b251b;">
-        <h2 style="color:${statusColor};margin-top:0;">${actionHeading}</h2>
-        <p><strong>Mã đơn hàng:</strong> #${order.order_reference}</p>
-        <p><strong>Khách hàng:</strong> ${order.customer_name} • <strong>SĐT:</strong> ${order.customer_phone}</p>
-        ${order.customer_email ? `<p><strong>Email khách:</strong> ${order.customer_email}</p>` : ''}
-        ${
-          action.feedback
-            ? `<div style="background:#ffffff;padding:14px;border-radius:12px;border-left:4px solid ${statusColor};margin:14px 0;">
-                <strong>📝 Nội dung yêu cầu từ khách hàng:</strong><br/>
-                <span style="font-size:15px;font-weight:bold;color:${statusColor};">"${action.feedback}"</span>
-              </div>`
-            : ''
-        }
-        <p style="margin-top:18px;">
-          <a href="${adminOrdersUrl}" style="display:inline-block;padding:12px 22px;background:${statusColor};color:#ffffff;text-decoration:none;border-radius:99px;font-weight:bold;">
-            Vào Cổng Admin Xử Lý Đơn Ngay
-          </a>
-        </p>
-      </div>
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="margin:0;padding:20px;background-color:#FFF5EE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+        <div style="max-width:580px;margin:0 auto;background:#FFFFFF;border-radius:24px;border:2px solid ${statusColor}40;overflow:hidden;box-shadow:0 10px 25px rgba(0,0,0,0.06);">
+          
+          <!-- Header -->
+          <div style="background:${statusColor}15;padding:24px;border-bottom:1px solid ${statusColor}30;text-align:center;">
+            <div style="font-size:28px;margin-bottom:6px;">🔔</div>
+            <h1 style="margin:0;font-size:18px;font-weight:900;color:${statusColor};line-height:1.4;">
+              ${actionHeading}
+            </h1>
+          </div>
+
+          <!-- Body -->
+          <div style="padding:24px;color:#4A2810;">
+            <table style="width:100%;border-collapse:collapse;margin-bottom:18px;font-size:13px;">
+              <tr>
+                <td style="padding:8px 0;color:#8C6239;width:120px;">Mã đơn:</td>
+                <td style="padding:8px 0;font-weight:900;color:#4A2810;">#${order.order_reference}</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 0;color:#8C6239;">Khách hàng:</td>
+                <td style="padding:8px 0;font-weight:bold;">${order.customer_name} • <a href="tel:${order.customer_phone}" style="color:#2563EB;">${order.customer_phone}</a></td>
+              </tr>
+              ${order.customer_email ? `
+              <tr>
+                <td style="padding:8px 0;color:#8C6239;">Email khách:</td>
+                <td style="padding:8px 0;font-weight:bold;"><a href="mailto:${order.customer_email}" style="color:#2563EB;">${order.customer_email}</a></td>
+              </tr>
+              ` : ''}
+              <tr>
+                <td style="padding:8px 0;color:#8C6239;">Thời gian:</td>
+                <td style="padding:8px 0;color:#6B7280;">${new Date().toLocaleString('vi-VN')}</td>
+              </tr>
+            </table>
+
+            ${
+              action.feedback
+                ? `<div style="background:#FFF1F2;border-left:4px solid ${statusColor};border-radius:12px;padding:14px 16px;margin:16px 0;">
+                    <div style="font-size:11px;font-weight:800;color:${statusColor};text-transform:uppercase;margin-bottom:4px;">
+                      📝 Nội dung khách yêu cầu:
+                    </div>
+                    <div style="font-size:14px;font-weight:800;color:#881337;line-height:1.5;">
+                      "${action.feedback}"
+                    </div>
+                  </div>`
+                : ''
+            }
+
+            <div style="text-align:center;margin:28px 0 10px;">
+              <a href="${adminOrdersUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:${statusColor};color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:900;padding:14px 30px;border-radius:99px;box-shadow:0 8px 18px ${statusColor}40;">
+                Mở Cổng Admin Xử Lý Đơn Ngay
+              </a>
+            </div>
+
+            <div style="margin-top:18px;text-align:center;">
+              <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="color:#2563EB;font-size:12px;text-decoration:underline;">
+                Xem link giao diện trang tra cứu của khách
+              </a>
+            </div>
+          </div>
+
+        </div>
+      </body>
+      </html>
     `;
 
     // Gửi về cho Admin

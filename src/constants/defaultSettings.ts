@@ -29,6 +29,7 @@ export const defaultShopSettings: ShopSettings = {
     enabled: true,
     admin_email: 'conghaunguyen994@gmail.com.vn',
     admin_backup_email: 'conghaunguyen994@gmail.com',
+    production_site_url: 'https://bolwdog.vercel.app',
     webhook_url: '',
     emailjs_service_id: '',
     emailjs_template_id: '',
