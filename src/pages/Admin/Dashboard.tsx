@@ -78,13 +78,22 @@ export const AdminDashboard: React.FC = () => {
           </p>
         </div>
 
-        <Link
-          to="/admin/orders"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-cute-pink hover:bg-cute-pink-200 text-cute-brown text-xs font-bold transition-all shadow-sm"
-        >
-          <span>Duyệt đơn chờ cọc ({pendingOrders.length})</span>
-          <ArrowRight className="w-3.5 h-3.5" />
-        </Link>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Link
+            to="/admin/finances"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 text-xs font-bold transition-all shadow-sm"
+          >
+            <span>💰 Tài chính & Chi phí 3D</span>
+          </Link>
+
+          <Link
+            to="/admin/orders"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-cute-pink hover:bg-cute-pink-200 text-cute-brown text-xs font-bold transition-all shadow-sm"
+          >
+            <span>Duyệt đơn chờ cọc ({pendingOrders.length})</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
       </div>
 
       {/* Metrics 4x2 Grid */}

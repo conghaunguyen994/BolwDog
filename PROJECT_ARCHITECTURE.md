@@ -118,12 +118,15 @@ BolwDog/
     │   └── Admin/
     │       ├── Dashboard.tsx                # Thống kê doanh thu, tiền cọc, số đơn chờ xử lý, đơn gần đây
     │       ├── Orders.tsx                   # Quản lý đơn hàng, duyệt cọc, tải ảnh Demo 3D gửi khách, thông báo khi khách yêu cầu sửa
+    │       ├── Finances.tsx                 # Quản lý tài chính: Chi phí in 3D (nhựa, điện, ads, hao hụt), đơn ngoài web, biểu đồ P&L tháng
     │       ├── Products.tsx                 # Thêm / Sửa / Xóa / Bật tắt tồn kho sản phẩm in 3D
+    │       ├── Users.tsx                    # Quản lý người dùng & Chặn tài khoản/SĐT/Email phá hoại
     │       └── Settings.tsx                 # Cấu hình Ngân hàng VietQR, Tỷ lệ cọc, Thông tin shop & Email tự động 2 chiều
     │
     └── tests/                               # Bộ kiểm thử tự động (Vitest)
         ├── cartSlice.test.ts                # Test logic giỏ hàng & tính tiền
         ├── checkoutValidation.test.ts       # Test Zod schema & tính tiền cọc
+        ├── financeService.test.ts           # Test tính toán P&L, tỷ lệ hao hụt, doanh thu tổng hợp
         └── securityOrder.test.ts            # Test chống XSS, Rate Limit, Action Lock, Duplicate Order
 ```
 

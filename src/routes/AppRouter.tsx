@@ -22,6 +22,7 @@ const LoginPage = lazy(() => import('../pages/Auth/Login').then(m => ({ default:
 const AdminDashboard = lazy(() => import('../pages/Admin/Dashboard').then(m => ({ default: m.AdminDashboard })));
 const AdminOrders = lazy(() => import('../pages/Admin/Orders').then(m => ({ default: m.AdminOrders })));
 const AdminProducts = lazy(() => import('../pages/Admin/Products').then(m => ({ default: m.AdminProducts })));
+const AdminFinances = lazy(() => import('../pages/Admin/Finances').then(m => ({ default: m.AdminFinances })));
 const AdminUsers = lazy(() => import('../pages/Admin/Users').then(m => ({ default: m.AdminUsers })));
 const AdminSettings = lazy(() => import('../pages/Admin/Settings').then(m => ({ default: m.AdminSettings })));
 
@@ -72,6 +73,7 @@ export const AppRouter: React.FC = () => {
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="orders" element={<AdminOrders />} />
+          <Route path="finances" element={<AdminFinances />} />
           <Route path="products" element={<AdminProducts />} />
           <Route path="users" element={<AdminUsers />} />
           <Route path="settings" element={<AdminSettings />} />
