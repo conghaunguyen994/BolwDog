@@ -266,9 +266,16 @@ export const CheckoutPage: React.FC = () => {
                       SL: {it.quantity} x {formatVND(it.unitPrice)}
                     </span>
                     {(it.customization.petName || it.customization.customText) && (
-                      <span className="text-[10px] text-cute-pink-500 font-semibold block truncate">
-                        ✨ In: {it.customization.petName || it.customization.customText}
-                      </span>
+                      <div className="text-[10px] text-cute-pink-600 dark:text-cute-pink-300 font-semibold block space-y-0.5">
+                        <span className="truncate block">
+                          ✨ {it.customization.selectedIcons?.[0]} {it.customization.petName || it.customization.customText} {it.customization.selectedIcons?.[1]}
+                        </span>
+                        {(it.customization.bodyColor || it.customization.baseColor) && (
+                          <span className="text-[9px] text-cute-brown-light dark:text-cute-muted block truncate">
+                            Thân: {it.customization.bodyColor} • Đế: {it.customization.baseColor}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                   <span className="font-bold text-cute-brown dark:text-cute-cream">

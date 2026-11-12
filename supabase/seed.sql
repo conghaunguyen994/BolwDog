@@ -5,7 +5,7 @@
 -- 1. SEED CATEGORIES
 INSERT INTO public.categories (id, name, slug, description, icon, display_order)
 VALUES
-  ('c1111111-1111-1111-1111-111111111111', 'Bát Ăn Cho Chó', 'bat-an-cho-cho', 'Bát ăn in 3D cá nhân hóa tên bé, chống sặc và thiết kế công thái học', 'UtensilsCrossed', 1),
+  ('c1111111-1111-1111-1111-111111111111', 'Bát Ăn Cho Chó Mèo', 'bat-an-cho-cho', 'Bát ăn chống gù 15° kèm đế khoang chứa nước chống kiến, bát inox tháo rời tiện lợi', 'UtensilsCrossed', 1),
   ('c2222222-2222-2222-2222-222222222222', 'Móc Khóa 3D', 'moc-khoa-3d', 'Móc khóa thú cưng in hình nổi theo giống chó mèo siêu đáng yêu', 'KeyRound', 2),
   ('c3333333-3333-3333-3333-333333333333', 'Phụ Kiện Cá Nhân Hóa', 'phu-kien-ca-nhan-hoa', 'Thẻ tên bảng tên chống lạc, giá đỡ bát và phụ kiện thiết kế riêng', 'Sparkles', 3)
 ON CONFLICT (slug) DO NOTHING;
@@ -16,38 +16,34 @@ VALUES
   (
     'p1111111-1111-1111-1111-111111111111',
     'c1111111-1111-1111-1111-111111111111',
-    'Bát Ăn Công Thái Học In Tên Bé (Dáng Tai Cún)',
-    'bat-an-cong-thai-hoc-in-ten-be',
-    'Bát ăn in 3D sinh học thân thiện với môi trường (Food-safe PLA+). Thiết kế nghiêng 15 độ bảo vệ cột sống cổ của bé yêu, đế vững chắc chống lật. Tùy biến khắc tên nổi và icon chân chó độc quyền.',
-    285000,
-    35,
+    'Bát Ăn Chống Gù – Chống Kiến Cho Chó Mèo (Cá Nhân Hóa Tên Bé & Icon)',
+    'bat-an-chong-gu-chong-kien-cho-cho-meo',
+    '🐾 BÁT ĂN CHỐNG GÙ – CHỐNG KIẾN CHO CHÓ MÈO | CÚN CƯNG
+🌸 Thiết kế nghiêng 15° chống gù (size S | M | L)
+🌸 5 size S | M | L | XL | XXL
+🌸 Đế chống kiến với khoang chứa nước
+🌸 Bát inox dễ vệ sinh 
+🌸 Được làm từ chất liệu nhựa PETG an toàn
+🎨 BÁT ĂN CÁ NHÂN HÓA THEO YÊU CẦU:
+✨ 2 màu tùy chọn (Màu thân & Màu đế)
+✨ Tên thú cưng in nổi
+✨ Ngày sinh của thú cưng
+✨ Tối đa 2 icon ngộ nghĩnh',
+    199000,
+    65,
     true,
     true,
-    '{"material": "Nhựa sinh học Food-safe PLA+ cao cấp", "origin": "In 3D thủ công tại BolwDog Studio", "weight": "250g", "washable": "Rửa tay nước ấm (không dùng máy rửa bát nhiệt độ cao)"}'::jsonb
-  ),
-  (
-    'p2222222-2222-2222-2222-222222222222',
-    'c1111111-1111-1111-1111-111111111111',
-    'Bát Chống Ăn Nhanh Hoa Cúc Pastel (In Tên Riêng)',
-    'bat-chong-an-nhanh-hoa-cuc-pastel',
-    'Thiết kế rãnh hoa cúc uốn lượn mềm mại giúp các bé ăn chậm hơn 5 lần, hạn chế đầy hơi và nôn trớ. Màu sắc pastel ngọt ngào kèm tên bé cưng chạm khắc nổi trên vành.',
-    320000,
-    28,
-    true,
-    true,
-    '{"material": "Food-grade PETG siêu bền", "origin": "BolwDog Handmade", "capacity": "450ml hạt", "features": "Chống sặc, chống trượt, khắc tên"}'::jsonb
-  ),
-  (
-    'p3333333-3333-3333-3333-333333333333',
-    'c1111111-1111-1111-1111-111111111111',
-    'Bát Ăn Đôi Kèm Bình Nước Tự Động Cute Cloud',
-    'bat-an-doi-kem-binh-nuoc-cloud',
-    'Bộ bát đôi hình đám mây mộng mơ, gồm một khay hạt khắc tên bé và khay nước tiếp nước tự động. Giữ khu vực ăn uống của bé luôn sạch sẽ và khô ráo.',
-    390000,
-    15,
-    true,
-    true,
-    '{"material": "Chân đế 3D PLA + Lòng bát Inox 304 tháo rời", "size": "34cm x 18cm x 8cm", "water_capacity": "500ml"}'::jsonb
+    '{
+      "Chất liệu thân & đế": "Nhựa PETG sinh học an toàn thực phẩm (Food-safe), chịu va đập tốt",
+      "Lòng bát": "Bát Inox SUS 304 cao cấp, chống rỉ sét, tháo rời rửa sạch trong 5 giây",
+      "Đế chống kiến": "Khoang chứa nước dạng rãnh bao quanh, ngăn 100% kiến và côn trùng",
+      "Công thái học": "Mặt nghiêng 15 độ khoa học giúp bé ăn không gập cổ, giảm nguy cơ gù lưng và trào ngược dạ dày",
+      "Kích thước Size S": "H1: 12cm - H2: 8cm - D: 18cm (Bát inox d=14cm) -> 199K",
+      "Kích thước Size M": "H1: 14cm - H2: 10cm - D: 19cm (Bát inox d=14cm) -> 229K",
+      "Kích thước Size L": "H1: 16cm - H2: 12cm - D: 20cm (Bát inox d=14cm) -> 259K",
+      "Kích thước Size XL": "H1: 15cm - H2: 15cm - D: 22.5cm (Bát inox d=18-20cm) -> 300K",
+      "Kích thước Size XXL": "H1: 17cm - H2: 17cm - D: 25cm (Bát inox d=18-20cm) -> 350K"
+    }'::jsonb
   ),
   (
     'p4444444-4444-4444-4444-444444444444',
@@ -59,19 +55,7 @@ VALUES
     120,
     true,
     true,
-    '{"material": "Resin in 3D mịn bóng phủ men", "dimensions": "4.5cm x 4cm", "ring": "Móc kim loại mạ vàng hồng cao cấp"}'::jsonb
-  ),
-  (
-    'p5555555-5555-5555-5555-555555555555',
-    'c2222222-2222-2222-2222-222222222222',
-    'Móc Khóa Chân Chó Poodle Xoăn Bông 3D',
-    'moc-khoa-chan-cho-poodle-3d',
-    'Móc khóa hình bàn chân cún múp míp hoặc mặt cún Poodle tai xù, phối 2 màu pastel dịu dàng. Nhỏ gọn, phối cùng chìa khóa xe hoặc balo cưng xỉu.',
-    79000,
-    85,
-    false,
-    true,
-    '{"material": "PLA+ lụa óng ánh mềm mại", "dimensions": "4cm x 4cm"}'::jsonb
+    '{"Chất liệu": "Resin in 3D mịn bóng phủ men", "Kích thước": "4.5cm x 4cm", "Móc khoen": "Móc kim loại mạ vàng hồng cao cấp"}'::jsonb
   ),
   (
     'p6666666-6666-6666-6666-666666666666',
@@ -83,33 +67,27 @@ VALUES
     70,
     true,
     true,
-    '{"material": "Nhựa phát quang an toàn ban đêm", "waterproof": "Chống nước 100%", "weight": "Chỉ 12g siêu nhẹ cho cổ bé"}'::jsonb
+    '{"Chất liệu": "Nhựa phát quang an toàn ban đêm", "Kháng nước": "Chống nước 100%", "Trọng lượng": "Chỉ 12g siêu nhẹ cho cổ bé"}'::jsonb
   )
 ON CONFLICT (slug) DO NOTHING;
 
 -- 3. SEED PRODUCT IMAGES
 INSERT INTO public.product_images (id, product_id, image_url, display_order, is_primary)
 VALUES
-  ('i1111111-1111-1111-1111-111111111111', 'p1111111-1111-1111-1111-111111111111', 'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?q=80&w=800&auto=format&fit=crop', 1, true),
-  ('i1111111-1111-1111-1111-111111111112', 'p1111111-1111-1111-1111-111111111111', 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?q=80&w=800&auto=format&fit=crop', 2, false),
-  ('i2222222-2222-2222-2222-222222222221', 'p2222222-2222-2222-2222-222222222222', 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?q=80&w=800&auto=format&fit=crop', 1, true),
-  ('i3333333-3333-3333-3333-333333333331', 'p3333333-3333-3333-3333-333333333331', 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?q=80&w=800&auto=format&fit=crop', 1, true),
+  ('i1111111-1111-1111-1111-111111111111', 'p1111111-1111-1111-1111-111111111111', '/images/bat-an-chong-gu-chong-kien.jpg', 1, true),
+  ('i1111111-1111-1111-1111-111111111112', 'p1111111-1111-1111-1111-111111111111', 'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?q=80&w=800&auto=format&fit=crop', 2, false),
   ('i4444444-4444-4444-4444-444444444441', 'p4444444-4444-4444-4444-444444444444', 'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?q=80&w=800&auto=format&fit=crop', 1, true),
-  ('i5555555-5555-5555-5555-555555555551', 'p5555555-5555-5555-5555-555555555555', 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?q=80&w=800&auto=format&fit=crop', 1, true),
   ('i6666666-6666-6666-6666-666666666661', 'p6666666-6666-6666-6666-666666666666', 'https://images.unsplash.com/photo-1537151625747-768eb6cf92b2?q=80&w=800&auto=format&fit=crop', 1, true)
 ON CONFLICT (id) DO NOTHING;
 
--- 4. SEED PRODUCT VARIANTS
+-- 4. SEED PRODUCT VARIANTS (5 SIZES S, M, L, XL, XXL)
 INSERT INTO public.product_variants (id, product_id, variant_name, variant_value, additional_price, stock_quantity)
 VALUES
-  ('v1111111-1111-1111-1111-111111111111', 'p1111111-1111-1111-1111-111111111111', 'Kích thước', 'Size S (Dưới 5kg - 15cm)', 0, 50),
-  ('v1111111-1111-1111-1111-111111111112', 'p1111111-1111-1111-1111-111111111111', 'Kích thước', 'Size M (5kg - 12kg - 18cm)', 30000, 40),
-  ('v1111111-1111-1111-1111-111111111113', 'p1111111-1111-1111-1111-111111111111', 'Kích thước', 'Size L (Trên 12kg - 22cm)', 60000, 20),
-  ('v2222222-2222-2222-2222-222222222221', 'p2222222-2222-2222-2222-222222222222', 'Màu sắc', 'Hồng Pastel Dịu Ngọt', 0, 30),
-  ('v2222222-2222-2222-2222-222222222222', 'p2222222-2222-2222-2222-222222222222', 'Màu sắc', 'Tím Lavender Mộng Mơ', 0, 30),
-  ('v2222222-2222-2222-2222-222222222223', 'p2222222-2222-2222-2222-222222222223', 'Màu sắc', 'Kem Bơ Ấm Áp', 0, 30),
-  ('v4444444-4444-4444-4444-444444444441', 'p4444444-4444-4444-4444-444444444444', 'Phối màu', 'Corgi Vàng Cam & Trắng', 0, 60),
-  ('v4444444-4444-4444-4444-444444444442', 'p4444444-4444-4444-4444-444444444444', 'Phối màu', 'Corgi Đen Vàng (Tricolor)', 0, 40)
+  ('v1111111-1111-1111-1111-111111111111', 'p1111111-1111-1111-1111-111111111111', 'Kích cỡ', 'Size S (H1: 12cm - H2: 8cm - D: 18cm | Inox 14cm)', 0, 50),
+  ('v1111111-1111-1111-1111-111111111112', 'p1111111-1111-1111-1111-111111111111', 'Kích cỡ', 'Size M (H1: 14cm - H2: 10cm - D: 19cm | Inox 14cm)', 30000, 40),
+  ('v1111111-1111-1111-1111-111111111113', 'p1111111-1111-1111-1111-111111111111', 'Kích cỡ', 'Size L (H1: 16cm - H2: 12cm - D: 20cm | Inox 14cm)', 60000, 30),
+  ('v1111111-1111-1111-1111-111111111114', 'p1111111-1111-1111-1111-111111111111', 'Kích cỡ', 'Size XL (H1: 15cm - H2: 15cm - D: 22.5cm | Inox 18-20cm)', 101000, 20),
+  ('v1111111-1111-1111-1111-111111111115', 'p1111111-1111-1111-1111-111111111111', 'Kích cỡ', 'Size XXL (H1: 17cm - H2: 17cm - D: 25cm | Inox 18-20cm)', 151000, 15)
 ON CONFLICT (id) DO NOTHING;
 
 -- 5. SEED SHOP SETTINGS (Default Configurable Info)
@@ -117,7 +95,7 @@ INSERT INTO public.shop_settings (id, setting_key, setting_value)
 VALUES
   ('s1111111-1111-1111-1111-111111111111', 'general_info', '{
     "shop_name": "BolwDog Boutique",
-    "tagline": "Bát ăn & phụ kiện in 3D gửi trọn tình yêu cho bé cưng",
+    "tagline": "Bát ăn chống gù, chống kiến & phụ kiện in 3D cá nhân hóa gửi trọn yêu thương cho bé cưng",
     "owner_name": "Nguyễn Thanh Hà",
     "phone": "0987 654 321",
     "email": "cskh@bowldog.vn",
@@ -139,4 +117,3 @@ VALUES
     "transfer_note_prefix": "BD"
   }'::jsonb)
 ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value;
-

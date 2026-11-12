@@ -33,8 +33,10 @@ export const ProductDetailPage: React.FC = () => {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | undefined>(undefined);
   const [quantity, setQuantity] = useState<number>(1);
   const [customization, setCustomization] = useState<PetCustomization>({
-    petName: '',
-    petAge: '',
+    petName: 'Ngáo',
+    bodyColor: 'Trắng Sứ',
+    baseColor: 'Xanh Cổ Vịt (Teal)',
+    selectedIcons: ['🐶', '🐾'],
     petBirthday: '',
     customNotes: '',
     customText: '',
@@ -209,25 +211,24 @@ export const ProductDetailPage: React.FC = () => {
               <label className="text-xs font-bold text-cute-brown dark:text-cute-cream block">
                 {product.variants[0].variant_name}:
               </label>
-              <div className="flex flex-wrap gap-2.5">
+              <div className="flex flex-col gap-2">
                 {product.variants.map((v) => {
                   const isSelected = selectedVariant?.id === v.id;
+                  const finalSizePrice = product.price + v.additional_price;
                   return (
                     <button
                       key={v.id}
                       onClick={() => setSelectedVariant(v)}
-                      className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all border ${
+                      className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border flex items-center justify-between text-left ${
                         isSelected
-                          ? 'bg-cute-pink text-cute-brown border-cute-pink-400 shadow-sm ring-1 ring-cute-pink-300'
+                          ? 'bg-cute-pink/60 text-cute-brown border-cute-pink-400 shadow-sm ring-2 ring-cute-pink-300'
                           : 'bg-white dark:bg-cute-surface-dark text-cute-brown dark:text-cute-cream border-cute-border-light hover:bg-cute-cream'
                       }`}
                     >
-                      <span>{v.variant_value}</span>
-                      {v.additional_price > 0 && (
-                        <span className="text-rose-500 ml-1.5 font-normal">
-                          (+{formatVND(v.additional_price)})
-                        </span>
-                      )}
+                      <span className="truncate pr-2">{v.variant_value}</span>
+                      <span className="text-rose-500 font-extrabold text-xs whitespace-nowrap">
+                        {formatVND(finalSizePrice)}
+                      </span>
                     </button>
                   );
                 })}

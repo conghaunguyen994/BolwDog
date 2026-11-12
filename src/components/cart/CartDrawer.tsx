@@ -126,8 +126,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
 
                       {/* Customization Details snippet */}
                       {(item.customization.petName || item.customization.customText) && (
-                        <div className="mt-1 bg-white dark:bg-cute-surface-dark px-2 py-0.5 rounded-lg border border-cute-border-light dark:border-cute-border-dark inline-block text-[11px] text-cute-brown dark:text-cute-cream">
-                          ✨ In tên: <strong>{item.customization.petName || item.customization.customText}</strong>
+                        <div className="mt-1 bg-white dark:bg-cute-surface-dark px-2 py-1 rounded-xl border border-cute-border-light dark:border-cute-border-dark text-[11px] text-cute-brown dark:text-cute-cream space-y-0.5">
+                          <div>
+                            ✨ In tên: <strong>
+                              {item.customization.selectedIcons?.[0]} {item.customization.petName || item.customization.customText} {item.customization.selectedIcons?.[1]}
+                            </strong>
+                          </div>
+                          {(item.customization.bodyColor || item.customization.baseColor) && (
+                            <div className="text-[10px] text-cute-brown-light dark:text-cute-muted">
+                              🎨 Thân: {item.customization.bodyColor} • Đế: {item.customization.baseColor}
+                            </div>
+                          )}
+                          {item.customization.petBirthday && (
+                            <div className="text-[10px] text-cute-brown-light dark:text-cute-muted">
+                              🎂 Sinh nhật: {item.customization.petBirthday}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

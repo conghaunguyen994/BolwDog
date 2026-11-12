@@ -382,12 +382,32 @@ export const AdminOrders: React.FC = () => {
                       </span>
                     )}
                     {it.customization_data && Object.keys(it.customization_data).length > 0 && (
-                      <div className="p-2.5 rounded-xl bg-cute-cream/80 text-[11px] space-y-0.5 mt-1 border border-cute-pink/40">
+                      <div className="p-2.5 rounded-xl bg-cute-cream/80 text-[11px] space-y-1 mt-1 border border-cute-pink/40">
                         {it.customization_data.petName && (
                           <p>🐾 <strong>Tên cún in 3D:</strong> <span className="text-rose-600 font-bold">{it.customization_data.petName}</span></p>
                         )}
+                        {it.customization_data.selectedIcons && it.customization_data.selectedIcons.length > 0 && (
+                          <p>✨ <strong>Icon trang trí:</strong> <span className="text-base">{it.customization_data.selectedIcons.join(' ')}</span></p>
+                        )}
+                        {(it.customization_data.bodyColor || it.customization_data.baseColor) && (
+                          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                            {it.customization_data.bodyColor && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-cute-border-light text-[10px]">
+                                Thân bát: <strong className="text-cute-pink-600">{it.customization_data.bodyColor}</strong>
+                              </span>
+                            )}
+                            {it.customization_data.baseColor && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-cute-border-light text-[10px]">
+                                Khay chống kiến: <strong className="text-teal-700">{it.customization_data.baseColor}</strong>
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {it.customization_data.petBirthday && (
+                          <p>🎂 <strong>Ngày sinh thú cưng:</strong> {it.customization_data.petBirthday}</p>
+                        )}
                         {it.customization_data.petAge && (
-                          <p>🎂 <strong>Tuổi bé:</strong> {it.customization_data.petAge}</p>
+                          <p>🎈 <strong>Tuổi bé:</strong> {it.customization_data.petAge}</p>
                         )}
                         {it.customization_data.customText && (
                           <p>🔑 <strong>Khắc thẻ/móc khóa:</strong> {it.customization_data.customText}</p>

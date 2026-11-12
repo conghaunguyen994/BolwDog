@@ -3,8 +3,12 @@ export type PaymentStatus = 'unpaid' | 'deposit_pending' | 'partially_paid' | 'p
 
 export interface PetCustomization {
   petName?: string;
-  petAge?: string;
   petBirthday?: string;
+  bodyColor?: string; // Màu thân bát
+  baseColor?: string; // Màu đế chống kiến
+  selectedIcons?: string[]; // Tối đa 2 icon: ['🐾', '🦴']
+  fontStyle?: string;
+  petAge?: string;
   petPhotoUrl?: string;
   customNotes?: string;
   // For keychains or accessories
@@ -59,4 +63,3 @@ export interface Order {
   items: OrderItem[];
   payments?: PaymentProof[];
 }
-

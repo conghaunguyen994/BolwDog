@@ -84,9 +84,22 @@ export const CartPage: React.FC = () => {
                     </p>
                   )}
                   {(item.customization.petName || item.customization.customText) && (
-                    <div className="text-[11px] bg-cute-cream dark:bg-cute-surface-dark px-2.5 py-1 rounded-xl border border-cute-border-light inline-block font-medium">
-                      ✨ In tên: <strong>{item.customization.petName || item.customization.customText}</strong>
-                      {item.customization.petAge && ` • Tuổi: ${item.customization.petAge}`}
+                    <div className="text-[11px] bg-cute-cream dark:bg-cute-surface-dark px-3 py-1.5 rounded-xl border border-cute-border-light block font-medium space-y-0.5">
+                      <div>
+                        ✨ In tên: <strong>
+                          {item.customization.selectedIcons?.[0]} {item.customization.petName || item.customization.customText} {item.customization.selectedIcons?.[1]}
+                        </strong>
+                      </div>
+                      {(item.customization.bodyColor || item.customization.baseColor) && (
+                        <div className="text-[10px] text-cute-brown-light dark:text-cute-muted">
+                          🎨 Thân: {item.customization.bodyColor} • Đế: {item.customization.baseColor}
+                        </div>
+                      )}
+                      {item.customization.petBirthday && (
+                        <div className="text-[10px] text-cute-brown-light dark:text-cute-muted">
+                          🎂 Sinh nhật: {item.customization.petBirthday}
+                        </div>
+                      )}
                     </div>
                   )}
                   <p className="text-xs font-bold text-rose-500">
