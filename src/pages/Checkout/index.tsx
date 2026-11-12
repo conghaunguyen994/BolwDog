@@ -20,6 +20,7 @@ import { Order } from '../../types/order';
 import { ShopSettings } from '../../types/settings';
 import { defaultShopSettings as initialSettings } from '../../constants/defaultSettings';
 import { formatVND } from '../../utils/currency';
+import { getCsrfToken, getRemainingCooldownSeconds } from '../../utils/securityGuard';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { BankTransferQRModal } from '../../components/checkout/BankTransferQRModal';
@@ -38,9 +39,21 @@ export const CheckoutPage: React.FC = () => {
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [honeypot, setHoneypot] = useState('');
+  const [cooldownSec, setCooldownSec] = useState(0);
+  const csrfToken = getCsrfToken();
 
   useEffect(() => {
     settingsService.getSettings().then(setSettings).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const syncCooldown = () => {
+      setCooldownSec(getRemainingCooldownSeconds('create_order'));
+    };
+    syncCooldown();
+    const timer = setInterval(syncCooldown, 1000);
+    return () => clearInterval(timer);
   }, []);
 
   const {
@@ -66,6 +79,7 @@ export const CheckoutPage: React.FC = () => {
   }, [items, createdOrder, navigate]);
 
   const onSubmit = async (data: CheckoutFormData) => {
+    if (isSubmitting || cooldownSec > 0) return;
     setIsSubmitting(true);
     setSubmitError(null);
 
@@ -76,6 +90,8 @@ export const CheckoutPage: React.FC = () => {
         customerEmail: data.email || undefined,
         shippingAddress: data.address,
         notes: data.notes || undefined,
+        honeypot,
+        csrfToken,
         items: items.map((it) => ({
           productId: it.product.id,
           productName: it.product.name,
@@ -90,10 +106,12 @@ export const CheckoutPage: React.FC = () => {
       });
 
       setCreatedOrder(order);
+      setCooldownSec(getRemainingCooldownSeconds('create_order'));
       dispatch(clearCart());
       setIsSuccessModalOpen(true);
     } catch (err: any) {
       console.error('Checkout error:', err);
+      setCooldownSec(getRemainingCooldownSeconds('create_order'));
       setSubmitError(err.message || 'Có lỗi xảy ra khi tạo đơn hàng. Ba mẹ vui lòng thử lại nhé!');
     } finally {
       setIsSubmitting(false);
@@ -223,17 +241,34 @@ export const CheckoutPage: React.FC = () => {
               />
             </div>
 
+            {/* Trường ẩn Honeypot chống Bot tự động spam */}
+            <div className="hidden" aria-hidden="true">
+              <label htmlFor="website_url_trap">Website</label>
+              <input
+                id="website_url_trap"
+                type="text"
+                name="website_url_trap"
+                tabIndex={-1}
+                autoComplete="off"
+                value={honeypot}
+                onChange={(e) => setHoneypot(e.target.value)}
+              />
+            </div>
+
             {/* Submit Button inside form */}
-            <div className="pt-2">
+            <div className="pt-2 space-y-2">
               <Button
                 type="submit"
                 variant="primary"
                 size="lg"
                 isLoading={isSubmitting}
+                disabled={isSubmitting || cooldownSec > 0}
                 className="w-full justify-center shadow-cute"
                 rightIcon={<ArrowRight className="w-5 h-5" />}
               >
-                Gửi Đơn Yêu Thương & Xem QR Chuyển Khoản
+                {cooldownSec > 0
+                  ? `Chống đặt trùng đơn: Vui lòng đợi ${cooldownSec}s...`
+                  : 'Gửi Đơn Yêu Thương & Xem QR Chuyển Khoản'}
               </Button>
             </div>
           </form>

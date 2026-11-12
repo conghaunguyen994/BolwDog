@@ -16,6 +16,7 @@ import { Product, ProductVariant } from '../../types/product';
 import { PetCustomization } from '../../types/order';
 import { productService } from '../../services/productService';
 import { formatVND } from '../../utils/currency';
+import { enforceRateLimit, sanitizeObject } from '../../utils/securityGuard';
 import { useAppDispatch } from '../../app/hooks';
 import { addToCart } from '../../features/cart/cartSlice';
 import { CustomizationForm } from '../../components/products/CustomizationForm';
@@ -44,6 +45,7 @@ export const ProductDetailPage: React.FC = () => {
     customText: '',
   });
   const [addedToast, setAddedToast] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchDetail() {
@@ -111,23 +113,33 @@ export const ProductDetailPage: React.FC = () => {
         : activeBodyHex
       : activeBaseHex;
 
-  const handleAddToCart = () => {
-    if (isOutOfStock) return;
-    dispatch(
-      addToCart({
-        product,
-        variant: selectedVariant,
-        quantity,
-        customization,
-      })
-    );
-    setAddedToast(true);
-    setTimeout(() => setAddedToast(false), 2500);
+  const handleAddToCart = (): boolean => {
+    if (isOutOfStock) return false;
+    try {
+      setActionError(null);
+      enforceRateLimit('add_to_cart');
+      const cleanCustom = sanitizeObject(customization);
+      dispatch(
+        addToCart({
+          product,
+          variant: selectedVariant,
+          quantity: Math.min(20, Math.max(1, quantity)),
+          customization: cleanCustom,
+        })
+      );
+      setAddedToast(true);
+      setTimeout(() => setAddedToast(false), 2500);
+      return true;
+    } catch (err: any) {
+      setActionError(err.message || 'Thao tác quá nhanh, vui lòng đợi một chút nhé!');
+      return false;
+    }
   };
 
   const handleBuyNow = () => {
-    handleAddToCart();
-    navigate('/checkout');
+    if (handleAddToCart()) {
+      navigate('/checkout');
+    }
   };
 
   return (
@@ -308,6 +320,12 @@ export const ProductDetailPage: React.FC = () => {
                 </strong>
               </span>
             </div>
+
+            {actionError && (
+              <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-semibold">
+                ⚠️ {actionError}
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 pt-2">

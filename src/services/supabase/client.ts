@@ -26,5 +26,11 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
         autoRefreshToken: true,
         detectSessionInUrl: true,
       },
+      global: {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-Client-Info': 'bolwdog-web-security',
+        },
+      },
     })
   : null;

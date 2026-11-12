@@ -77,11 +77,13 @@ vi.mock('../services/supabase/client', () => ({
 import { orderService } from '../services/orderService';
 import { isOwnerAdminEmail } from '../services/authService';
 import { getOrderStatusLabel, getPaymentStatusLabel } from '../utils/statusLabels';
+import { resetRateLimits } from '../utils/securityGuard';
 
 describe('Security & Privacy: Database Order Creation, Guest Isolation & Admin Lock', () => {
   beforeEach(() => {
     mockDbOrders.length = 0;
     localStorage.clear();
+    resetRateLimits();
   });
 
   it('should generate unguessable order references via database RPC', async () => {
@@ -131,6 +133,7 @@ describe('Security & Privacy: Database Order Creation, Guest Isolation & Admin L
     expect(retrieved?.id).toBe(created.id);
     expect(retrieved?.customer_name).toBe('Lê Minh');
 
+    resetRateLimits();
     const byRefOnly = await orderService.getOrderByReferenceAndPhone(
       created.order_reference,
       ''
@@ -138,6 +141,7 @@ describe('Security & Privacy: Database Order Creation, Guest Isolation & Admin L
     expect(byRefOnly).not.toBeNull();
     expect(byRefOnly?.id).toBe(created.id);
 
+    resetRateLimits();
     const byPhoneOnly = await orderService.getOrderByReferenceAndPhone('', '0912345678');
     expect(byPhoneOnly).not.toBeNull();
     expect(byPhoneOnly?.id).toBe(created.id);
@@ -148,7 +152,15 @@ describe('Security & Privacy: Database Order Creation, Guest Isolation & Admin L
       customerName: 'Khách A',
       customerPhone: '0912345678',
       shippingAddress: 'Địa chỉ bí mật',
-      items: [],
+      items: [
+        {
+          productId: 'b1111111-1111-4111-8111-111111111111',
+          productName: 'Bát Ăn Chống Gù',
+          unitPrice: 199000,
+          quantity: 1,
+          customization: {},
+        },
+      ],
     });
 
     const maliciousLookup = await orderService.getOrderByReferenceAndPhone(
@@ -157,6 +169,101 @@ describe('Security & Privacy: Database Order Creation, Guest Isolation & Admin L
     );
 
     expect(maliciousLookup).toBeNull();
+  });
+
+  it('should BLOCK continuous / rapid order spam, XSS payloads, CSRF forgery, and Bot honeypots', async () => {
+    // 1. Đặt đơn đầu tiên hợp lệ
+    await orderService.createOrder({
+      customerName: 'Nguyễn Văn A',
+      customerPhone: '0911223344',
+      shippingAddress: '100 Đường Lê Lợi, Quận 1',
+      items: [
+        {
+          productId: 'b1111111-1111-4111-8111-111111111111',
+          productName: 'Bát Ăn',
+          unitPrice: 199000,
+          quantity: 1,
+          customization: { petName: 'Cún' },
+        },
+      ],
+    });
+
+    // 2. Bấm đặt liên tục ngay lập tức (bị chặn bởi Cooldown / Duplicate Guard)
+    await expect(
+      orderService.createOrder({
+        customerName: 'Nguyễn Văn B',
+        customerPhone: '0911223355',
+        shippingAddress: '200 Đường Nguyễn Huệ, Quận 1',
+        items: [
+          {
+            productId: 'b1111111-1111-4111-8111-111111111111',
+            productName: 'Bát Ăn',
+            unitPrice: 199000,
+            quantity: 1,
+            customization: { petName: 'Miu' },
+          },
+        ],
+      })
+    ).rejects.toThrow(/45 giây/);
+
+    // 3. Chặn mã độc XSS (<script>, onerror=...)
+    resetRateLimits();
+    await expect(
+      orderService.createOrder({
+        customerName: '<script>alert(document.cookie)</script>',
+        customerPhone: '0911223344',
+        shippingAddress: '100 Đường Lê Lợi',
+        items: [
+          {
+            productId: 'b1111111-1111-4111-8111-111111111111',
+            productName: 'Bát Ăn',
+            unitPrice: 199000,
+            quantity: 1,
+            customization: {},
+          },
+        ],
+      })
+    ).rejects.toThrow(/XSS/i);
+
+    // 4. Chặn giả mạo CSRF Token
+    resetRateLimits();
+    await expect(
+      orderService.createOrder({
+        customerName: 'Khách Hợp Lệ',
+        customerPhone: '0911223344',
+        shippingAddress: '100 Đường Lê Lợi',
+        csrfToken: 'forged-malicious-csrf-token',
+        items: [
+          {
+            productId: 'b1111111-1111-4111-8111-111111111111',
+            productName: 'Bát Ăn',
+            unitPrice: 199000,
+            quantity: 1,
+            customization: {},
+          },
+        ],
+      })
+    ).rejects.toThrow(/CSRF/i);
+
+    // 5. Chặn Bot tự động điền vào Honeypot
+    resetRateLimits();
+    await expect(
+      orderService.createOrder({
+        customerName: 'Bot Tự Động',
+        customerPhone: '0911223344',
+        shippingAddress: '100 Đường Lê Lợi',
+        honeypot: 'http://spam-bot.example.com',
+        items: [
+          {
+            productId: 'b1111111-1111-4111-8111-111111111111',
+            productName: 'Bát Ăn',
+            unitPrice: 199000,
+            quantity: 1,
+            customization: {},
+          },
+        ],
+      })
+    ).rejects.toThrow(/Bot/i);
   });
 
   it('should strictly allow ONLY owner Nguyen Cong Hau email as Admin and block all other emails', () => {

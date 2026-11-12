@@ -238,7 +238,67 @@ DECLARE
   v_prod_stock INT;
   v_var_price NUMERIC := 0;
   v_deposit_setting JSONB;
+  v_phone_digits TEXT := right(regexp_replace(coalesce(p_customer_phone, ''), '\D', '', 'g'), 9);
+  v_recent_phone_count INT := 0;
+  v_pending_phone_count INT := 0;
+  v_global_burst_count INT := 0;
 BEGIN
+  -- 1. Chống XSS / Script Injection ngay tại tầng Database
+  IF coalesce(p_customer_name, '') ~* '(<script|javascript:|onerror=|onload=|<iframe|<svg|<object|eval\(|document\.cookie)'
+     OR coalesce(p_shipping_address, '') ~* '(<script|javascript:|onerror=|onload=|<iframe|<svg|<object|eval\(|document\.cookie)'
+     OR coalesce(p_notes, '') ~* '(<script|javascript:|onerror=|onload=|<iframe|<svg|<object|eval\(|document\.cookie)'
+     OR coalesce(p_items::text, '') ~* '(<script|javascript:|onerror=|onload=|<iframe|<svg|<object|eval\(|document\.cookie)'
+  THEN
+    RAISE EXCEPTION 'Phát hiện mã lệnh không an toàn trong dữ liệu đơn hàng (XSS bị chặn)';
+  END IF;
+
+  -- 2. Kiểm tra độ dài hợp lệ của các trường
+  IF length(trim(coalesce(p_customer_name, ''))) < 2 OR length(p_customer_name) > 100 THEN
+    RAISE EXCEPTION 'Họ và tên khách hàng không hợp lệ (2 - 100 ký tự)';
+  END IF;
+
+  IF length(v_phone_digits) < 9 THEN
+    RAISE EXCEPTION 'Số điện thoại nhận hàng không hợp lệ';
+  END IF;
+
+  IF length(trim(coalesce(p_shipping_address, ''))) < 5 OR length(p_shipping_address) > 300 THEN
+    RAISE EXCEPTION 'Địa chỉ giao hàng không hợp lệ (5 - 300 ký tự)';
+  END IF;
+
+  IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) < 1 OR jsonb_array_length(p_items) > 15 THEN
+    RAISE EXCEPTION 'Giỏ hàng không hợp lệ (tối đa 15 sản phẩm mỗi đơn)';
+  END IF;
+
+  -- 3. Chống Spam / Đặt đơn liên tục từ cùng 1 số điện thoại (Cooldown 45 giây)
+  SELECT count(*) INTO v_recent_phone_count
+  FROM public.orders o
+  WHERE right(regexp_replace(o.customer_phone, '\D', '', 'g'), 9) = v_phone_digits
+    AND o.created_at > NOW() - INTERVAL '45 seconds';
+
+  IF v_recent_phone_count > 0 THEN
+    RAISE EXCEPTION 'Bạn vừa đặt một đơn hàng. Vui lòng đợi ít nhất 45 giây trước khi đặt đơn tiếp theo để tránh trùng đơn!';
+  END IF;
+
+  -- 4. Chống phá hoại tạo nhiều đơn ảo chờ xác nhận (Tối đa 3 đơn pending trong 15 phút)
+  SELECT count(*) INTO v_pending_phone_count
+  FROM public.orders o
+  WHERE right(regexp_replace(o.customer_phone, '\D', '', 'g'), 9) = v_phone_digits
+    AND o.order_status = 'pending'::public.order_status
+    AND o.created_at > NOW() - INTERVAL '15 minutes';
+
+  IF v_pending_phone_count >= 3 THEN
+    RAISE EXCEPTION 'Số điện thoại này đang có 3 đơn hàng chờ xác nhận trong 15 phút qua. Vui lòng hoàn tất đặt cọc hoặc thử lại sau!';
+  END IF;
+
+  -- 5. Chống DDoS / Bot Flood toàn hệ thống (Tối đa 25 đơn / 1 phút)
+  SELECT count(*) INTO v_global_burst_count
+  FROM public.orders o
+  WHERE o.created_at > NOW() - INTERVAL '1 minute';
+
+  IF v_global_burst_count >= 25 THEN
+    RAISE EXCEPTION 'Hệ thống đang nhận lượng đơn quá tải đột biến. Vui lòng thử lại sau ít giây!';
+  END IF;
+
   SELECT setting_value INTO v_deposit_setting FROM public.shop_settings WHERE setting_key = 'bank_transfer';
   IF v_deposit_setting IS NOT NULL AND (v_deposit_setting->>'deposit_percentage') IS NOT NULL THEN
     v_deposit_percent := (v_deposit_setting->>'deposit_percentage')::NUMERIC / 100.0;
