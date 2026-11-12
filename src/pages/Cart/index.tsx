@@ -83,13 +83,28 @@ export const CartPage: React.FC = () => {
                       {item.selectedVariant.variant_name}: {item.selectedVariant.variant_value}
                     </p>
                   )}
-                  {(item.customization.petName || item.customization.customText) && (
+                  {(item.customization.petName || item.customization.customText || item.customization.phoneOnTag) && (
                     <div className="text-[11px] bg-cute-cream dark:bg-cute-surface-dark px-3 py-1.5 rounded-xl border border-cute-border-light block font-medium space-y-0.5">
                       <div>
                         ✨ In tên: <strong>
                           {item.customization.selectedIcons?.[0]} {item.customization.petName || item.customization.customText} {item.customization.selectedIcons?.[1]}
                         </strong>
                       </div>
+                      {item.customization.phoneOnTag && (
+                        <div className="text-[10px] text-cute-brown-light dark:text-cute-muted">
+                          📞 SĐT khắc: {item.customization.phoneOnTag}
+                        </div>
+                      )}
+                      {item.customization.keychainDesign && (
+                        <div className="text-[10px] text-cute-brown-light dark:text-cute-muted">
+                          🔑 Kiểu móc: {item.customization.keychainDesign}
+                        </div>
+                      )}
+                      {item.customization.tagShape && (
+                        <div className="text-[10px] text-cute-brown-light dark:text-cute-muted">
+                          🏷️ Dáng thẻ: {item.customization.tagShape}
+                        </div>
+                      )}
                       {(item.customization.bodyColor || item.customization.baseColor) && (
                         <div className="text-[10px] text-cute-brown-light dark:text-cute-muted">
                           🎨 Thân: {item.customization.bodyColor} • Đế: {item.customization.baseColor}

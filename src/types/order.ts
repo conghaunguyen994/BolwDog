@@ -36,6 +36,8 @@ export interface PetCustomization {
   keychainDesign?: string;
   customText?: string;
   phoneOnTag?: string;
+  tagShape?: string;
+  glowColor?: string;
   // Bản demo file 3D để khách hàng xem trước & chốt in
   demoPreview?: Demo3DPreview;
 }

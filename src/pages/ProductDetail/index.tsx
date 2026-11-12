@@ -146,8 +146,59 @@ export const ProductDetailPage: React.FC = () => {
             data.images[0]?.image_url ||
             'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?q=80&w=800&auto=format&fit=crop';
           setSelectedImage(mainImg);
-          if (data.variants && data.variants.length > 0) {
+
+          const isBowl =
+            (data.category?.slug || '').toLowerCase() === 'bat-an-cho-cho' ||
+            (data.category?.slug || '').toLowerCase().includes('bat-an') ||
+            (data.category_id || '').toLowerCase() === 'cat-bowls' ||
+            (data.category_id || '').toLowerCase() === 'a1111111-1111-4111-8111-111111111111' ||
+            (data.category_id || '').toLowerCase() === 'c1111111-1111-1111-1111-111111111111' ||
+            (data.name || '').toLowerCase().includes('bát') ||
+            (data.name || '').toLowerCase().includes('chén') ||
+            (data.name || '').toLowerCase().includes('bowl');
+
+          // Chỉ sản phẩm bát ăn mới kích hoạt biến thể kích thước S, M, L, XL, XXL
+          if (isBowl && data.variants && data.variants.length > 0) {
             setSelectedVariant(data.variants[0]);
+          } else {
+            setSelectedVariant(undefined);
+          }
+
+          if (isBowl) {
+            setCustomization({
+              petName: 'Ngáo',
+              bodyColor: 'Trắng Sứ',
+              bodyColorHex: '#FFFFFF',
+              baseColor: 'Xanh Cổ Vịt (Mẫu Ngáo)',
+              baseColorHex: '#1A7B8E',
+              selectedIcons: ['🐶', '🐾'],
+              petBirthday: '',
+              customNotes: '',
+            });
+          } else {
+            const isKey =
+              (data.category?.slug || '').toLowerCase() === 'moc-khoa-3d' ||
+              (data.category_id || '').toLowerCase() === 'cat-keychains' ||
+              (data.category_id || '').toLowerCase() === 'a2222222-2222-4222-8222-222222222222' ||
+              (data.name || '').toLowerCase().includes('móc khóa');
+
+            if (isKey) {
+              setCustomization({
+                customText: '',
+                phoneOnTag: '',
+                keychainDesign: 'Khoen tròn vàng hồng',
+                keychainColor: 'Vàng Hồng (Rose Gold)',
+                customNotes: '',
+              });
+            } else {
+              setCustomization({
+                petName: '',
+                phoneOnTag: '',
+                tagShape: 'Khúc xương',
+                glowColor: 'Xanh Dạ Quang (Glow Green)',
+                customNotes: '',
+              });
+            }
           }
         }
       } catch (e) {
@@ -186,18 +237,33 @@ export const ProductDetailPage: React.FC = () => {
     );
   }
 
-  const unitPrice = product.price + (selectedVariant ? selectedVariant.additional_price : 0);
+  const isDogBowl = Boolean(
+    product &&
+      ((product.category?.slug || '').toLowerCase() === 'bat-an-cho-cho' ||
+        (product.category?.slug || '').toLowerCase().includes('bat-an') ||
+        (product.category_id || '').toLowerCase() === 'cat-bowls' ||
+        (product.category_id || '').toLowerCase() === 'a1111111-1111-4111-8111-111111111111' ||
+        (product.category_id || '').toLowerCase() === 'c1111111-1111-1111-1111-111111111111' ||
+        (product.name || '').toLowerCase().includes('bát') ||
+        (product.name || '').toLowerCase().includes('chén') ||
+        (product.name || '').toLowerCase().includes('bowl'))
+  );
+
+  // Chỉ bát ăn mới áp dụng phụ phí kích thước biến thể
+  const unitPrice =
+    product.price + (isDogBowl && selectedVariant ? selectedVariant.additional_price : 0);
   const totalPrice = unitPrice * quantity;
   const isOutOfStock = product.stock_quantity <= 0;
 
-  const activeBaseHex = customization.baseColorHex || '#1A7B8E';
-  const activeBodyHex = customization.bodyColorHex || '#FFFFFF';
-  const activeAccentHex =
-    activeBaseHex.toLowerCase() === '#ffffff'
+  const activeBaseHex = isDogBowl ? (customization.baseColorHex || '#1A7B8E') : '#FF6B81';
+  const activeBodyHex = isDogBowl ? (customization.bodyColorHex || '#FFFFFF') : '#FFFFFF';
+  const activeAccentHex = isDogBowl
+    ? activeBaseHex.toLowerCase() === '#ffffff'
       ? activeBodyHex.toLowerCase() === '#ffffff'
         ? '#1A7B8E'
         : activeBodyHex
-      : activeBaseHex;
+      : activeBaseHex
+    : '#FF6B81';
 
   const handleAddToCart = (): boolean => {
     if (isOutOfStock) return false;
@@ -379,8 +445,8 @@ export const ProductDetailPage: React.FC = () => {
             {product.description}
           </p>
 
-          {/* Variants Selector */}
-          {product.variants.length > 0 && (
+          {/* Variants Selector - CHỈ DÀNH CHO BÁT ĂN CÓ KÍCH THƯỚC */}
+          {isDogBowl && product.variants.length > 0 && (
             <div className="space-y-2 pt-2">
               <label className="text-xs font-bold text-cute-brown dark:text-cute-cream block">
                 {product.variants[0].variant_name}:

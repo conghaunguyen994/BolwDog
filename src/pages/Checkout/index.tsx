@@ -318,11 +318,26 @@ export const CheckoutPage: React.FC = () => {
                     <span className="text-[11px] text-cute-brown-light dark:text-cute-muted block">
                       SL: {it.quantity} x {formatVND(it.unitPrice)}
                     </span>
-                    {(it.customization.petName || it.customization.customText) && (
+                    {(it.customization.petName || it.customization.customText || it.customization.phoneOnTag) && (
                       <div className="text-[10px] text-cute-pink-600 dark:text-cute-pink-300 font-semibold block space-y-0.5">
                         <span className="truncate block">
                           ✨ {it.customization.selectedIcons?.[0]} {it.customization.petName || it.customization.customText} {it.customization.selectedIcons?.[1]}
                         </span>
+                        {it.customization.phoneOnTag && (
+                          <span className="text-[9px] text-cute-brown-light dark:text-cute-muted block truncate">
+                            📞 SĐT: {it.customization.phoneOnTag}
+                          </span>
+                        )}
+                        {it.customization.keychainDesign && (
+                          <span className="text-[9px] text-cute-brown-light dark:text-cute-muted block truncate">
+                            🔑 Kiểu móc: {it.customization.keychainDesign}
+                          </span>
+                        )}
+                        {it.customization.tagShape && (
+                          <span className="text-[9px] text-cute-brown-light dark:text-cute-muted block truncate">
+                            🏷️ Dáng thẻ: {it.customization.tagShape}
+                          </span>
+                        )}
                         {(it.customization.bodyColor || it.customization.baseColor) && (
                           <span className="text-[9px] text-cute-brown-light dark:text-cute-muted block truncate">
                             Thân: {it.customization.bodyColor} • Đế: {it.customization.baseColor}
