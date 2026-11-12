@@ -1,5 +1,6 @@
 import { supabase } from './supabase/client';
 import { Demo3DPreview, DemoReviewStatus, Order, OrderStatus, PaymentStatus } from '../types/order';
+import { emailService } from './emailService';
 import {
   assertCsrfAndSameOrigin,
   assertHumanNotBot,
@@ -110,7 +111,7 @@ export const orderService = {
 
       markOrderSubmitted(orderSignature);
 
-      return {
+      const createdOrder: Order = {
         id: data.order_id,
         order_reference: data.order_reference,
         customer_name: cleanName,
@@ -136,6 +137,11 @@ export const orderService = {
           image_url: it.imageUrl,
         })),
       };
+
+      // Tự động gửi Email thông báo đơn mới cho Admin & xác nhận cho Khách hàng
+      emailService.notifyOrderCreated(createdOrder).catch(() => {});
+
+      return createdOrder;
     });
   },
 
@@ -377,6 +383,9 @@ export const orderService = {
         throw new Error(error.message);
       }
 
+      // Tự động gửi Email thông báo bản Demo 3D cho khách hàng vào xem & chốt in
+      emailService.notifyCustomerDemo3DSent(order, demoPreview).catch(() => {});
+
       return demoPreview;
     });
   },
@@ -462,7 +471,31 @@ export const orderService = {
         proof_image_url: `DEMO_REVIEW::${payload.status}::${cleanFeedback || ''}`,
       });
 
+      // 4. Tự động gửi Email thông báo phản hồi / yêu cầu chỉnh sửa file 3D của khách về cho Admin
+      emailService
+        .notifyAdminCustomerAction(order, {
+          type: payload.status === 'approved' ? 'demo_approved' : 'demo_revision_requested',
+          feedback: cleanFeedback,
+        })
+        .catch(() => {});
+
       return updatedDemo;
+    });
+  },
+
+  async updateOrderCustomerEmail(orderId: string, customerEmail: string): Promise<void> {
+    return withActionLock(`update_email_${orderId}`, async () => {
+      assertCsrfAndSameOrigin();
+      if (containsXssPayload(customerEmail)) {
+        throw new Error('Email chứa ký tự không hợp lệ.');
+      }
+      const cleanEmail = sanitizeText(customerEmail, 120);
+      const db = requireSupabase();
+      const { error } = await db
+        .from('orders')
+        .update({ customer_email: cleanEmail || null, updated_at: new Date().toISOString() })
+        .eq('id', orderId);
+      if (error) throw new Error(error.message);
     });
   },
 };

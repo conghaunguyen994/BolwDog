@@ -12,6 +12,7 @@ import {
   Edit3,
   ZoomIn,
   X,
+  Mail,
 } from 'lucide-react';
 import { orderService } from '../../services/orderService';
 import { settingsService } from '../../services/settingsService';
@@ -53,6 +54,14 @@ export const OrderTrackingPage: React.FC = () => {
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewMessage, setReviewMessage] = useState<string | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [emailInput, setEmailInput] = useState('');
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailSavedNotice, setEmailSavedNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEmailInput(order?.customer_email || '');
+    setEmailSavedNotice(null);
+  }, [order?.id, order?.customer_email]);
 
   useEffect(() => {
     settingsService.getSettings().then(setSettings).catch(() => {});
@@ -128,17 +137,40 @@ export const OrderTrackingPage: React.FC = () => {
 
       if (status === 'approved') {
         setReviewMessage(
-          '🎉 Cảm ơn ba mẹ đã chốt mẫu 3D! Xưởng đã nhận xác nhận và sẽ tiến hành bấm máy in 3D cho bé ngay.'
+          '🎉 Cảm ơn ba mẹ đã chốt mẫu 3D! Xưởng đã nhận được thông báo qua Email và sẽ tiến hành bấm máy in 3D cho bé ngay.'
         );
       } else {
         setReviewMessage(
-          '✍️ Đã gửi yêu cầu chỉnh sửa mẫu 3D tới xưởng! Nghệ nhân sẽ điều chỉnh lại file 3D và cập nhật bản demo mới tại đây nhé.'
+          '✍️ Đã gửi yêu cầu chỉnh sửa mẫu 3D tới Email của xưởng! Nghệ nhân sẽ điều chỉnh lại file 3D và cập nhật bản demo mới tại đây nhé.'
         );
       }
     } catch (err: any) {
       setReviewMessage(`❌ ${err.message || 'Không thể gửi phản hồi duyệt mẫu.'}`);
     } finally {
       setReviewLoading(false);
+    }
+  };
+
+  const handleSaveCustomerEmail = async () => {
+    if (!order) return;
+    const cleanEmail = emailInput.trim().toLowerCase();
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setEmailSavedNotice('⚠️ Vui lòng nhập địa chỉ Email hợp lệ (ví dụ: bame@gmail.com).');
+      return;
+    }
+
+    setEmailSaving(true);
+    setEmailSavedNotice(null);
+    try {
+      await orderService.updateOrderCustomerEmail(order.id, cleanEmail);
+      const nextOrder: Order = { ...order, customer_email: cleanEmail };
+      setOrder(nextOrder);
+      setOrders((prev) => prev.map((o) => (o.id === nextOrder.id ? nextOrder : o)));
+      setEmailSavedNotice('✅ Đã lưu Email! Khi xưởng gửi Demo 3D hoặc cập nhật đơn, hệ thống sẽ báo ngay về Email này.');
+    } catch (err: any) {
+      setEmailSavedNotice(`❌ ${err.message || 'Không thể lưu Email.'}`);
+    } finally {
+      setEmailSaving(false);
     }
   };
 
@@ -540,6 +572,44 @@ export const OrderTrackingPage: React.FC = () => {
               </div>
             );
           })()}
+
+          {/* Đăng ký / Cập nhật Email nhận thông báo Demo 3D & tiến độ đơn */}
+          <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-cute-surface-dark border border-sky-200 dark:border-sky-800 space-y-2.5 text-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="space-y-0.5">
+                <span className="font-black text-sky-900 dark:text-sky-200 flex items-center gap-1.5">
+                  <Mail className="w-4 h-4 text-sky-600" />
+                  Nhận thông báo qua Email khi có Bản Demo 3D & tiến độ in
+                </span>
+                <p className="text-[11px] text-cute-brown-light dark:text-cute-muted">
+                  Nhập hoặc cập nhật Email của ba mẹ để xưởng gửi thông báo tự động ngay khi dựng xong mẫu 3D.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="email"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder="Nhập Email nhận thông báo (ví dụ: bame@gmail.com)"
+                className="flex-1 px-3.5 py-2 rounded-xl border border-sky-200 bg-white text-xs text-cute-brown focus:outline-none focus:ring-2 focus:ring-sky-300"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                isLoading={emailSaving}
+                onClick={handleSaveCustomerEmail}
+                leftIcon={<Mail className="w-3.5 h-3.5" />}
+              >
+                {order.customer_email ? 'Cập nhật Email' : 'Lưu Email nhận thông báo'}
+              </Button>
+            </div>
+            {emailSavedNotice && (
+              <p className="text-[11px] font-bold text-sky-900 dark:text-sky-200">
+                {emailSavedNotice}
+              </p>
+            )}
+          </div>
 
           {/* Payment QR notice if unpaid or pending */}
           {order.payment_status === 'deposit_pending' && (

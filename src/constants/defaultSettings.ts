@@ -25,5 +25,18 @@ export const defaultShopSettings: ShopSettings = {
     qr_template: 'compact2',
     transfer_note_prefix: 'BD',
   },
+  email_notifications: {
+    enabled: true,
+    admin_email: 'conghaunguyen994@gmail.com.vn',
+    admin_backup_email: 'conghaunguyen994@gmail.com',
+    webhook_url: '',
+    emailjs_service_id: '',
+    emailjs_template_id: '',
+    emailjs_public_key: '',
+    notify_on_new_order: true,
+    notify_on_demo_sent: true,
+    notify_on_demo_review: true,
+    notify_on_status_change: true,
+  },
 };
 

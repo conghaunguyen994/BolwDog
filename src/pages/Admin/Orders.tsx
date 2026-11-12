@@ -11,8 +11,10 @@ import {
   Check,
   MessageSquareWarning,
   Printer,
+  Mail,
 } from 'lucide-react';
 import { orderService } from '../../services/orderService';
+import { emailService, buildGmailComposeUrl, buildOrderTrackingUrl } from '../../services/emailService';
 import { Order, OrderStatus, PaymentStatus } from '../../types/order';
 import { formatVND } from '../../utils/currency';
 import { formatDate } from '../../utils/date';
@@ -51,9 +53,11 @@ export const AdminOrders: React.FC = () => {
   const [demoSending, setDemoSending] = useState(false);
   const [demoFeedbackMsg, setDemoFeedbackMsg] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [customerEmailInput, setCustomerEmailInput] = useState('');
 
   const openOrderDetail = (order: Order) => {
     setSelectedOrder(order);
+    setCustomerEmailInput(order.customer_email || '');
     const existingDemo = getOrderDemoPreview(order);
     if (existingDemo) {
       setDemoImages(
@@ -123,7 +127,9 @@ export const AdminOrders: React.FC = () => {
       await orderService.updateOrderStatus(orderId, newStatus);
       await fetchOrders();
       if (selectedOrder && selectedOrder.id === orderId) {
-        setSelectedOrder({ ...selectedOrder, order_status: newStatus });
+        const updated = { ...selectedOrder, order_status: newStatus };
+        setSelectedOrder(updated);
+        emailService.notifyOrderStatusChanged(updated, newStatus).catch(() => {});
       }
     } catch (e) {
       console.error(e);
@@ -206,13 +212,20 @@ export const AdminOrders: React.FC = () => {
     setDemoSending(true);
     setDemoFeedbackMsg(null);
     try {
-      const savedDemo = await orderService.sendDemo3DPreview(selectedOrder, {
+      let targetOrder: Order = selectedOrder;
+      const cleanEmail = customerEmailInput.trim();
+      if (cleanEmail !== (selectedOrder.customer_email || '')) {
+        await orderService.updateOrderCustomerEmail(selectedOrder.id, cleanEmail);
+        targetOrder = { ...selectedOrder, customer_email: cleanEmail || null };
+      }
+
+      const savedDemo = await orderService.sendDemo3DPreview(targetOrder, {
         imageUrl: demoImages[0],
         images: demoImages,
         adminNote: demoAdminNote,
       });
 
-      const updatedItems = selectedOrder.items.map((it, idx) =>
+      const updatedItems = targetOrder.items.map((it, idx) =>
         idx === 0
           ? {
               ...it,
@@ -224,17 +237,46 @@ export const AdminOrders: React.FC = () => {
           : it
       );
 
-      const updatedOrder: Order = { ...selectedOrder, items: updatedItems };
+      const updatedOrder: Order = { ...targetOrder, items: updatedItems };
       setSelectedOrder(updatedOrder);
       setOrders((prev) => prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o)));
       setDemoFeedbackMsg(
-        '✅ Đã lưu và gửi bản Demo 3D! Bạn có thể bấm nút "Copy Link Gửi Khách" bên dưới để gửi qua Zalo/Messenger cho khách xem & chốt in.'
+        cleanEmail
+          ? `✅ Đã lưu bản Demo 3D và tự động gửi thông báo tới Email khách hàng (${cleanEmail})!`
+          : '✅ Đã lưu bản Demo 3D! Bạn có thể điền Email khách hoặc bấm nút "Copy Link Gửi Khách" bên dưới.'
       );
     } catch (err: any) {
       setDemoFeedbackMsg(`❌ Lỗi: ${err.message || 'Không thể gửi bản demo 3D.'}`);
     } finally {
       setDemoSending(false);
     }
+  };
+
+  const handleOpenGmailToCustomer = () => {
+    if (!selectedOrder) return;
+    const trackingUrl = buildOrderTrackingUrl(selectedOrder);
+    const petName =
+      selectedOrder.items[0]?.customization_data?.petName ||
+      selectedOrder.items[0]?.customization_data?.customText ||
+      'bé cưng';
+    const gmailUrl = buildGmailComposeUrl({
+      to: customerEmailInput.trim() || selectedOrder.customer_email || '',
+      subject: `[BolwDog Studio] 🎨 Bản Demo 3D đơn #${selectedOrder.order_reference} (${petName}) – Mời ba mẹ xem & chốt in!`,
+      body: [
+        `Chào ba mẹ ${selectedOrder.customer_name},`,
+        ``,
+        `Nghệ nhân của BolwDog Studio vừa hoàn thiện bản dựng file 3D cho đơn hàng #${selectedOrder.order_reference} (tên bé: "${petName}").`,
+        ``,
+        `💬 Lời nhắn từ xưởng: "${demoAdminNote}"`,
+        ``,
+        `👉 Ba mẹ bấm vào đường link dưới đây để xem hình mô phỏng 3D và bấm nút "✅ Xác Nhận Chốt In" (hoặc "✏️ Yêu Cầu Chỉnh Sửa Thêm"):`,
+        `${trackingUrl}`,
+        ``,
+        `Trân trọng,`,
+        `BolwDog Studio – Nguyễn Công Hậu (0345553913)`,
+      ].join('\n'),
+    });
+    window.open(gmailUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleCopyCustomerReviewLink = () => {
@@ -256,9 +298,45 @@ export const AdminOrders: React.FC = () => {
           Quản Lý Đơn Hàng In 3D
         </h1>
         <p className="text-xs text-cute-brown-light dark:text-cute-muted">
-          Đối soát tiền cọc ngân hàng, cập nhật tiến độ in 3D và bàn giao cho đơn vị vận chuyển
+          Đối soát tiền cọc ngân hàng, gửi bản Demo 3D qua Email & nhận thông báo khách chốt in / yêu cầu chỉnh sửa
         </p>
       </div>
+
+      {/* Thông báo nhanh các đơn khách vừa yêu cầu chỉnh sửa file 3D */}
+      {(() => {
+        const revisionOrders = orders.filter(
+          (o) => getOrderDemoPreview(o)?.status === 'revision_requested'
+        );
+        if (revisionOrders.length === 0) return null;
+        return (
+          <div className="p-4 rounded-3xl bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-800 space-y-2 shadow-sm">
+            <div className="flex items-center gap-2 text-xs sm:text-sm font-black text-rose-700 dark:text-rose-300">
+              <MessageSquareWarning className="w-5 h-5 flex-shrink-0 animate-bounce" />
+              <span>
+                Có {revisionOrders.length} đơn hàng khách đang yêu cầu chỉnh sửa thêm file 3D (Đã gửi thông báo về Email Admin):
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {revisionOrders.map((ro) => {
+                const dm = getOrderDemoPreview(ro);
+                return (
+                  <button
+                    key={ro.id}
+                    type="button"
+                    onClick={() => openOrderDetail(ro)}
+                    className="px-3 py-1.5 rounded-xl bg-white hover:bg-rose-100 border border-rose-300 text-xs font-bold text-rose-800 flex items-center gap-1.5 transition-colors shadow-sm"
+                  >
+                    <span>✏️ {ro.order_reference} ({ro.customer_name}):</span>
+                    <span className="italic max-w-[220px] truncate">
+                      &ldquo;{dm?.customerFeedback || 'Xem chi tiết'}&rdquo;
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Filter and Search Bar */}
       <div className="cute-card p-4 sm:p-5 space-y-4">
@@ -656,18 +734,33 @@ export const AdminOrders: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Ghi chú của Admin gửi kèm bản Demo */}
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold text-cute-brown dark:text-cute-cream">
-                      2. Lời nhắn gửi khách hàng kèm bản Demo 3D:
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={demoAdminNote}
-                      onChange={(e) => setDemoAdminNote(e.target.value)}
-                      placeholder="Nhập ghi chú gửi khách..."
-                      className="w-full px-3 py-2 rounded-xl border border-purple-200 bg-white text-xs text-cute-brown focus:outline-none focus:ring-2 focus:ring-purple-300 resize-none"
-                    />
+                  {/* Ghi chú của Admin & Email nhận bản Demo của khách */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-cute-brown dark:text-cute-cream">
+                        2. Email của khách để nhận bản Demo 3D:
+                      </label>
+                      <input
+                        type="email"
+                        value={customerEmailInput}
+                        onChange={(e) => setCustomerEmailInput(e.target.value)}
+                        placeholder="Nhập email khách hàng (VD: khach@gmail.com)..."
+                        className="w-full px-3 py-2 rounded-xl border border-purple-200 bg-white text-xs text-cute-brown focus:outline-none focus:ring-2 focus:ring-purple-300"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-cute-brown dark:text-cute-cream">
+                        3. Lời nhắn gửi kèm bản Demo 3D:
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={demoAdminNote}
+                        onChange={(e) => setDemoAdminNote(e.target.value)}
+                        placeholder="Nhập ghi chú gửi khách..."
+                        className="w-full px-3 py-2 rounded-xl border border-purple-200 bg-white text-xs text-cute-brown focus:outline-none focus:ring-2 focus:ring-purple-300 resize-none"
+                      />
+                    </div>
                   </div>
 
                   {demoFeedbackMsg && (
@@ -676,8 +769,8 @@ export const AdminOrders: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Nút Gửi Demo & Copy Link gửi Zalo cho khách */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-1">
+                  {/* Nút Gửi Demo, Gửi Gmail & Copy Link gửi Zalo cho khách */}
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
                     <Button
                       variant="primary"
                       size="sm"
@@ -686,8 +779,17 @@ export const AdminOrders: React.FC = () => {
                       leftIcon={<Send className="w-3.5 h-3.5" />}
                       className="flex-1 justify-center"
                     >
-                      {currentDemo ? 'Cập Nhật & Gửi Lại Bản Demo 3D' : 'Gửi Bản Demo 3D Cho Khách Duyệt'}
+                      {currentDemo ? 'Cập Nhật & Gửi Email Bản Demo 3D' : 'Gửi Bản Demo 3D & Báo Email Khách'}
                     </Button>
+
+                    <button
+                      type="button"
+                      onClick={handleOpenGmailToCustomer}
+                      className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition-colors shadow-sm"
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                      <span>Mở Gmail Gửi Trực Tiếp</span>
+                    </button>
 
                     <button
                       type="button"
@@ -697,12 +799,12 @@ export const AdminOrders: React.FC = () => {
                       {copiedLink ? (
                         <>
                           <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          <span className="text-emerald-700">Đã copy tin nhắn + Link gửi khách!</span>
+                          <span className="text-emerald-700">Đã copy Link!</span>
                         </>
                       ) : (
                         <>
                           <Copy className="w-3.5 h-3.5" />
-                          <span>Copy Link Gửi Zalo / Mess Cho Khách</span>
+                          <span>Copy Link Zalo / Mess</span>
                         </>
                       )}
                     </button>
