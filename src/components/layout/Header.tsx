@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Search, ShieldCheck, Heart, PackageCheck, Menu, X } from 'lucide-react';
-import { useAppSelector } from '../../app/hooks';
+import { ShoppingBag, Search, ShieldCheck, Heart, PackageCheck, Menu, X, LogIn, LogOut, User } from 'lucide-react';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { logout } from '../../features/auth/authSlice';
+import { authService } from '../../services/authService';
 import { ThemeToggle } from '../common/ThemeToggle';
-import { Badge } from '../common/Badge';
 
 interface HeaderProps {
   onOpenCart: () => void;
@@ -11,6 +12,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const cartItems = useAppSelector((state) => state.cart.items);
   const totalItems = cartItems.reduce((acc, item) => acc + item.quantity, 0);
   const auth = useAppSelector((state) => state.auth);
@@ -18,6 +20,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
+
+  const handleLogout = async () => {
+    await authService.logout();
+    dispatch(logout());
+    setIsMobileMenuOpen(false);
+    navigate('/');
+  };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,16 +160,41 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
               </span>
             </button>
 
-            {/* Admin Portal Shortcut (chỉ hiển thị khi chủ tiệm đã đăng nhập xác thực Admin) */}
-            {auth.isAdmin && (
+            {/* Authentication & Admin Portal Action */}
+            {!auth.isAuthenticated ? (
               <Link
-                to="/admin/dashboard"
-                title="Khu vực Quản trị"
-                className="hidden lg:flex items-center gap-1.5 text-xs px-3 py-2 rounded-full bg-cute-lavender/60 hover:bg-cute-lavender dark:bg-cute-lavender-dark text-cute-brown dark:text-cute-cream border border-cute-lavender font-semibold transition-colors"
+                to="/login"
+                title="Đăng nhập tài khoản / Quản trị viên"
+                className="flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-full bg-cute-lavender/70 hover:bg-cute-lavender dark:bg-cute-lavender-dark text-cute-brown dark:text-cute-cream border border-cute-lavender font-bold transition-colors shadow-sm"
               >
-                <ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-300" />
-                <span>Quản trị</span>
+                <LogIn className="w-4 h-4 text-purple-600 dark:text-purple-300" />
+                <span className="hidden sm:inline">Đăng nhập</span>
               </Link>
+            ) : (
+              <div className="hidden md:flex items-center gap-2">
+                {auth.isAdmin ? (
+                  <Link
+                    to="/admin/dashboard"
+                    title="Vào Cổng Quản Trị Xưởng"
+                    className="flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-bold transition-colors shadow-sm"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Vào Admin</span>
+                  </Link>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full bg-cute-cream border border-cute-border-light font-semibold text-cute-brown">
+                    <User className="w-3.5 h-3.5 text-cute-pink-500" />
+                    <span className="max-w-[100px] truncate">{auth.user?.fullName}</span>
+                  </span>
+                )}
+                <button
+                  onClick={handleLogout}
+                  title="Đăng xuất"
+                  className="p-2 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
             )}
 
             {/* Mobile Hamburger Menu */}
@@ -222,18 +256,38 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
               <PackageCheck className="w-4 h-4 text-cute-pink-400" />
               <span>Tra cứu đơn yêu thương</span>
             </Link>
-            {auth.isAdmin && (
-              <div className="pt-2 border-t border-cute-border-light dark:border-cute-border-dark">
+            <div className="pt-2 border-t border-cute-border-light dark:border-cute-border-dark space-y-2">
+              {!auth.isAuthenticated ? (
                 <Link
-                  to="/admin/dashboard"
+                  to="/login"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="py-1.5 flex items-center gap-2 text-purple-600 dark:text-purple-300"
+                  className="py-2 px-3 rounded-xl bg-cute-lavender/60 flex items-center gap-2 text-purple-700 dark:text-purple-300 font-bold"
                 >
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>Cổng Quản trị Xưởng</span>
+                  <LogIn className="w-4 h-4" />
+                  <span>Đăng nhập (Khách / Quản trị)</span>
                 </Link>
-              </div>
-            )}
+              ) : (
+                <>
+                  {auth.isAdmin && (
+                    <Link
+                      to="/admin/dashboard"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="py-2 px-3 rounded-xl bg-purple-600 text-white flex items-center gap-2 font-bold"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Vào Cổng Quản Trị Admin</span>
+                    </Link>
+                  )}
+                  <button
+                    onClick={handleLogout}
+                    className="w-full py-2 px-3 rounded-xl bg-rose-50 text-rose-600 flex items-center gap-2 font-bold text-left"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Đăng xuất ({auth.user?.email})</span>
+                  </button>
+                </>
+              )}
+            </div>
           </nav>
         </div>
       )}

@@ -10,6 +10,7 @@ interface MobileNavProps {
 export const MobileNav: React.FC<MobileNavProps> = ({ onOpenCart }) => {
   const location = useLocation();
   const cartItems = useAppSelector((state) => state.cart.items);
+  const auth = useAppSelector((state) => state.auth);
   const totalItems = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
   const isActive = (path: string) => {
@@ -70,13 +71,13 @@ export const MobileNav: React.FC<MobileNavProps> = ({ onOpenCart }) => {
         </Link>
 
         <Link
-          to="/admin/dashboard"
+          to={auth.isAdmin ? '/admin/dashboard' : '/login'}
           className={`flex flex-col items-center gap-1 text-[11px] font-semibold transition-colors ${
-            isActive('/admin') ? 'text-purple-600 font-bold' : 'text-cute-brown-light dark:text-cute-muted'
+            isActive('/admin') || isActive('/login') ? 'text-purple-600 font-bold' : 'text-cute-brown-light dark:text-cute-muted'
           }`}
         >
           <User className="w-5 h-5" />
-          <span>Admin</span>
+          <span>{auth.isAdmin ? 'Quản trị' : auth.isAuthenticated ? 'Tài khoản' : 'Đăng nhập'}</span>
         </Link>
       </div>
     </div>

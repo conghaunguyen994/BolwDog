@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Lock, Mail, User, ShieldAlert, CheckCircle2 } from 'lucide-react';
-import { useAppDispatch } from '../../app/hooks';
+import { Lock, Mail, User, ShieldAlert, ShieldCheck, CheckCircle2, LogIn, UserPlus } from 'lucide-react';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { setUser } from '../../features/auth/authSlice';
 import { authService } from '../../services/authService';
 import { Button } from '../../components/common/Button';
@@ -15,6 +15,7 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
+  const auth = useAppSelector((state) => state.auth);
 
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
@@ -25,7 +26,16 @@ export const LoginPage: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
 
-  const from = (location.state as any)?.from?.pathname || '/';
+  const locationState = (location.state as { from?: { pathname?: string }; adminRequired?: boolean }) || {};
+  const from = locationState.from?.pathname || '/admin/dashboard';
+  const adminRequired = Boolean(locationState.adminRequired || from.startsWith('/admin'));
+
+  // Nếu đã đăng nhập là Admin rồi thì cho phép đi thẳng tới /admin/dashboard
+  useEffect(() => {
+    if (auth.isAuthenticated && auth.isAdmin) {
+      navigate(from.startsWith('/admin') ? from : '/admin/dashboard', { replace: true });
+    }
+  }, [auth.isAuthenticated, auth.isAdmin, from, navigate]);
 
   useEffect(() => {
     const checkLockout = () => {
@@ -78,32 +88,42 @@ export const LoginPage: React.FC = () => {
         if (password.length < 6) {
           throw new Error('Mật khẩu phải có ít nhất 6 ký tự.');
         }
-        const user = await authService.register(email, password, fullName);
+        const { profile, hasSession } = await authService.register(email, password, fullName);
         clearFailedAttempts();
-        dispatch(setUser(user));
-        if (user.role === 'admin') {
-          navigate('/admin/dashboard');
+
+        if (hasSession) {
+          dispatch(setUser(profile));
+          if (profile.role === 'admin') {
+            navigate('/admin/dashboard', { replace: true });
+          } else {
+            navigate('/', { replace: true });
+          }
         } else {
-          setSuccessMsg('Đăng ký tài khoản thành công! Vui lòng kiểm tra email (nếu cần xác nhận) hoặc đăng nhập.');
-          navigate('/');
+          setIsRegister(false);
+          setSuccessMsg(
+            `Đăng ký thành công cho ${email}! Vui lòng mở hộp thư Email để nhấn link xác nhận tài khoản từ hệ thống, sau đó đăng nhập tại đây.`
+          );
         }
       } else {
         const user = await authService.login(email, password);
         clearFailedAttempts();
         dispatch(setUser(user));
+
         if (user.role === 'admin') {
-          navigate('/admin/dashboard');
-        } else if (from.startsWith('/admin')) {
-          setError('Tài khoản này không có quyền truy cập Cổng Quản Trị. Chỉ chủ tiệm Nguyễn Công Hậu mới được phép truy cập.');
+          navigate(from.startsWith('/admin') ? from : '/admin/dashboard', { replace: true });
+        } else if (adminRequired) {
+          setError(
+            'Tài khoản này chỉ là tài khoản Khách hàng, không có quyền truy cập vào /admin/*. Chỉ duy nhất email chính chủ của Nguyễn Công Hậu mới được phép vào cổng Admin.'
+          );
         } else {
-          navigate(from);
+          navigate('/', { replace: true });
         }
       }
     } catch (err: any) {
       if (!isRegister) {
         recordFailedAttempt();
       }
-      setError(err.message || 'Xác thực không thành công. Vui lòng kiểm tra lại thông tin.');
+      setError(err.message || 'Xác thực không thành công. Vui lòng kiểm tra lại email và mật khẩu.');
     } finally {
       setLoading(false);
     }
@@ -118,14 +138,58 @@ export const LoginPage: React.FC = () => {
             🐾
           </div>
           <h1 className="text-2xl font-black text-cute-brown dark:text-cute-cream font-sans">
-            {isRegister ? 'Đăng Ký Tài Khoản' : 'Đăng Nhập Hệ Thống'}
+            {isRegister ? 'Đăng Ký Tài Khoản' : 'Đăng Nhập & Kiểm Tra Quyền'}
           </h1>
           <p className="text-xs text-cute-brown-light dark:text-cute-muted">
             {isRegister
-              ? 'Tạo tài khoản để lưu thông tin đơn hàng của bé cưng'
-              : 'Đăng nhập bảo mật dành cho khách hàng & chủ tiệm'}
+              ? 'Tạo tài khoản mới trên hệ thống bảo mật BolwDog'
+              : 'Nhập tài khoản để kiểm tra quyền Quản trị viên (Admin) hoặc Thành viên'}
           </p>
         </div>
+
+        {/* Mode Switch Tabs */}
+        <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-cute-cream dark:bg-cute-cream-dark border border-cute-border-light">
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegister(false);
+              setError(null);
+            }}
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${
+              !isRegister
+                ? 'bg-white dark:bg-cute-surface-dark text-cute-brown dark:text-cute-cream shadow-sm'
+                : 'text-cute-brown-light hover:text-cute-brown'
+            }`}
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            <span>Đăng nhập</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegister(true);
+              setError(null);
+            }}
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${
+              isRegister
+                ? 'bg-white dark:bg-cute-surface-dark text-cute-brown dark:text-cute-cream shadow-sm'
+                : 'text-cute-brown-light hover:text-cute-brown'
+            }`}
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>Tạo tài khoản</span>
+          </button>
+        </div>
+
+        {/* Notice when redirected from /admin/* */}
+        {adminRequired && (
+          <div className="p-3.5 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-xs text-purple-800 dark:text-purple-200 flex items-start gap-2">
+            <ShieldCheck className="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" />
+            <span>
+              <strong>Cổng bảo mật Admin:</strong> Vui lòng đăng nhập bằng tài khoản chủ tiệm để hệ thống kiểm tra quyền trước khi mở trang <code>/admin/*</code>.
+            </span>
+          </div>
+        )}
 
         {lockoutSeconds > 0 && (
           <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-start gap-2">
@@ -162,7 +226,7 @@ export const LoginPage: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="Nhập họ và tên..."
+                  placeholder="Nhập họ và tên của bạn..."
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-cute-border-light text-xs bg-cute-cream/40 text-cute-brown dark:text-cute-cream focus:outline-none focus:ring-2 focus:ring-cute-pink-300"
@@ -181,7 +245,7 @@ export const LoginPage: React.FC = () => {
                 type="email"
                 required
                 autoComplete="email"
-                placeholder="Nhập địa chỉ email của bạn..."
+                placeholder="Nhập địa chỉ email..."
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-cute-border-light text-xs bg-cute-cream/40 text-cute-brown dark:text-cute-cream focus:outline-none focus:ring-2 focus:ring-cute-pink-300"
@@ -200,7 +264,7 @@ export const LoginPage: React.FC = () => {
                 required
                 minLength={6}
                 autoComplete={isRegister ? 'new-password' : 'current-password'}
-                placeholder="••••••••"
+                placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)..."
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-cute-border-light text-xs bg-cute-cream/40 text-cute-brown dark:text-cute-cream focus:outline-none focus:ring-2 focus:ring-cute-pink-300"
@@ -217,24 +281,9 @@ export const LoginPage: React.FC = () => {
             disabled={lockoutSeconds > 0}
             className="w-full justify-center"
           >
-            {isRegister ? 'Đăng Ký Tài Khoản' : 'Đăng Nhập'}
+            {isRegister ? 'Tạo Tài Khoản Mới' : 'Đăng Nhập Hệ Thống'}
           </Button>
         </form>
-
-        {/* Toggle Register / Login */}
-        <div className="text-center pt-2 border-t border-cute-border-light">
-          <button
-            type="button"
-            onClick={() => {
-              setIsRegister(!isRegister);
-              setError(null);
-              setSuccessMsg(null);
-            }}
-            className="text-xs font-bold text-cute-pink-500 hover:text-cute-pink-600"
-          >
-            {isRegister ? 'Đã có tài khoản? Đăng nhập ngay' : 'Chưa có tài khoản? Đăng ký tài khoản mới'}
-          </button>
-        </div>
       </div>
     </div>
   );

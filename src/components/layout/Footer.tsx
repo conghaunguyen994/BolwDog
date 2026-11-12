@@ -66,6 +66,11 @@ export const Footer: React.FC = () => {
                   📦 Tra cứu tiến độ đơn hàng
                 </Link>
               </li>
+              <li>
+                <Link to="/login" className="hover:text-cute-pink-400 transition-colors text-xs opacity-85">
+                  🔐 Đăng nhập Quản trị / Thành viên
+                </Link>
+              </li>
             </ul>
           </div>
 

@@ -123,10 +123,15 @@ export const authService = {
   },
 
   /**
-   * Đăng ký tài khoản khách hàng (Mọi tài khoản đăng ký mới mặc định là customer,
+   * Đăng ký tài khoản (Mọi tài khoản đăng ký mới mặc định là customer,
    * chỉ duy nhất email chính chủ của Nguyễn Công Hậu mới được cấp quyền admin)
    */
-  async register(email: string, pass: string, fullName: string, phone?: string): Promise<UserProfile> {
+  async register(
+    email: string,
+    pass: string,
+    fullName: string,
+    phone?: string
+  ): Promise<{ profile: UserProfile; hasSession: boolean }> {
     if (!isSupabaseConfigured || !supabase) {
       throw new Error('Hệ thống đăng ký chưa kết nối máy chủ.');
     }
@@ -149,11 +154,14 @@ export const authService = {
     const isVerifiedAdmin = isOwnerAdminEmail(data.user.email);
 
     return {
-      id: data.user.id,
-      email: data.user.email || '',
-      fullName,
-      phone,
-      role: isVerifiedAdmin ? 'admin' : 'customer',
+      profile: {
+        id: data.user.id,
+        email: data.user.email || '',
+        fullName,
+        phone,
+        role: isVerifiedAdmin ? 'admin' : 'customer',
+      },
+      hasSession: Boolean(data.session),
     };
   },
 
