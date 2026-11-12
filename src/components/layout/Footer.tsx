@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Clock, Heart, Sparkles, ExternalLink } from 'lucide-react';
 import { settingsService } from '../../services/settingsService';
 import { ShopSettings } from '../../types/settings';
-import { initialSettings } from '../../services/mock/mockData';
+import { defaultShopSettings } from '../../constants/defaultSettings';
 
 export const Footer: React.FC = () => {
-  const [settings, setSettings] = useState<ShopSettings>(initialSettings);
+  const [settings, setSettings] = useState<ShopSettings>(defaultShopSettings);
 
   useEffect(() => {
     settingsService.getSettings().then(setSettings).catch(() => {});

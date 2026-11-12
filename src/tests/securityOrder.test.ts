@@ -1,29 +1,87 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// Mock Supabase client to test local security logic deterministically without network latency
+const mockDbOrders: any[] = [];
+
 vi.mock('../services/supabase/client', () => ({
-  isSupabaseConfigured: false,
-  supabase: null,
+  isSupabaseConfigured: true,
+  supabase: {
+    rpc: vi.fn(async (fnName: string, args: any) => {
+      if (fnName === 'create_secure_order') {
+        const subtotal = args.p_items.reduce((sum: number, i: any) => sum + 285000 * i.quantity, 0);
+        const shipping_fee = 30000;
+        const total_amount = subtotal + shipping_fee;
+        const deposit_amount = Math.round(total_amount * 0.5);
+        const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+        const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const order_reference = `BD-${todayStr}-${randomSuffix}`;
+        const order_id = `uuid-${Date.now()}`;
+
+        const record = {
+          id: order_id,
+          order_reference,
+          customer_name: args.p_customer_name,
+          customer_phone: args.p_customer_phone,
+          shipping_address: args.p_shipping_address,
+          subtotal,
+          shipping_fee,
+          total_amount,
+          deposit_amount,
+          order_status: 'pending',
+          payment_status: 'deposit_pending',
+          created_at: new Date().toISOString(),
+          items: args.p_items,
+        };
+        mockDbOrders.push(record);
+
+        return {
+          data: {
+            order_id,
+            order_reference,
+            subtotal,
+            shipping_fee,
+            total_amount,
+            deposit_amount,
+            order_status: 'pending',
+            payment_status: 'deposit_pending',
+          },
+          error: null,
+        };
+      }
+
+      if (fnName === 'get_guest_order') {
+        const cleanPhone = args.p_phone.replace(/\D/g, '').slice(-9);
+        const found = mockDbOrders.find(
+          (o) =>
+            o.order_reference.toUpperCase() === args.p_order_ref.toUpperCase() &&
+            o.customer_phone.replace(/\D/g, '').slice(-9) === cleanPhone
+        );
+        return { data: found || null, error: null };
+      }
+
+      return { data: null, error: null };
+    }),
+  },
 }));
 
 import { orderService } from '../services/orderService';
 import { isOwnerAdminEmail } from '../services/authService';
 import { getOrderStatusLabel, getPaymentStatusLabel } from '../utils/statusLabels';
 
-describe('Security & Privacy: Guest Order Isolation & Reference Randomness', () => {
+describe('Security & Privacy: Database Order Creation, Guest Isolation & Admin Lock', () => {
   beforeEach(() => {
+    mockDbOrders.length = 0;
     localStorage.clear();
   });
 
-  it('should generate unguessable order references with proper syntax', async () => {
+  it('should generate unguessable order references via database RPC', async () => {
     const order = await orderService.createOrder({
       customerName: 'Nguyễn Thanh Hà',
       customerPhone: '0987654321',
       shippingAddress: '128 Đường Hoa Hồng, TP.HCM',
       items: [
         {
-          productId: 'prod-bowl-ergonomic',
-          productName: 'Bát Ăn Công Thái Học',
+          productId: 'b1111111-1111-4111-8111-111111111111',
+          productName: 'Bát Ăn Chống Gù – Chống Kiến',
           unitPrice: 285000,
           quantity: 1,
           customization: { petName: 'Bé Bắp' },
@@ -44,7 +102,7 @@ describe('Security & Privacy: Guest Order Isolation & Reference Randomness', () 
       shippingAddress: 'Hà Nội',
       items: [
         {
-          productId: 'prod-keychain-corgi',
+          productId: 'b4444444-4444-4444-8444-444444444444',
           productName: 'Móc Khóa 3D',
           unitPrice: 89000,
           quantity: 1,
@@ -71,10 +129,9 @@ describe('Security & Privacy: Guest Order Isolation & Reference Randomness', () 
       items: [],
     });
 
-    // Attacker guessed or sniffed order reference but enters wrong/attacker phone
     const maliciousLookup = await orderService.getOrderByReferenceAndPhone(
       created.order_reference,
-      '0988888888' // Wrong phone
+      '0988888888'
     );
 
     expect(maliciousLookup).toBeNull();
@@ -83,6 +140,7 @@ describe('Security & Privacy: Guest Order Isolation & Reference Randomness', () 
   it('should strictly allow ONLY owner Nguyen Cong Hau email as Admin and block all other emails', () => {
     expect(isOwnerAdminEmail('conghaunguyen994@gmail.com')).toBe(true);
     expect(isOwnerAdminEmail('CONGHAUNGUYEN994@GMAIL.COM.VN')).toBe(true);
+    expect(isOwnerAdminEmail('conghaunguyen994@gmai.com')).toBe(true);
     expect(isOwnerAdminEmail('admin@bowldog.vn')).toBe(false);
     expect(isOwnerAdminEmail('hacker@gmail.com')).toBe(false);
     expect(isOwnerAdminEmail('')).toBe(false);

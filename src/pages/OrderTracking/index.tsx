@@ -15,7 +15,7 @@ import { orderService } from '../../services/orderService';
 import { settingsService } from '../../services/settingsService';
 import { Order, OrderStatus } from '../../types/order';
 import { ShopSettings } from '../../types/settings';
-import { initialSettings } from '../../services/mock/mockData';
+import { defaultShopSettings as initialSettings } from '../../constants/defaultSettings';
 import { formatVND } from '../../utils/currency';
 import { formatDate } from '../../utils/date';
 import {

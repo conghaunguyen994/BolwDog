@@ -2,12 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Save, Check, Building2, Store, Share2, ShieldCheck, QrCode } from 'lucide-react';
 import { settingsService } from '../../services/settingsService';
 import { ShopSettings } from '../../types/settings';
-import { initialSettings } from '../../services/mock/mockData';
+import { defaultShopSettings } from '../../constants/defaultSettings';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 
 export const AdminSettings: React.FC = () => {
-  const [settings, setSettings] = useState<ShopSettings>(initialSettings);
+  const [settings, setSettings] = useState<ShopSettings>(defaultShopSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);

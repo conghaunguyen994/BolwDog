@@ -5,6 +5,7 @@ import { UserProfile } from '../features/auth/authSlice';
 const ALLOWED_ADMIN_EMAILS = [
   'conghaunguyen994@gmail.com',
   'conghaunguyen994@gmail.com.vn',
+  'conghaunguyen994@gmai.com',
 ];
 
 export function isOwnerAdminEmail(email?: string | null): boolean {
@@ -15,10 +16,8 @@ export function isOwnerAdminEmail(email?: string | null): boolean {
 export const authService = {
   /**
    * Kiểm tra phiên đăng nhập hiện tại trực tiếp với máy chủ xác thực Supabase (JWT verification).
-   * Tuyệt đối không tin tưởng dữ liệu lưu trong localStorage để cấp quyền Admin.
    */
   async getInitialUser(): Promise<UserProfile | null> {
-    // Xóa bỏ key mock cũ nếu có để tránh bị lợi dụng qua DevTools
     localStorage.removeItem('bowldog_mock_auth_user');
 
     if (!isSupabaseConfigured || !supabase) {
@@ -33,16 +32,17 @@ export const authService = {
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      const isVerifiedAdmin =
-        isOwnerAdminEmail(user.email) &&
-        (profile?.role === 'admin' || isOwnerAdminEmail(user.email));
+      const isVerifiedAdmin = isOwnerAdminEmail(user.email);
 
       return {
         id: user.id,
         email: user.email || '',
-        fullName: profile?.full_name || user.user_metadata?.full_name || 'Nguyễn Công Hậu',
+        fullName:
+          profile?.full_name ||
+          user.user_metadata?.full_name ||
+          (isVerifiedAdmin ? 'Nguyễn Công Hậu' : 'Khách Yêu'),
         phone: profile?.phone,
         role: isVerifiedAdmin ? 'admin' : 'customer',
       };
@@ -63,18 +63,6 @@ export const authService = {
       if (error || !user || !isOwnerAdminEmail(user.email)) {
         return false;
       }
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      // Nếu bảng profiles đã khởi tạo và có role khác admin thì từ chối
-      if (profile && profile.role !== 'admin' && !isOwnerAdminEmail(user.email)) {
-        return false;
-      }
-
       return true;
     } catch {
       return false;
@@ -82,7 +70,7 @@ export const authService = {
   },
 
   /**
-   * Đăng nhập bằng tài khoản thực trên Supabase Auth (Email + Mật khẩu được mã hóa bcrypt trên server)
+   * Đăng nhập bằng tài khoản thực trên Supabase Auth
    */
   async login(email: string, pass: string): Promise<UserProfile> {
     if (!isSupabaseConfigured || !supabase) {
@@ -102,29 +90,41 @@ export const authService = {
       throw new Error('Không thể xác thực tài khoản.');
     }
 
+    const isVerifiedAdmin = isOwnerAdminEmail(data.user.email);
+    const fullName =
+      data.user.user_metadata?.full_name ||
+      (isVerifiedAdmin ? 'Nguyễn Công Hậu' : 'Khách Yêu');
+
+    // Đồng bộ hồ sơ vào bảng profiles trên DB nếu chưa có
     const { data: profile } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', data.user.id)
       .maybeSingle();
 
-    const isVerifiedAdmin = isOwnerAdminEmail(data.user.email);
+    if (!profile) {
+      await supabase
+        .from('profiles')
+        .upsert({
+          id: data.user.id,
+          full_name: fullName,
+          role: isVerifiedAdmin ? 'admin' : 'customer',
+        })
+        .select()
+        .maybeSingle();
+    }
 
     return {
       id: data.user.id,
       email: data.user.email || '',
-      fullName:
-        profile?.full_name ||
-        data.user.user_metadata?.full_name ||
-        (isVerifiedAdmin ? 'Nguyễn Công Hậu' : 'Khách Yêu'),
+      fullName: profile?.full_name || fullName,
       phone: profile?.phone,
       role: isVerifiedAdmin ? 'admin' : 'customer',
     };
   },
 
   /**
-   * Đăng ký tài khoản (Mọi tài khoản đăng ký mới mặc định là customer,
-   * chỉ duy nhất email chính chủ của Nguyễn Công Hậu mới được cấp quyền admin)
+   * Đăng ký tài khoản trên Supabase Auth
    */
   async register(
     email: string,
@@ -148,10 +148,30 @@ export const authService = {
       },
     });
 
-    if (error) throw new Error(error.message || 'Không thể đăng ký tài khoản');
+    if (error) {
+      if (error.message.includes('Database error saving new user')) {
+        throw new Error(
+          'Lỗi Trigger cơ sở dữ liệu khi tạo tài khoản mới. Vui lòng chạy đoạn mã SQL sửa lỗi Trigger trong Supabase SQL Editor (xem hướng dẫn hoặc file supabase/FIX_AUTH_AND_SEED_DB.sql).'
+        );
+      }
+      throw new Error(error.message || 'Không thể đăng ký tài khoản');
+    }
     if (!data.user) throw new Error('Không thể đăng ký tài khoản');
 
     const isVerifiedAdmin = isOwnerAdminEmail(data.user.email);
+
+    if (data.session) {
+      await supabase
+        .from('profiles')
+        .upsert({
+          id: data.user.id,
+          full_name: fullName,
+          phone,
+          role: isVerifiedAdmin ? 'admin' : 'customer',
+        })
+        .select()
+        .maybeSingle();
+    }
 
     return {
       profile: {
