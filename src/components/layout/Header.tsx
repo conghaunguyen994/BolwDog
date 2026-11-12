@@ -16,7 +16,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
   const cartItems = useAppSelector((state) => state.cart.items);
   const totalItems = cartItems.reduce((acc, item) => acc + item.quantity, 0);
   const auth = useAppSelector((state) => state.auth);
-  
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
@@ -63,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20 gap-2">
-          
+
           {/* Logo & Brand */}
           <Link to="/" className="flex items-center gap-2 sm:gap-3 group flex-shrink-0">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-cute-pink to-cute-lavender flex items-center justify-center shadow-cute group-hover:scale-105 transition-transform duration-300">
@@ -118,25 +118,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
               <span>Tra cứu đơn</span>
             </Link>
 
-            {/* Hotline & Zalo Nổi Bật trên Desktop Nav */}
-            <a
-              href="https://zalo.me/0345553913"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex items-center gap-2 pl-2.5 pr-3.5 py-1.5 rounded-full bg-gradient-to-r from-cute-pink-100 to-sky-100 dark:from-cute-surface-dark dark:to-cute-cream-dark/60 border border-cute-pink-300 dark:border-cute-pink-400/40 text-cute-brown dark:text-cute-cream shadow-sm hover:shadow-cute hover:scale-105 active:scale-95 transition-all"
-            >
-              <span className="w-6 h-6 rounded-full bg-[#0068FF] text-white flex items-center justify-center text-[10px] font-black group-hover:rotate-12 transition-transform">
-                Z
-              </span>
-              <div className="flex flex-col text-left leading-none">
-                <span className="text-[9px] uppercase font-bold text-cute-pink-500 dark:text-cute-pink-300">
-                  Zalo / Hotline 24/7
-                </span>
-                <span className="text-xs font-black text-cute-brown dark:text-cute-cream tracking-wide">
-                  0345.553.913
-                </span>
-              </div>
-            </a>
+
           </nav>
 
           {/* Right Action Icons */}

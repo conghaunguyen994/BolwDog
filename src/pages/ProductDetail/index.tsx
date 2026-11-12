@@ -241,7 +241,7 @@ export const ProductDetailPage: React.FC = () => {
 
       {/* Main Product Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14">
-        
+
         {/* Left: Image Gallery */}
         <div className="space-y-4">
           <div
@@ -260,9 +260,8 @@ export const ProductDetailPage: React.FC = () => {
             <img
               src={selectedImage}
               alt={product.name}
-              className={`w-full h-full ${
-                fitMode === 'contain' ? 'object-contain p-1 sm:p-2' : 'object-cover'
-              } transition-all duration-300 group-hover:scale-[1.02]`}
+              className={`w-full h-full ${fitMode === 'contain' ? 'object-contain p-1 sm:p-2' : 'object-cover'
+                } transition-all duration-300 group-hover:scale-[1.02]`}
             />
 
             {product.is_featured && (
@@ -330,11 +329,10 @@ export const ProductDetailPage: React.FC = () => {
                   key={`${imgUrl}-${idx}`}
                   type="button"
                   onClick={() => setSelectedImage(imgUrl)}
-                  className={`w-20 h-20 rounded-2xl overflow-hidden border-2 flex-shrink-0 transition-all bg-[#FDF9F3] ${
-                    selectedImage === imgUrl
-                      ? 'border-cute-pink-400 ring-2 ring-cute-pink-200 scale-105'
-                      : 'border-cute-border-light dark:border-cute-border-dark opacity-70 hover:opacity-100'
-                  }`}
+                  className={`w-20 h-20 rounded-2xl overflow-hidden border-2 flex-shrink-0 transition-all bg-[#FDF9F3] ${selectedImage === imgUrl
+                    ? 'border-cute-pink-400 ring-2 ring-cute-pink-200 scale-105'
+                    : 'border-cute-border-light dark:border-cute-border-dark opacity-70 hover:opacity-100'
+                    }`}
                 >
                   <img
                     src={imgUrl}
@@ -398,17 +396,16 @@ export const ProductDetailPage: React.FC = () => {
                       style={
                         isSelected
                           ? {
-                              borderColor: activeAccentHex,
-                              backgroundColor: `${activeAccentHex}18`,
-                              boxShadow: `0 0 0 2px ${activeAccentHex}40`,
-                            }
+                            borderColor: activeAccentHex,
+                            backgroundColor: `${activeAccentHex}18`,
+                            boxShadow: `0 0 0 2px ${activeAccentHex}40`,
+                          }
                           : undefined
                       }
-                      className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border flex items-center justify-between text-left ${
-                        isSelected
-                          ? 'text-cute-brown dark:text-cute-cream shadow-sm'
-                          : 'bg-white dark:bg-cute-surface-dark text-cute-brown dark:text-cute-cream border-cute-border-light hover:bg-cute-cream'
-                      }`}
+                      className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border flex items-center justify-between text-left ${isSelected
+                        ? 'text-cute-brown dark:text-cute-cream shadow-sm'
+                        : 'bg-white dark:bg-cute-surface-dark text-cute-brown dark:text-cute-cream border-cute-border-light hover:bg-cute-cream'
+                        }`}
                     >
                       <span className="truncate pr-2">{v.variant_value}</span>
                       <span
@@ -660,9 +657,8 @@ export const ProductDetailPage: React.FC = () => {
                 e.stopPropagation();
                 setIsZoomed((z) => !z);
               }}
-              className={`transition-transform duration-300 flex items-center justify-center ${
-                isZoomed ? 'scale-150 sm:scale-[1.85] cursor-zoom-out' : 'scale-100 cursor-zoom-in'
-              }`}
+              className={`transition-transform duration-300 flex items-center justify-center ${isZoomed ? 'scale-150 sm:scale-[1.85] cursor-zoom-out' : 'scale-100 cursor-zoom-in'
+                }`}
             >
               <img
                 src={selectedImage}
@@ -698,11 +694,10 @@ export const ProductDetailPage: React.FC = () => {
                       setIsZoomed(false);
                       setSelectedImage(imgUrl);
                     }}
-                    className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all bg-[#FDF9F3] ${
-                      selectedImage === imgUrl
-                        ? 'border-rose-400 ring-2 ring-rose-300 scale-105 opacity-100'
-                        : 'border-white/30 opacity-60 hover:opacity-100'
-                    }`}
+                    className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all bg-[#FDF9F3] ${selectedImage === imgUrl
+                      ? 'border-rose-400 ring-2 ring-rose-300 scale-105 opacity-100'
+                      : 'border-white/30 opacity-60 hover:opacity-100'
+                      }`}
                   >
                     <img
                       src={imgUrl}

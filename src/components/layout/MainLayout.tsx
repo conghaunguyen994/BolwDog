@@ -12,7 +12,7 @@ export const MainLayout: React.FC = () => {
   return (
     <div className="flex flex-col min-h-screen bg-cute-cream dark:bg-cute-cream-dark text-cute-brown dark:text-cute-cream font-sans transition-colors duration-200">
       <Header onOpenCart={() => setIsCartOpen(true)} />
-      
+
       <main className="flex-1">
         <Outlet />
       </main>
