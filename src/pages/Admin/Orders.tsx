@@ -394,13 +394,25 @@ export const AdminOrders: React.FC = () => {
                         {(it.customization_data.bodyColor || it.customization_data.baseColor) && (
                           <div className="flex flex-wrap items-center gap-2 pt-0.5">
                             {it.customization_data.bodyColor && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-cute-border-light text-[10px]">
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white border border-cute-border-light text-[10px]">
+                                {it.customization_data.bodyColorHex && (
+                                  <span
+                                    style={{ backgroundColor: it.customization_data.bodyColorHex }}
+                                    className="w-3 h-3 rounded-full border border-gray-300 inline-block"
+                                  />
+                                )}
                                 Thân bát: <strong className="text-cute-pink-600">{it.customization_data.bodyColor}</strong>
                               </span>
                             )}
                             {it.customization_data.baseColor && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-cute-border-light text-[10px]">
-                                Khay chống kiến: <strong className="text-teal-700">{it.customization_data.baseColor}</strong>
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white border border-cute-border-light text-[10px]">
+                                {it.customization_data.baseColorHex && (
+                                  <span
+                                    style={{ backgroundColor: it.customization_data.baseColorHex }}
+                                    className="w-3 h-3 rounded-full border border-gray-300 inline-block"
+                                  />
+                                )}
+                                Khay & Chữ: <strong className="text-teal-700">{it.customization_data.baseColor}</strong>
                               </span>
                             )}
                           </div>

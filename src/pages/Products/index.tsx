@@ -39,11 +39,17 @@ export const ProductsPage: React.FC = () => {
 
   useEffect(() => {
     async function fetchProducts() {
+      // Nếu đang lọc theo slug danh mục nhưng danh sách categories chưa tải xong thì đợi
+      if (currentCategory !== 'all' && categories.length === 0) {
+        return;
+      }
       setLoading(true);
       try {
-        const selectedCat = categories.find((c) => c.slug === currentCategory);
+        const selectedCat = categories.find(
+          (c) => c.slug === currentCategory || c.id === currentCategory
+        );
         const data = await productService.getProducts({
-          categoryId: selectedCat?.id || (currentCategory === 'all' ? undefined : currentCategory),
+          categoryId: currentCategory === 'all' ? undefined : selectedCat?.id,
           search: currentSearch || undefined,
           sortBy,
         });

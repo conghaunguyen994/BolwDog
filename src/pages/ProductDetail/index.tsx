@@ -35,7 +35,9 @@ export const ProductDetailPage: React.FC = () => {
   const [customization, setCustomization] = useState<PetCustomization>({
     petName: 'Ngáo',
     bodyColor: 'Trắng Sứ',
-    baseColor: 'Xanh Cổ Vịt (Teal)',
+    bodyColorHex: '#FFFFFF',
+    baseColor: 'Xanh Cổ Vịt (Mẫu Ngáo)',
+    baseColorHex: '#1A7B8E',
     selectedIcons: ['🐶', '🐾'],
     petBirthday: '',
     customNotes: '',
@@ -100,6 +102,15 @@ export const ProductDetailPage: React.FC = () => {
   const totalPrice = unitPrice * quantity;
   const isOutOfStock = product.stock_quantity <= 0;
 
+  const activeBaseHex = customization.baseColorHex || '#1A7B8E';
+  const activeBodyHex = customization.bodyColorHex || '#FFFFFF';
+  const activeAccentHex =
+    activeBaseHex.toLowerCase() === '#ffffff'
+      ? activeBodyHex.toLowerCase() === '#ffffff'
+        ? '#1A7B8E'
+        : activeBodyHex
+      : activeBaseHex;
+
   const handleAddToCart = () => {
     if (isOutOfStock) return;
     dispatch(
@@ -135,7 +146,13 @@ export const ProductDetailPage: React.FC = () => {
         
         {/* Left: Image Gallery */}
         <div className="space-y-4">
-          <div className="aspect-square w-full rounded-4xl overflow-hidden bg-white dark:bg-cute-surface-dark border-2 border-cute-border-light dark:border-cute-border-dark shadow-cute-lg relative">
+          <div
+            style={{
+              borderColor: `${activeAccentHex}80`,
+              boxShadow: `0 12px 32px -8px ${activeAccentHex}35`,
+            }}
+            className="aspect-square w-full rounded-4xl overflow-hidden bg-white dark:bg-cute-surface-dark border-2 relative transition-all duration-300"
+          >
             <img
               src={selectedImage}
               alt={product.name}
@@ -219,14 +236,26 @@ export const ProductDetailPage: React.FC = () => {
                     <button
                       key={v.id}
                       onClick={() => setSelectedVariant(v)}
+                      style={
+                        isSelected
+                          ? {
+                              borderColor: activeAccentHex,
+                              backgroundColor: `${activeAccentHex}18`,
+                              boxShadow: `0 0 0 2px ${activeAccentHex}40`,
+                            }
+                          : undefined
+                      }
                       className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border flex items-center justify-between text-left ${
                         isSelected
-                          ? 'bg-cute-pink/60 text-cute-brown border-cute-pink-400 shadow-sm ring-2 ring-cute-pink-300'
+                          ? 'text-cute-brown dark:text-cute-cream shadow-sm'
                           : 'bg-white dark:bg-cute-surface-dark text-cute-brown dark:text-cute-cream border-cute-border-light hover:bg-cute-cream'
                       }`}
                     >
                       <span className="truncate pr-2">{v.variant_value}</span>
-                      <span className="text-rose-500 font-extrabold text-xs whitespace-nowrap">
+                      <span
+                        style={isSelected ? { color: activeAccentHex } : undefined}
+                        className="text-rose-500 font-extrabold text-xs whitespace-nowrap transition-colors"
+                      >
                         {formatVND(finalSizePrice)}
                       </span>
                     </button>
@@ -239,6 +268,8 @@ export const ProductDetailPage: React.FC = () => {
           {/* Customization Form */}
           <CustomizationForm
             categoryId={product.category_id}
+            categorySlug={product.category?.slug}
+            productName={product.name}
             customization={customization}
             onChange={setCustomization}
           />
@@ -247,7 +278,10 @@ export const ProductDetailPage: React.FC = () => {
           <div className="space-y-4 pt-2">
             <div className="flex items-center gap-4">
               <span className="text-xs font-bold text-cute-brown dark:text-cute-cream">Số lượng:</span>
-              <div className="flex items-center gap-2 bg-white dark:bg-cute-surface-dark rounded-full border border-cute-border-light dark:border-cute-border-dark px-3 py-1">
+              <div
+                style={{ borderColor: `${activeAccentHex}66` }}
+                className="flex items-center gap-2 bg-white dark:bg-cute-surface-dark rounded-full border-2 px-3 py-1 transition-colors"
+              >
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   className="p-1 hover:text-cute-pink-500"
@@ -268,33 +302,44 @@ export const ProductDetailPage: React.FC = () => {
               </div>
 
               <span className="text-xs text-cute-brown-light dark:text-cute-muted">
-                Thành tiền: <strong className="text-rose-500 text-sm">{formatVND(totalPrice)}</strong>
+                Thành tiền:{' '}
+                <strong style={{ color: activeAccentHex }} className="text-sm transition-colors">
+                  {formatVND(totalPrice)}
+                </strong>
               </span>
             </div>
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <Button
-                variant="primary"
-                size="lg"
+              <button
+                type="button"
                 disabled={isOutOfStock}
                 onClick={handleAddToCart}
-                className="flex-1 justify-center"
-                leftIcon={<ShoppingBag className="w-5 h-5" />}
+                style={{
+                  backgroundColor: `${activeBodyHex}`,
+                  borderColor: activeAccentHex,
+                  color: activeBodyHex.toLowerCase() === '#ffffff' ? activeAccentHex : '#3B251B',
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full border-2 font-extrabold text-sm shadow-cute hover:scale-[1.01] active:scale-95 transition-all duration-300 disabled:opacity-50"
               >
-                Thêm bé vào giỏ
-              </Button>
+                <ShoppingBag className="w-5 h-5" />
+                <span>Thêm bé vào giỏ</span>
+              </button>
 
-              <Button
-                variant="secondary"
-                size="lg"
+              <button
+                type="button"
                 disabled={isOutOfStock}
                 onClick={handleBuyNow}
-                className="flex-1 justify-center bg-cute-peach hover:bg-cute-peach-200 border-cute-peach-200"
-                leftIcon={<Heart className="w-5 h-5 text-rose-500" />}
+                style={{
+                  backgroundColor: activeAccentHex,
+                  borderColor: activeAccentHex,
+                  color: '#FFFFFF',
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full border-2 font-extrabold text-sm shadow-cute-lg hover:opacity-95 hover:scale-[1.01] active:scale-95 transition-all duration-300 disabled:opacity-50"
               >
-                Đón bé về nhà
-              </Button>
+                <Heart className="w-5 h-5 fill-white/30" />
+                <span>Đón bé về nhà</span>
+              </button>
             </div>
 
             {/* Success Toast Banner */}

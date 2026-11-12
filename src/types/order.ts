@@ -5,7 +5,9 @@ export interface PetCustomization {
   petName?: string;
   petBirthday?: string;
   bodyColor?: string; // Màu thân bát
-  baseColor?: string; // Màu đế chống kiến
+  bodyColorHex?: string; // Mã màu hex thân bát
+  baseColor?: string; // Màu đế chống kiến & chữ in nổi
+  baseColorHex?: string; // Mã màu hex đế chống kiến
   selectedIcons?: string[]; // Tối đa 2 icon: ['🐾', '🦴']
   fontStyle?: string;
   petAge?: string;

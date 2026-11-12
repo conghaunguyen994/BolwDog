@@ -143,7 +143,7 @@ export const LoginPage: React.FC = () => {
           <p className="text-xs text-cute-brown-light dark:text-cute-muted">
             {isRegister
               ? 'Tạo tài khoản mới trên hệ thống bảo mật BolwDog'
-              : 'Nhập tài khoản để kiểm tra quyền Quản trị viên (Admin) hoặc Thành viên'}
+              : 'Nhập tài khoản để kiểm tra quyền '}
           </p>
         </div>
 
@@ -155,11 +155,10 @@ export const LoginPage: React.FC = () => {
               setIsRegister(false);
               setError(null);
             }}
-            className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${
-              !isRegister
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${!isRegister
                 ? 'bg-white dark:bg-cute-surface-dark text-cute-brown dark:text-cute-cream shadow-sm'
                 : 'text-cute-brown-light hover:text-cute-brown'
-            }`}
+              }`}
           >
             <LogIn className="w-3.5 h-3.5" />
             <span>Đăng nhập</span>
@@ -170,11 +169,10 @@ export const LoginPage: React.FC = () => {
               setIsRegister(true);
               setError(null);
             }}
-            className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${
-              isRegister
+            className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${isRegister
                 ? 'bg-white dark:bg-cute-surface-dark text-cute-brown dark:text-cute-cream shadow-sm'
                 : 'text-cute-brown-light hover:text-cute-brown'
-            }`}
+              }`}
           >
             <UserPlus className="w-3.5 h-3.5" />
             <span>Tạo tài khoản</span>
