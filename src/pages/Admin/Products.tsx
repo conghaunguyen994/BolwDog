@@ -9,10 +9,12 @@ import {
   X,
   AlertTriangle,
   Image as ImageIcon,
+  Upload,
 } from 'lucide-react';
 import { productService } from '../../services/productService';
 import { Product, Category, ProductVariant } from '../../types/product';
 import { formatVND } from '../../utils/currency';
+import { compressImageFileToDataUrl } from '../../utils/statusLabels';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
 import { Badge } from '../../components/common/Badge';
@@ -38,6 +40,7 @@ export const AdminProducts: React.FC = () => {
   const [formIsFeatured, setFormIsFeatured] = useState(false);
   const [formIsActive, setFormIsActive] = useState(true);
   const [formImageUrl, setFormImageUrl] = useState('');
+  const [formImages, setFormImages] = useState<string[]>([]);
   const [formVariants, setFormVariants] = useState<ProductVariant[]>([]);
 
   // New variant helper inputs
@@ -75,7 +78,8 @@ export const AdminProducts: React.FC = () => {
     setFormDescription('');
     setFormIsFeatured(false);
     setFormIsActive(true);
-    setFormImageUrl('https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?q=80&w=800&auto=format&fit=crop');
+    setFormImageUrl('');
+    setFormImages(['/images/bat-an-chong-gu-chong-kien.jpg']);
     setFormVariants([]);
     setIsModalOpen(true);
   };
@@ -90,9 +94,48 @@ export const AdminProducts: React.FC = () => {
     setFormDescription(p.description);
     setFormIsFeatured(p.is_featured);
     setFormIsActive(p.is_active);
-    setFormImageUrl(p.images[0]?.image_url || '');
+    setFormImageUrl('');
+    setFormImages(p.images.map((img) => img.image_url).filter(Boolean));
     setFormVariants(p.variants || []);
     setIsModalOpen(true);
+  };
+
+  const handleAddImageUrl = () => {
+    const trimmed = formImageUrl.trim();
+    if (!trimmed) return;
+    if (!formImages.includes(trimmed)) {
+      setFormImages([...formImages, trimmed]);
+    }
+    setFormImageUrl('');
+  };
+
+  const handleUploadProductFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    try {
+      const uploaded: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const dataUrl = await compressImageFileToDataUrl(files[i], 1280, 0.85);
+        uploaded.push(dataUrl);
+      }
+      setFormImages((prev) => [...prev, ...uploaded]);
+    } catch (err: any) {
+      alert(err.message || 'Lỗi khi tải ảnh lên');
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveImageAt = (index: number) => {
+    setFormImages((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleSetPrimaryImage = (index: number) => {
+    setFormImages((prev) => {
+      const target = prev[index];
+      if (!target) return prev;
+      return [target, ...prev.filter((_, idx) => idx !== index)];
+    });
   };
 
   const handleAddVariant = () => {
@@ -120,6 +163,13 @@ export const AdminProducts: React.FC = () => {
     setSaving(true);
     try {
       const generatedSlug = formSlug.trim() || formName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+      const finalImages =
+        formImages.length > 0
+          ? formImages
+          : formImageUrl.trim()
+          ? [formImageUrl.trim()]
+          : ['/images/bat-an-chong-gu-chong-kien.jpg'];
+
       await productService.saveProduct({
         id: editingProduct?.id,
         name: formName,
@@ -130,15 +180,13 @@ export const AdminProducts: React.FC = () => {
         description: formDescription,
         is_featured: formIsFeatured,
         is_active: formIsActive,
-        images: [
-          {
-            id: `img-${Date.now()}`,
-            product_id: editingProduct?.id || 'new',
-            image_url: formImageUrl,
-            display_order: 1,
-            is_primary: true,
-          },
-        ],
+        images: finalImages.map((url, idx) => ({
+          id: `img-${Date.now()}-${idx}`,
+          product_id: editingProduct?.id || 'new',
+          image_url: url,
+          display_order: idx + 1,
+          is_primary: idx === 0,
+        })),
         variants: formVariants,
       });
 
@@ -354,14 +402,78 @@ export const AdminProducts: React.FC = () => {
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-cute-brown mb-1">URL ảnh sản phẩm</label>
-              <input
-                type="url"
-                value={formImageUrl}
-                onChange={(e) => setFormImageUrl(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-cute-border-light text-xs bg-white focus:outline-none"
-              />
+            <div className="p-3 rounded-2xl bg-cute-cream/50 border border-cute-border-light space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className="text-xs font-bold text-cute-brown">
+                  Bộ sưu tập ảnh sản phẩm ({formImages.length} ảnh — ảnh đầu tiên là ảnh đại diện)
+                </label>
+                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-cute-pink text-rose-500 font-bold text-xs cursor-pointer hover:bg-cute-pink/20 transition-colors">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Tải nhiều ảnh từ máy tính</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleUploadProductFiles}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {formImages.length > 0 && (
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5">
+                  {formImages.map((imgUrl, idx) => (
+                    <div
+                      key={`${imgUrl.slice(0, 30)}-${idx}`}
+                      className={`relative group rounded-xl overflow-hidden border-2 bg-white aspect-square ${
+                        idx === 0 ? 'border-rose-400 ring-2 ring-rose-200' : 'border-cute-border-light'
+                      }`}
+                    >
+                      <img src={imgUrl} alt={`Ảnh ${idx + 1}`} className="w-full h-full object-contain" />
+                      {idx === 0 ? (
+                        <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-rose-500 text-white text-[9px] font-bold">
+                          Ảnh chính
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleSetPrimaryImage(idx)}
+                          className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/65 text-white text-[9px] font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          Đặt làm chính
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImageAt(idx)}
+                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-rose-600"
+                        title="Xóa ảnh này"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Hoặc dán URL hình ảnh rồi bấm Thêm ảnh..."
+                  value={formImageUrl}
+                  onChange={(e) => setFormImageUrl(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddImageUrl();
+                    }
+                  }}
+                  className="flex-1 px-3 py-2 rounded-xl border border-cute-border-light text-xs bg-white focus:outline-none"
+                />
+                <Button type="button" variant="soft" size="sm" onClick={handleAddImageUrl}>
+                  Thêm URL ảnh
+                </Button>
+              </div>
             </div>
 
             <div>
