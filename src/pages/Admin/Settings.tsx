@@ -481,7 +481,7 @@ export const AdminSettings: React.FC = () => {
               className="w-full px-3.5 py-2 rounded-xl border border-purple-200 bg-white text-xs focus:outline-none"
             />
             <p className="text-[11px] text-purple-800 leading-relaxed">
-              💡 <strong>Mặc định:</strong> Hệ thống đã hoạt động sẵn qua <em>FormSubmit AJAX Relay</em> mà không cần cấu hình thêm. Nếu muốn gửi bằng chính địa chỉ Gmail cá nhân tới hộp thư mọi khách hàng: chỉ cần vào <code>script.google.com</code> → Tạo dự án mới → Dán đoạn mã 10 dòng ở nút trên → Bấm <strong>Triển khai (Deploy) &gt; Ứng dụng web (Anyone)</strong> rồi dán link vào ô này và bấm Lưu! (Mọi cấu hình lưu trong Database bảo mật, hoàn toàn không lưu ở <code>.env</code>).
+              💡 <strong>Lưu ý về FormSubmit Relay:</strong> Lần đầu tiên FormSubmit gửi thư tới email mới của bạn, nó sẽ gửi một email xác thực có nút <strong>"Activate Form"</strong> để chống spam. Bạn hãy vào hộp thư mở email đó bấm kích hoạt là các lần sau sẽ nhận thư tức thì! Hoặc tốt nhất là dùng <strong>Google Apps Script</strong> ở trên (bấm Copy mã dán vào script.google.com rồi tạo Web App) để gửi từ chính Gmail cá nhân mà không cần qua bên trung gian nào.
             </p>
           </div>
 

@@ -169,6 +169,14 @@ export async function dispatchEmail(
     });
 
     if (res.ok) {
+      const data = await res.json().catch(() => null);
+      if (data && data.success === 'false') {
+        return {
+          ok: false,
+          channel: 'formsubmit',
+          error: data.message || 'FormSubmit cần xác nhận kích hoạt từ email của bạn lần đầu tiên.',
+        };
+      }
       return { ok: true, channel: 'formsubmit' };
     }
   } catch (err: any) {
