@@ -343,6 +343,11 @@ export const CheckoutPage: React.FC = () => {
                             Thân: {it.customization.bodyColor} • Đế: {it.customization.baseColor}
                           </span>
                         )}
+                        {it.customization.petBirthday && (
+                          <span className="text-[9px] text-cute-brown-light dark:text-cute-muted block truncate">
+                            🎂 Sinh nhật: {it.customization.petBirthday}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>

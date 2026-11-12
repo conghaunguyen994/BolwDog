@@ -16,6 +16,7 @@ import {
   ZoomOut,
   Maximize2,
   X,
+  Eye,
 } from 'lucide-react';
 import { Product, ProductVariant } from '../../types/product';
 import { PetCustomization } from '../../types/order';
@@ -25,6 +26,7 @@ import { enforceRateLimit, sanitizeObject } from '../../utils/securityGuard';
 import { useAppDispatch } from '../../app/hooks';
 import { addToCart } from '../../features/cart/cartSlice';
 import { CustomizationForm } from '../../components/products/CustomizationForm';
+import { BowlDemoPreviewModal } from '../../components/products/BowlDemoPreviewModal';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 
@@ -51,6 +53,7 @@ export const ProductDetailPage: React.FC = () => {
   });
   const [addedToast, setAddedToast] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
 
   // States cho chế độ Xem Full Ảnh (Lightbox) & Lướt ảnh
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -492,12 +495,27 @@ export const ProductDetailPage: React.FC = () => {
             categoryId={product.category_id}
             categorySlug={product.category?.slug}
             productName={product.name}
+            selectedVariant={selectedVariant}
+            unitPrice={unitPrice}
             customization={customization}
             onChange={setCustomization}
+            onOpenDemoModal={() => setIsDemoModalOpen(true)}
           />
 
           {/* Quantity & Buy Buttons */}
           <div className="space-y-4 pt-2">
+            {/* Dedicated Review Demo Button */}
+            {isDogBowl && (
+              <button
+                type="button"
+                onClick={() => setIsDemoModalOpen(true)}
+                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl border-2 border-rose-400 bg-gradient-to-r from-rose-50 via-pink-50 to-rose-50 dark:from-rose-950/40 dark:to-pink-950/30 text-rose-600 dark:text-rose-300 font-black text-xs sm:text-sm hover:from-rose-100 hover:to-pink-100 shadow-cute hover:scale-[1.01] active:scale-95 transition-all"
+              >
+                <Eye className="w-4 h-4 text-rose-500" />
+                <span>🔍 XEM DEMO REVIEW BÁT IN TÊN & NGÀY SINH (TRƯỚC KHI ĐẶT HÀNG)</span>
+              </button>
+            )}
+
             <div className="flex items-center gap-4">
               <span className="text-xs font-bold text-cute-brown dark:text-cute-cream">Số lượng:</span>
               <div
@@ -780,6 +798,16 @@ export const ProductDetailPage: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Bowl Demo Review Modal */}
+      <BowlDemoPreviewModal
+        isOpen={isDemoModalOpen}
+        onClose={() => setIsDemoModalOpen(false)}
+        customization={customization}
+        selectedVariant={selectedVariant}
+        unitPrice={unitPrice}
+        onAddToCart={handleAddToCart}
+        onBuyNow={handleBuyNow}
+      />
     </div>
   );
 };

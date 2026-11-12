@@ -11,15 +11,30 @@ import {
   Moon,
   Phone,
   FileText,
+  Eye,
+  Download,
 } from 'lucide-react';
 import { PetCustomization } from '../../types/order';
+import { ProductVariant } from '../../types/product';
 
 interface CustomizationFormProps {
   categoryId: string;
   categorySlug?: string;
   productName?: string;
+  selectedVariant?: ProductVariant;
+  unitPrice?: number;
   customization: PetCustomization;
   onChange: (customization: PetCustomization) => void;
+  onOpenDemoModal?: () => void;
+}
+
+function formatDisplayDate(dateStr?: string): string {
+  if (!dateStr || !dateStr.trim()) return '';
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    return `${match[3]}/${match[2]}/${match[1]}`;
+  }
+  return dateStr;
 }
 
 export const BODY_COLORS = [
@@ -128,8 +143,11 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
   categoryId,
   categorySlug,
   productName,
+  selectedVariant,
+  unitPrice,
   customization,
   onChange,
+  onOpenDemoModal,
 }) => {
   const nameLower = (productName || '').toLowerCase();
   const slugLower = (categorySlug || '').toLowerCase();
@@ -301,26 +319,39 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
                 borderColor: isLightHex(activeBodyHex) ? '#CBD5E1' : activeBodyHex,
                 boxShadow: `0 10px 25px -5px ${dynamicAccentHex}40, inset 0 -6px 12px rgba(0,0,0,0.08)`,
               }}
-              className="w-52 sm:w-56 h-24 rounded-2xl border-2 flex flex-col items-center justify-center relative z-10 transition-all duration-300 px-3"
+              className="w-56 sm:w-60 h-28 rounded-2xl border-2 flex flex-col items-center justify-center relative z-10 transition-all duration-300 px-3"
             >
+              {/* Pet Name & 2 Icons */}
               <div
                 style={{ color: embossedTextColor }}
                 className="flex items-center gap-1.5 text-xl sm:text-2xl font-black tracking-wide filter drop-shadow-sm select-none transition-colors duration-300"
               >
                 {currentIcons[0] && <span>{currentIcons[0]}</span>}
-                <span className="truncate max-w-[150px]">
+                <span className="truncate max-w-[160px]">
                   {customization.petName || 'Ngáo'}
                 </span>
                 {currentIcons[1] && <span>{currentIcons[1]}</span>}
               </div>
-              <span
-                style={{
-                  color: isLightHex(activeBodyHex) ? '#78716C' : '#F5F5F4',
-                }}
-                className="text-[9px] tracking-widest uppercase font-semibold mt-1"
-              >
-                ★ Nâng 15° Chống Gù Cổ ★
-              </span>
+
+              {/* Pet Birthday in live demo */}
+              {customization.petBirthday ? (
+                <div
+                  style={{ color: embossedTextColor }}
+                  className="mt-1 px-2.5 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-[10px] sm:text-[11px] font-bold flex items-center gap-1 shadow-sm transition-colors"
+                >
+                  <span>🎂</span>
+                  <span>{formatDisplayDate(customization.petBirthday)}</span>
+                </div>
+              ) : (
+                <span
+                  style={{
+                    color: isLightHex(activeBodyHex) ? '#78716C' : '#F5F5F4',
+                  }}
+                  className="text-[9px] tracking-widest uppercase font-semibold mt-1 opacity-80"
+                >
+                  ★ Nâng 15° Chống Gù Cổ ★
+                </span>
+              )}
             </div>
 
             {/* Anti-Ant Water Moat Base Ring */}
@@ -329,18 +360,33 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
                 backgroundColor: activeBaseHex,
                 borderColor: isLightHex(activeBaseHex) ? '#CBD5E1' : activeBaseHex,
               }}
-              className="w-60 sm:w-64 h-9 rounded-2xl border-2 shadow-lg flex items-center justify-center relative -mt-2 z-0 transition-all duration-300"
+              className="w-64 sm:w-72 h-10 rounded-2xl border-2 shadow-lg flex items-center justify-center relative -mt-2 z-0 transition-all duration-300"
             >
               <span
                 style={{
                   color: isLightHex(activeBaseHex) ? '#3B251B' : '#FFFFFF',
                 }}
-                className="text-[9px] font-extrabold tracking-wide uppercase"
+                className="text-[10px] font-extrabold tracking-wide uppercase flex items-center gap-1"
               >
-                💧 Khoang chứa nước chống kiến
+                <span>💧</span>
+                <span>Khoang chứa nước chống kiến</span>
               </span>
             </div>
           </div>
+
+          {/* Action button to open Fullscreen Demo Review Modal */}
+          {onOpenDemoModal && (
+            <div className="mt-3 flex justify-center">
+              <button
+                type="button"
+                onClick={onOpenDemoModal}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-xs font-black shadow-md hover:scale-[1.02] active:scale-95 transition-all"
+              >
+                <Eye className="w-4 h-4" />
+                <span>🔍 Xem Demo Chi Tiết / Phóng To / Tải Mẫu</span>
+              </button>
+            </div>
+          )}
 
           {/* Live Color Summary Badges */}
           <div className="flex flex-wrap items-center justify-center gap-2 mt-4 text-[11px]">
@@ -349,15 +395,21 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
                 style={{ backgroundColor: activeBodyHex }}
                 className="w-3.5 h-3.5 rounded-full border border-gray-300 inline-block"
               />
-              Thân bát: <strong>{currentBodyName}</strong>
+              Màu ở trên (Thân): <strong>{currentBodyName}</strong>
             </span>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/90 border border-cute-border-light font-semibold text-cute-brown shadow-sm">
               <span
                 style={{ backgroundColor: activeBaseHex }}
                 className="w-3.5 h-3.5 rounded-full border border-gray-300 inline-block"
               />
-              Đế & Chữ: <strong>{currentBaseName}</strong>
+              Màu ở dưới (Đế): <strong>{currentBaseName}</strong>
             </span>
+            {customization.petBirthday && (
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/90 border border-cute-border-light font-semibold text-cute-brown shadow-sm">
+                <span>🎂</span>
+                <span>Ngày sinh: <strong>{formatDisplayDate(customization.petBirthday)}</strong></span>
+              </span>
+            )}
           </div>
 
           {/* Quick Style Combos */}
@@ -386,12 +438,12 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
 
         {/* COLOR PICKERS */}
         <div className="space-y-4">
-          {/* Step 1: Body Color */}
+          {/* Step 1: Upper Body Color */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-extrabold text-cute-brown dark:text-cute-cream flex items-center gap-1.5">
                 <Palette style={{ color: dynamicAccentHex }} className="w-4 h-4" />
-                <span>1. Chọn màu thân bát (Màu 1):</span>
+                <span>1. Chọn màu ở trên (Thân bát chứa bát inox):</span>
               </label>
               <label className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2.5 py-1 rounded-full cursor-pointer transition-colors">
                 <Pipette className="w-3 h-3" />
@@ -453,7 +505,7 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-extrabold text-cute-brown dark:text-cute-cream flex items-center gap-1.5">
                 <Palette style={{ color: dynamicAccentHex }} className="w-4 h-4" />
-                <span>2. Chọn màu đế chống kiến & chữ in nổi (Màu 2):</span>
+                <span>2. Chọn màu ở dưới (Đế chống kiến có khoang chứa nước & chữ in):</span>
               </label>
               <label className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2.5 py-1 rounded-full cursor-pointer transition-colors">
                 <Pipette className="w-3 h-3" />
@@ -575,9 +627,12 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
           {/* Step 5: Pet Birthday & Notes */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <div>
-              <label className="block text-xs font-bold text-cute-brown dark:text-cute-cream mb-1 flex items-center gap-1">
-                <Calendar style={{ color: dynamicAccentHex }} className="w-3.5 h-3.5" />
-                <span>5. Ngày sinh của bé cưng (tùy chọn)</span>
+              <label className="block text-xs font-bold text-cute-brown dark:text-cute-cream mb-1 flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <Calendar style={{ color: dynamicAccentHex }} className="w-3.5 h-3.5" />
+                  <span>5. Ngày sinh cún in lên bát:</span>
+                </span>
+                <span className="text-[10px] text-cute-brown-light">Xem demo tức thì</span>
               </label>
               <input
                 type="date"
@@ -585,6 +640,9 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
                 onChange={(e) => updateFields({ petBirthday: e.target.value })}
                 className="w-full text-xs sm:text-sm px-3.5 py-2 rounded-2xl border border-cute-border-light dark:border-cute-border-dark bg-white dark:bg-cute-surface-dark text-cute-brown dark:text-cute-cream focus:outline-none"
               />
+              <p className="text-[10px] text-cute-brown-light dark:text-cute-muted mt-1">
+                🎂 Sẽ xuất hiện phía dưới tên cún trên thân bát (tùy chọn)
+              </p>
             </div>
 
             <div>

@@ -208,19 +208,27 @@ VALUES
   (
     'b1111111-1111-4111-8111-111111111111',
     'a1111111-1111-4111-8111-111111111111',
-    'Bát Ăn Chống Gù – Chống Kiến Cho Chó Mèo (Cá Nhân Hóa Tên Bé & Icon)',
+    'BÁT ĂN CHỐNG GÙ – CHỐNG KIẾN CHO CHÓ MÈO | BÂU SHOP',
     'bat-an-chong-gu-chong-kien-cho-cho-meo',
-    '🐾 BÁT ĂN CHỐNG GÙ – CHỐNG KIẾN CHO CHÓ MÈO | CÚN CƯNG
-🌸 Thiết kế nghiêng 15° chống gù (size S | M | L)
+    'BÁT ĂN CHỐNG GÙ – CHỐNG KIẾN CHO CHÓ MÈO | BÂU SHOP
+🌸 Thiết kế nghiêng 15° chống gù ( size S | M | L)
 🌸 5 size S | M | L | XL | XXL
 🌸 Đế chống kiến với khoang chứa nước
-🌸 Bát inox dễ vệ sinh 
-🌸 Được làm từ chất liệu nhựa PETG an toàn
+🌸 Bát inox  dễ vệ sinh 
+🌸 Được làm từ chất liệu nhựa PETG  an toàn
 🎨 BÁT ĂN CÁ NHÂN HÓA THEO YÊU CẦU:
-✨ 2 màu tùy chọn (Màu thân & Màu đế)
+✨ 2 màu tùy chọn (Màu ở trên & Màu ở dưới)
 ✨ Tên thú cưng in nổi
-✨ Ngày sinh của thú cưng
-✨ Tối đa 2 icon ngộ nghĩnh',
+✨ Tối đa 2 icon
+✨ Ngày sinh khi in lên bát
+📏 KÍCH THƯỚC:
+Bát inox đường kính 14cm 
+• S : H1: 12 cm - H2: 8cm - D: 18cm -> 199K
+• M: H1: 14cm - H2: 10cm - D: 19cm -> 229K
+• L: H1: 16cm - H2: 12cm - D: 20cm -> 259K
+Bát inox đường kính 18-20cm 
+• XL: H1: 15 cm - H2: 15cm - D: 22,5cm -> 300K
+• XXL: H1: 17cm - H2: 17cm - D: 25cm -> 350K',
     199000,
     65,
     true,
@@ -298,8 +306,8 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO public.shop_settings (id, setting_key, setting_value)
 VALUES
   ('e1111111-1111-4111-8111-111111111111', 'general_info', '{
-    "shop_name": "BolwDog Boutique",
-    "tagline": "Bát ăn chống gù, chống kiến & phụ kiện in 3D cá nhân hóa gửi trọn yêu thương cho bé cưng",
+    "shop_name": "BÂU SHOP",
+    "tagline": "Bát ăn chống gù – chống kiến cho chó mèo | Bâu Shop",
     "owner_name": "Nguyễn Công Hậu",
     "phone": "0345553913",
     "email": "conghaunguyen994@gmail.com.vn",

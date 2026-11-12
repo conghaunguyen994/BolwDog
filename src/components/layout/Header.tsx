@@ -71,15 +71,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
             </div>
             <div>
               <div className="flex items-center gap-1 sm:gap-1.5">
-                <span className="text-lg sm:text-2xl font-extrabold tracking-tight text-cute-brown dark:text-cute-cream font-sans">
-                  Bolw<span className="text-cute-pink-400">Dog</span>
+                <span className="text-lg sm:text-2xl font-black tracking-tight text-cute-brown dark:text-cute-cream font-sans">
+                  BÂU <span className="text-rose-500">SHOP</span>
                 </span>
                 <span className="hidden xs:inline-block text-[10px] sm:text-xs bg-cute-peach/70 dark:bg-cute-peach-dark px-1.5 py-0.5 rounded-full font-bold text-cute-brown dark:text-cute-cream">
-                  Studio
+                  Bát Ăn 3D
                 </span>
               </div>
               <p className="hidden sm:block text-[11px] text-cute-brown-light dark:text-cute-muted font-medium tracking-wide">
-                Bát ăn & phụ kiện 3D cho bé cưng
+                Bát ăn chống gù & chống kiến cho chó mèo
               </p>
             </div>
           </Link>

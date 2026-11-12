@@ -3,8 +3,8 @@ import { ShopSettings } from '../types/settings';
 // Giá trị cấu hình mặc định trong lúc chờ tải từ bảng shop_settings trên Supabase DB
 export const defaultShopSettings: ShopSettings = {
   general_info: {
-    shop_name: 'BolwDog Boutique',
-    tagline: 'Bát ăn chống gù, chống kiến & phụ kiện in 3D cá nhân hóa gửi trọn yêu thương cho bé cưng',
+    shop_name: 'BÂU SHOP',
+    tagline: 'Bát ăn chống gù – chống kiến cho chó mèo | Bâu Shop',
     owner_name: 'Nguyễn Công Hậu',
     phone: '0345553913',
     email: 'conghaunguyen994@gmail.com.vn',

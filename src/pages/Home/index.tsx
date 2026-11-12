@@ -57,32 +57,39 @@ export const HomePage: React.FC = () => {
             <div className="space-y-6 text-center lg:text-left">
               <Badge variant="pink" size="md">
                 <Sparkles className="w-3.5 h-3.5 text-rose-500" />
-                <span>Tiệm Đồ In 3D Thủ Công Cho Thú Cưng</span>
+                <span>BÂU SHOP | BÁT ĂN CHỐNG GÙ – CHỐNG KIẾN CHO CHÓ MÈO</span>
               </Badge>
 
               <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-cute-brown dark:text-cute-cream tracking-tight leading-[1.15] font-sans">
-                Những chiếc bát xinh xắn <br className="hidden sm:inline" />
+                Bát Ăn Chống Gù – Chống Kiến <br className="hidden sm:inline" />
                 <span className="relative inline-block text-rose-500">
-                  dành riêng cho bé yêu
+                  Cá Nhân Hóa Riêng Cho Bé
                   <svg className="absolute left-0 -bottom-2 w-full h-3 text-cute-pink-300 -z-10" viewBox="0 0 100 20" preserveAspectRatio="none">
                     <path d="M0,15 Q50,0 100,15" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
                   </svg>
                 </span>
               </h1>
 
-              <p className="text-sm sm:text-base text-cute-brown-light dark:text-cute-muted max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                Được làm từ chất liệu sinh học an toàn đạt chuẩn thực phẩm (Food-safe), kết hợp công thái học bảo vệ cổ cún và khắc tên 3D nổi độc quyền mang đậm dấu ấn riêng.
-              </p>
+              <div className="space-y-1.5 text-xs sm:text-sm text-cute-brown dark:text-cute-cream font-medium">
+                <p>🌸 <strong>Thiết kế nghiêng 15° chống gù</strong> bảo vệ cột sống (size S | M | L)</p>
+                <p>🌸 <strong>5 size chuẩn</strong>: S | M | L | XL | XXL phù hợp mọi dòng cún mèo</p>
+                <p>🌸 <strong>Đế chống kiến</strong> với khoang chứa nước ngăn 100% côn trùng</p>
+                <p>🌸 <strong>Lòng bát inox 304</strong> tháo rời, siêu bền, dễ vệ sinh sạch bóng</p>
+                <p>🌸 Được làm từ chất liệu <strong>nhựa sinh học PETG</strong> an toàn thực phẩm (Food-safe)</p>
+                <p className="text-rose-500 font-bold pt-1">
+                  🎨 Tùy chọn 2 màu sắc (màu thân trên & màu đế dưới) • Chữ viết tên cún • Tối đa 2 icon • Ngày sinh khi in lên bát
+                </p>
+              </div>
 
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
-                <Link to="/products">
+                <Link to="/products/bat-an-chong-gu-chong-kien-cho-cho-meo">
                   <Button variant="primary" size="lg" rightIcon={<ArrowRight className="w-4 h-4" />}>
-                    Đón bé về nhà ngay
+                    Thiết kế & Xem demo ngay
                   </Button>
                 </Link>
-                <Link to="/products?category=bat-an-cho-cho">
+                <Link to="/products/bat-an-chong-gu-chong-kien-cho-cho-meo">
                   <Button variant="secondary" size="lg">
-                    Xem mẫu bát in tên 🐾
+                    Xem 5 Size & Bảng giá 🐾
                   </Button>
                 </Link>
               </div>
@@ -90,16 +97,16 @@ export const HomePage: React.FC = () => {
               {/* Highlights Micro-stats */}
               <div className="pt-4 grid grid-cols-3 gap-3 max-w-md mx-auto lg:mx-0 border-t border-cute-border-light dark:border-cute-border-dark">
                 <div className="text-center lg:text-left">
-                  <span className="block text-xl font-black text-cute-brown dark:text-cute-cream font-sans">1,500+</span>
-                  <span className="text-[11px] text-cute-brown-light dark:text-cute-muted">Bé cưng hài lòng</span>
+                  <span className="block text-xl font-black text-cute-brown dark:text-cute-cream font-sans">5 Size</span>
+                  <span className="text-[11px] text-cute-brown-light dark:text-cute-muted">S, M, L, XL, XXL</span>
                 </div>
                 <div className="text-center lg:text-left">
                   <span className="block text-xl font-black text-cute-brown dark:text-cute-cream font-sans">100%</span>
-                  <span className="text-[11px] text-cute-brown-light dark:text-cute-muted">Food-Safe PLA+</span>
+                  <span className="text-[11px] text-cute-brown-light dark:text-cute-muted">Food-Safe PETG</span>
                 </div>
                 <div className="text-center lg:text-left">
                   <span className="block text-xl font-black text-cute-brown dark:text-cute-cream font-sans">5.0 ★</span>
-                  <span className="text-[11px] text-cute-brown-light dark:text-cute-muted">Đánh giá 5 sao</span>
+                  <span className="text-[11px] text-cute-brown-light dark:text-cute-muted">Bâu Shop uy tín</span>
                 </div>
               </div>
             </div>
@@ -107,11 +114,11 @@ export const HomePage: React.FC = () => {
             {/* Right Hero Image Card Presentation */}
             <div className="relative flex justify-center">
               <div className="relative w-full max-w-lg aspect-square">
-                {/* Main Hero Showcase Image */}
+                {/* Main Hero Showcase Image - Actual Photo */}
                 <div className="w-full h-full rounded-4xl overflow-hidden shadow-cute-lg dark:shadow-cute-dark border-4 border-white dark:border-cute-surface-dark bg-cute-pink/20">
                   <img
-                    src="https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?q=80&w=1000&auto=format&fit=crop"
-                    alt="Bát ăn in 3D BolwDog"
+                    src="/images/bat-an-chong-gu-chong-kien.jpg"
+                    alt="Bát ăn chống gù chống kiến Bâu Shop"
                     className="w-full h-full object-cover object-center transform hover:scale-105 transition-transform duration-700"
                   />
                 </div>
@@ -123,10 +130,10 @@ export const HomePage: React.FC = () => {
                   </div>
                   <div>
                     <span className="text-xs font-bold text-cute-brown dark:text-cute-cream block">
-                      Khắc Tên Bé Miễn Phí
+                      Khắc Tên & Ngày Sinh Bé
                     </span>
                     <span className="text-[11px] text-cute-brown-light dark:text-cute-muted">
-                      In 3D chữ nổi sắc nét
+                      Xem demo trước khi đặt hàng
                     </span>
                   </div>
                 </div>
@@ -134,7 +141,7 @@ export const HomePage: React.FC = () => {
                 <div className="absolute -top-4 -right-4 sm:top-4 sm:-right-4 bg-white dark:bg-cute-surface-dark px-4 py-2.5 rounded-full shadow-cute border border-cute-border-light dark:border-cute-border-dark flex items-center gap-2">
                   <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
                   <span className="text-xs font-bold text-cute-brown dark:text-cute-cream">
-                    Handmade with Love
+                    Bâu Shop Chính Hãng
                   </span>
                 </div>
               </div>
@@ -144,39 +151,115 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* 2. Product Categories */}
+      {/* 2. 5 Sizes Showcase */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto space-y-2 mb-10">
           <Badge variant="peach" size="sm">
-            <span>Danh mục bé xinh</span>
+            <span>Bảng quy cách chuẩn</span>
           </Badge>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-cute-brown dark:text-cute-cream">
-            Khám phá bộ sưu tập đáng yêu
+            5 Kích Cỡ Bát Ăn Cho Chó Mèo (Bâu Shop)
           </h2>
           <p className="text-xs sm:text-sm text-cute-brown-light dark:text-cute-muted">
-            Mỗi danh mục mang đến sự chăm sóc ân cần nhất cho từng thói quen của bé cưng
+            Đầy đủ kích thước từ cún mi-ni, mèo con đến cún trưởng thành dáng lớn
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {categories.map((cat) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {[
+            {
+              size: 'Size S',
+              h1: '12 cm',
+              h2: '8 cm',
+              d: '18 cm',
+              inox: 'Ø 14 cm',
+              tilt: 'Nghiêng 15°',
+              price: '199K',
+              target: 'Bé nhỏ (< 4kg)',
+            },
+            {
+              size: 'Size M',
+              h1: '14 cm',
+              h2: '10 cm',
+              d: '19 cm',
+              inox: 'Ø 14 cm',
+              tilt: 'Nghiêng 15°',
+              price: '229K',
+              target: 'Bé vừa (4 - 8kg)',
+            },
+            {
+              size: 'Size L',
+              h1: '16 cm',
+              h2: '12 cm',
+              d: '20 cm',
+              inox: 'Ø 14 cm',
+              tilt: 'Nghiêng 15°',
+              price: '259K',
+              target: 'Bé lớn (8 - 15kg)',
+            },
+            {
+              size: 'Size XL',
+              h1: '15 cm',
+              h2: '15 cm',
+              d: '22,5 cm',
+              inox: 'Ø 18-20 cm',
+              tilt: 'Dáng phẳng',
+              price: '300K',
+              target: 'Bé to (15 - 25kg)',
+            },
+            {
+              size: 'Size XXL',
+              h1: '17 cm',
+              h2: '17 cm',
+              d: '25 cm',
+              inox: 'Ø 18-20 cm',
+              tilt: 'Dáng phẳng',
+              price: '350K',
+              target: 'Bé đại (> 25kg)',
+            },
+          ].map((item) => (
             <Link
-              key={cat.id}
-              to={`/products?category=${cat.slug}`}
-              className="group p-6 rounded-3xl bg-white dark:bg-cute-surface-dark border border-cute-border-light dark:border-cute-border-dark shadow-sm hover:shadow-cute-lg transition-all duration-300 hover:-translate-y-1"
+              key={item.size}
+              to="/products/bat-an-chong-gu-chong-kien-cho-cho-meo"
+              className="p-5 rounded-3xl bg-white dark:bg-cute-surface-dark border-2 border-cute-border-light dark:border-cute-border-dark shadow-sm hover:border-rose-400 hover:shadow-cute transition-all text-center flex flex-col justify-between group"
             >
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cute-pink to-cute-peach flex items-center justify-center text-2xl shadow-sm mb-4 group-hover:scale-110 transition-transform">
-                {cat.slug === 'bat-an-cho-cho' ? '🥣' : cat.slug === 'moc-khoa-3d' ? '🔑' : '✨'}
+              <div>
+                <span className="text-[11px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-950/60 px-2.5 py-0.5 rounded-full inline-block mb-2">
+                  {item.tilt}
+                </span>
+                <h3 className="text-xl font-black text-cute-brown dark:text-cute-cream group-hover:text-rose-500 transition-colors">
+                  {item.size}
+                </h3>
+                <span className="text-[11px] text-cute-brown-light dark:text-cute-muted block mb-3 font-medium">
+                  {item.target}
+                </span>
+
+                <div className="space-y-1.5 text-xs text-cute-brown-light dark:text-cute-muted border-t border-cute-border-light/60 pt-3">
+                  <div className="flex justify-between">
+                    <span>Chiều cao H1:</span>
+                    <strong className="text-cute-brown dark:text-cute-cream">{item.h1}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Chiều cao H2:</span>
+                    <strong className="text-cute-brown dark:text-cute-cream">{item.h2}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Đường kính D:</span>
+                    <strong className="text-cute-brown dark:text-cute-cream">{item.d}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Bát inox:</span>
+                    <strong className="text-rose-500">{item.inox}</strong>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-lg font-bold text-cute-brown dark:text-cute-cream group-hover:text-cute-pink-500 transition-colors">
-                {cat.name}
-              </h3>
-              <p className="text-xs text-cute-brown-light dark:text-cute-muted mt-2 leading-relaxed">
-                {cat.description}
-              </p>
-              <div className="mt-4 flex items-center gap-1.5 text-xs font-bold text-cute-pink-500 group-hover:gap-2 transition-all">
-                <span>Xem chi tiết</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+
+              <div className="mt-4 pt-3 border-t border-cute-border-light/60">
+                <span className="text-lg font-black text-rose-500 block">{item.price}</span>
+                <span className="text-[11px] font-bold text-cute-pink-500 mt-1 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
+                  <span>Thiết kế ngay</span>
+                  <ArrowRight className="w-3 h-3" />
+                </span>
               </div>
             </Link>
           ))}
