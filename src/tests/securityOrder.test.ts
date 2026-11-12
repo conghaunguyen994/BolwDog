@@ -49,17 +49,28 @@ vi.mock('../services/supabase/client', () => ({
       }
 
       if (fnName === 'get_guest_order') {
-        const cleanPhone = args.p_phone.replace(/\D/g, '').slice(-9);
-        const found = mockDbOrders.find(
-          (o) =>
-            o.order_reference.toUpperCase() === args.p_order_ref.toUpperCase() &&
-            o.customer_phone.replace(/\D/g, '').slice(-9) === cleanPhone
-        );
-        return { data: found || null, error: null };
+        const cleanRef = (args.p_order_ref || '').trim().toUpperCase();
+        const cleanPhone = (args.p_phone || '').replace(/\D/g, '').slice(-9);
+        if (!cleanRef && !cleanPhone) {
+          return { data: null, error: null };
+        }
+        const found = mockDbOrders.filter((o) => {
+          const refOk = !cleanRef || o.order_reference.toUpperCase().includes(cleanRef);
+          const phoneOk =
+            !cleanPhone || o.customer_phone.replace(/\D/g, '').slice(-9) === cleanPhone;
+          return refOk && phoneOk;
+        });
+        return { data: found.length > 0 ? found : null, error: null };
       }
 
       return { data: null, error: null };
     }),
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      ilike: vi.fn().mockReturnThis(),
+      then: (resolve: any) => resolve({ data: [], error: null }),
+    })),
   },
 }));
 
@@ -119,6 +130,17 @@ describe('Security & Privacy: Database Order Creation, Guest Isolation & Admin L
     expect(retrieved).not.toBeNull();
     expect(retrieved?.id).toBe(created.id);
     expect(retrieved?.customer_name).toBe('Lê Minh');
+
+    const byRefOnly = await orderService.getOrderByReferenceAndPhone(
+      created.order_reference,
+      ''
+    );
+    expect(byRefOnly).not.toBeNull();
+    expect(byRefOnly?.id).toBe(created.id);
+
+    const byPhoneOnly = await orderService.getOrderByReferenceAndPhone('', '0912345678');
+    expect(byPhoneOnly).not.toBeNull();
+    expect(byPhoneOnly?.id).toBe(created.id);
   });
 
   it('should REJECT order lookup if phone number does not match (Defense against scraping)', async () => {

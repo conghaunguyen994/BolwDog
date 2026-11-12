@@ -330,50 +330,66 @@ END;
 $$;
 
 -- ====================================================================
--- 12. SECURE RPC: LOOKUP GUEST ORDER BY REFERENCE AND PHONE
+-- 12. SECURE RPC: LOOKUP GUEST ORDER BY REFERENCE OR PHONE (1 IN 2 OR BOTH)
 -- ====================================================================
 CREATE OR REPLACE FUNCTION public.get_guest_order(
-  p_order_ref TEXT,
-  p_phone TEXT
+  p_order_ref TEXT DEFAULT '',
+  p_phone TEXT DEFAULT ''
 )
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER SET search_path = public
 AS $$
 DECLARE
-  v_order JSONB;
+  v_ref TEXT := upper(trim(coalesce(p_order_ref, '')));
+  v_phone TEXT := regexp_replace(coalesce(p_phone, ''), '\D', '', 'g');
+  v_orders JSONB;
 BEGIN
-  SELECT jsonb_build_object(
-    'id', o.id,
-    'order_reference', o.order_reference,
-    'customer_name', o.customer_name,
-    'customer_phone', o.customer_phone,
-    'shipping_address', o.shipping_address,
-    'subtotal', o.subtotal,
-    'shipping_fee', o.shipping_fee,
-    'total_amount', o.total_amount,
-    'deposit_amount', o.deposit_amount,
-    'order_status', o.order_status,
-    'payment_status', o.payment_status,
-    'created_at', o.created_at,
-    'items', COALESCE((
-      SELECT jsonb_agg(
-        jsonb_build_object(
-          'id', oi.id,
-          'product_name', oi.product_name,
-          'unit_price', oi.unit_price,
-          'quantity', oi.quantity,
-          'customization_data', oi.customization_data
-        )
-      )
-      FROM public.order_items oi
-      WHERE oi.order_id = o.id
-    ), '[]'::jsonb)
-  ) INTO v_order
-  FROM public.orders o
-  WHERE upper(o.order_reference) = upper(p_order_ref)
-    AND right(regexp_replace(o.customer_phone, '\D', '', 'g'), 9) = right(regexp_replace(p_phone, '\D', '', 'g'), 9);
+  IF v_ref = '' AND v_phone = '' THEN
+    RETURN NULL;
+  END IF;
 
-  RETURN v_order;
+  SELECT jsonb_agg(order_obj) INTO v_orders
+  FROM (
+    SELECT jsonb_build_object(
+      'id', o.id,
+      'order_reference', o.order_reference,
+      'customer_name', o.customer_name,
+      'customer_phone', o.customer_phone,
+      'shipping_address', o.shipping_address,
+      'subtotal', o.subtotal,
+      'shipping_fee', o.shipping_fee,
+      'total_amount', o.total_amount,
+      'deposit_amount', o.deposit_amount,
+      'order_status', o.order_status,
+      'payment_status', o.payment_status,
+      'notes', o.notes,
+      'created_at', o.created_at,
+      'items', COALESCE((
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'id', oi.id,
+            'product_id', oi.product_id,
+            'product_name', oi.product_name,
+            'unit_price', oi.unit_price,
+            'quantity', oi.quantity,
+            'customization_data', oi.customization_data
+          )
+        )
+        FROM public.order_items oi
+        WHERE oi.order_id = o.id
+      ), '[]'::jsonb)
+    ) AS order_obj
+    FROM public.orders o
+    WHERE (v_ref = '' OR upper(o.order_reference) LIKE '%' || v_ref || '%')
+      AND (
+        v_phone = '' OR
+        right(regexp_replace(o.customer_phone, '\D', '', 'g'), 9) = right(v_phone, 9) OR
+        regexp_replace(o.customer_phone, '\D', '', 'g') LIKE '%' || v_phone || '%'
+      )
+    ORDER BY o.created_at DESC
+  ) sub;
+
+  RETURN v_orders;
 END;
 $$;

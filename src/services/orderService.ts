@@ -76,15 +76,71 @@ export const orderService = {
     };
   },
 
-  async getOrderByReferenceAndPhone(orderRef: string, phone: string): Promise<Order | null> {
+  async lookupOrders(orderRef?: string, phone?: string): Promise<Order[]> {
     const db = requireSupabase();
-    const { data, error } = await db.rpc('get_guest_order', {
-      p_order_ref: orderRef.trim(),
-      p_phone: phone.trim(),
+    const cleanRef = (orderRef || '').trim().toUpperCase();
+    const cleanPhoneDigits = (phone || '').replace(/\D/g, '');
+    const phoneLast9 =
+      cleanPhoneDigits.length >= 9 ? cleanPhoneDigits.slice(-9) : cleanPhoneDigits;
+
+    if (!cleanRef && !cleanPhoneDigits) {
+      return [];
+    }
+
+    const matchesQuery = (o: Order) => {
+      const refOk = !cleanRef || (o.order_reference || '').toUpperCase().includes(cleanRef);
+      const orderDigits = (o.customer_phone || '').replace(/\D/g, '');
+      const phoneOk =
+        !cleanPhoneDigits ||
+        (phoneLast9.length > 0 && orderDigits.endsWith(phoneLast9)) ||
+        orderDigits.includes(cleanPhoneDigits);
+      return refOk && phoneOk;
+    };
+
+    // 1. Thử gọi RPC get_guest_order (hỗ trợ cả khách vãng lai chưa đăng nhập)
+    const { data: rpcData, error: rpcError } = await db.rpc('get_guest_order', {
+      p_order_ref: cleanRef,
+      p_phone: cleanPhoneDigits,
     });
 
-    if (error || !data) return null;
-    return data as Order;
+    if (!rpcError && rpcData) {
+      const list: Order[] = Array.isArray(rpcData) ? rpcData : [rpcData as Order];
+      const filtered = list.filter((o) => o && o.id && matchesQuery(o));
+      if (filtered.length > 0) {
+        return filtered;
+      }
+    }
+
+    // 2. Truy vấn trực tiếp bảng orders (dành cho chủ đơn / Admin hoặc khi tìm danh sách nhiều đơn theo SĐT)
+    let query = db
+      .from('orders')
+      .select(
+        `
+        *,
+        items:order_items(*),
+        payments(*)
+      `
+      )
+      .order('created_at', { ascending: false });
+
+    if (cleanRef) {
+      query = query.ilike('order_reference', `%${cleanRef}%`);
+    }
+    if (cleanPhoneDigits) {
+      query = query.ilike('customer_phone', `%${phoneLast9}%`);
+    }
+
+    const { data: tableData, error: tableError } = await query;
+    if (!tableError && tableData && tableData.length > 0) {
+      return (tableData as Order[]).filter(matchesQuery);
+    }
+
+    return [];
+  },
+
+  async getOrderByReferenceAndPhone(orderRef?: string, phone?: string): Promise<Order | null> {
+    const orders = await this.lookupOrders(orderRef, phone);
+    return orders[0] || null;
   },
 
   async getAllOrders(filters?: {

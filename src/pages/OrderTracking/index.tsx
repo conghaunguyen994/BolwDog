@@ -35,6 +35,7 @@ export const OrderTrackingPage: React.FC = () => {
 
   const [orderRef, setOrderRef] = useState(initialRef);
   const [phone, setPhone] = useState(initialPhone);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,31 +47,34 @@ export const OrderTrackingPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (initialRef && initialPhone) {
+    if (initialRef || initialPhone) {
       handleLookup(initialRef, initialPhone);
     }
   }, [initialRef, initialPhone]);
 
   const handleLookup = async (refInput?: string, phoneInput?: string) => {
-    const r = (refInput || orderRef).trim();
-    const p = (phoneInput || phone).trim();
-    if (!r || !p) {
-      setError('Vui lòng nhập cả mã đơn hàng và số điện thoại đặt hàng.');
+    const r = (refInput !== undefined ? refInput : orderRef).trim();
+    const p = (phoneInput !== undefined ? phoneInput : phone).trim();
+    if (!r && !p) {
+      setError('Vui lòng nhập Mã đơn hàng hoặc Số điện thoại đặt hàng (chỉ cần 1 trong 2).');
       return;
     }
 
     setLoading(true);
     setError(null);
     try {
-      const found = await orderService.getOrderByReferenceAndPhone(r, p);
-      if (!found) {
+      const foundList = await orderService.lookupOrders(r, p);
+      if (!foundList || foundList.length === 0) {
         setError('Không tìm thấy đơn hàng phù hợp với thông tin đã nhập.');
+        setOrders([]);
         setOrder(null);
       } else {
-        setOrder(found);
+        setOrders(foundList);
+        setOrder(foundList[0]);
       }
     } catch (err: any) {
       setError(err.message || 'Lỗi khi tra cứu đơn hàng.');
+      setOrders([]);
       setOrder(null);
     } finally {
       setLoading(false);
@@ -116,7 +120,7 @@ export const OrderTrackingPage: React.FC = () => {
           Tra cứu tiến độ in 3D & vận chuyển
         </h1>
         <p className="text-xs sm:text-sm text-cute-brown-light dark:text-cute-muted">
-          Nhập mã đơn hàng và số điện thoại ba mẹ đã đăng ký để kiểm tra trạng thái
+          Chỉ cần nhập <strong>Mã đơn hàng</strong> hoặc <strong>Số điện thoại đặt hàng</strong> (1 trong 2) để kiểm tra trạng thái
         </p>
       </div>
 
@@ -125,26 +129,28 @@ export const OrderTrackingPage: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-cute-brown dark:text-cute-cream mb-1">
-              Mã đơn hàng (Ví dụ: BD-20261111-94A21)
+              Mã đơn hàng <span className="font-normal text-cute-brown-light">(Hoặc nhập SĐT bên cạnh)</span>
             </label>
             <input
               type="text"
-              placeholder="BD-..."
+              placeholder="Ví dụ: BD-20261112-2DEAF"
               value={orderRef}
               onChange={(e) => setOrderRef(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
               className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-2xl border border-cute-border-light dark:border-cute-border-dark bg-cute-cream/40 dark:bg-cute-cream-dark/40 text-cute-brown dark:text-cute-cream focus:outline-none focus:ring-2 focus:ring-cute-pink-300 uppercase"
             />
           </div>
 
           <div>
             <label className="block text-xs font-bold text-cute-brown dark:text-cute-cream mb-1">
-              Số điện thoại đặt hàng
+              Số điện thoại đặt hàng <span className="font-normal text-cute-brown-light">(Hoặc nhập Mã đơn)</span>
             </label>
             <input
               type="tel"
-              placeholder="0987654321"
+              placeholder="Ví dụ: 0987654321"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
               className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-2xl border border-cute-border-light dark:border-cute-border-dark bg-cute-cream/40 dark:bg-cute-cream-dark/40 text-cute-brown dark:text-cute-cream focus:outline-none focus:ring-2 focus:ring-cute-pink-300"
             />
           </div>
@@ -169,6 +175,34 @@ export const OrderTrackingPage: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Nếu tìm theo SĐT có nhiều hơn 1 đơn hàng, cho phép chọn xem từng đơn */}
+      {orders.length > 1 && (
+        <div className="cute-card p-4 space-y-2.5">
+          <span className="text-xs font-bold text-cute-brown dark:text-cute-cream block">
+            Tìm thấy {orders.length} đơn hàng phù hợp (chọn đơn để xem chi tiết):
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {orders.map((item) => {
+              const active = order?.id === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setOrder(item)}
+                  className={`px-3.5 py-2 rounded-2xl text-xs font-bold border transition-all ${
+                    active
+                      ? 'bg-cute-pink-400 text-white border-cute-pink-500 shadow-sm'
+                      : 'bg-cute-cream/50 text-cute-brown border-cute-border-light hover:border-cute-pink-300'
+                  }`}
+                >
+                  {item.order_reference} • {formatVND(item.total_amount)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Order Results View */}
       {order && (
