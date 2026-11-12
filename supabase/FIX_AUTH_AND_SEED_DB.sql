@@ -276,6 +276,14 @@ VALUES
 ON CONFLICT (id) DO UPDATE SET
   image_url = EXCLUDED.image_url;
 
+-- Xóa triệt để các biến thể kích thước bị trùng lặp trên bảng product_variants
+DELETE FROM public.product_variants
+WHERE id NOT IN (
+  SELECT DISTINCT ON (product_id, lower(variant_name), lower(variant_value)) id
+  FROM public.product_variants
+  ORDER BY product_id, lower(variant_name), lower(variant_value), created_at ASC
+);
+
 INSERT INTO public.product_variants (id, product_id, variant_name, variant_value, additional_price, stock_quantity)
 VALUES
   ('d1111111-1111-4111-8111-111111111111', 'b1111111-1111-4111-8111-111111111111', 'Kích cỡ', 'Size S (H1: 12cm - H2: 8cm - D: 18cm | Inox 14cm)', 0, 50),

@@ -1,6 +1,19 @@
 import { supabase } from './supabase/client';
 import { Product, Category } from '../types/product';
 
+function deduplicateVariants(variants: any[]): any[] {
+  const seen = new Set<string>();
+  const unique: any[] = [];
+  for (const v of variants) {
+    const key = `${v.variant_name || ''}__${v.variant_value || ''}`.trim().toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(v);
+    }
+  }
+  return unique.sort((a: any, b: any) => (a.additional_price || 0) - (b.additional_price || 0));
+}
+
 function requireSupabase() {
   if (!supabase) {
     throw new Error('Chưa kết nối tới cơ sở dữ liệu Supabase.');
@@ -69,7 +82,7 @@ export const productService = {
     return (data || []).map((p: any) => ({
       ...p,
       images: (p.images || []).sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0)),
-      variants: (p.variants || []).sort((a: any, b: any) => (a.additional_price || 0) - (b.additional_price || 0)),
+      variants: deduplicateVariants(p.variants || []),
     }));
   },
 
@@ -91,7 +104,7 @@ export const productService = {
     return {
       ...data,
       images: (data.images || []).sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0)),
-      variants: (data.variants || []).sort((a: any, b: any) => (a.additional_price || 0) - (b.additional_price || 0)),
+      variants: deduplicateVariants(data.variants || []),
     };
   },
 

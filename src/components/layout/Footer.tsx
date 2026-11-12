@@ -9,7 +9,7 @@ export const Footer: React.FC = () => {
   const [settings, setSettings] = useState<ShopSettings>(defaultShopSettings);
 
   useEffect(() => {
-    settingsService.getSettings().then(setSettings).catch(() => {});
+    settingsService.getSettings().then(setSettings).catch(() => { });
   }, []);
 
   const info = settings.general_info;
@@ -19,7 +19,7 @@ export const Footer: React.FC = () => {
     <footer className="mt-16 sm:mt-20 bg-gradient-to-b from-transparent to-cute-peach/20 dark:to-cute-surface-dark border-t border-cute-border-light dark:border-cute-border-dark pt-12 sm:pt-14 pb-24 md:pb-12 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-          
+
           {/* Col 1: Shop Story & Brand */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
@@ -66,11 +66,7 @@ export const Footer: React.FC = () => {
                   📦 Tra cứu tiến độ đơn hàng
                 </Link>
               </li>
-              <li>
-                <Link to="/login" className="hover:text-cute-pink-400 transition-colors text-xs opacity-85">
-                  🔐 Đăng nhập Quản trị / Thành viên
-                </Link>
-              </li>
+
             </ul>
           </div>
 
