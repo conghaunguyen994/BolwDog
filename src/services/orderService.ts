@@ -434,17 +434,19 @@ export const orderService = {
       const db = requireSupabase();
       let savedViaOrderItems = false;
 
-      // 1. Thử gọi RPC submit_order_demo_review (nếu đã tạo trong SQL)
+      // 1. Gọi RPC submit_order_demo_review (đã bảo mật quyền sở hữu đơn)
       const { error: rpcErr } = await db.rpc('submit_order_demo_review', {
         p_order_id: order.id,
         p_status: payload.status,
         p_feedback: cleanFeedback || '',
+        p_order_ref: order.order_reference || '',
+        p_phone: order.customer_phone || '',
       });
       if (!rpcErr) {
         savedViaOrderItems = true;
       }
 
-      // 2. Thử cập nhật trực tiếp order_items (thành công ngay nếu là chủ đơn / Admin)
+      // 2. Thử cập nhật trực tiếp order_items nếu là chủ đơn đăng nhập / Admin
       if (!savedViaOrderItems) {
         let updateQuery = db
           .from('order_items')
@@ -459,17 +461,10 @@ export const orderService = {
         const { error: itemErr } = await updateQuery;
         if (!itemErr) {
           savedViaOrderItems = true;
+        } else if (rpcErr) {
+          throw new Error('Không thể cập nhật trạng thái duyệt mẫu 3D trên cơ sở dữ liệu.');
         }
       }
-
-      // 3. Ghi đồng thời vào bảng payments (hỗ trợ cả khách vãng lai chưa đăng nhập ngay lập tức)
-      await db.from('payments').insert({
-        order_id: order.id,
-        amount: 0,
-        payment_method: 'bank_transfer',
-        payment_status: 'pending_verification',
-        proof_image_url: `DEMO_REVIEW::${payload.status}::${cleanFeedback || ''}`,
-      });
 
       // 4. Tự động gửi Email thông báo phản hồi / yêu cầu chỉnh sửa file 3D của khách về cho Admin
       emailService

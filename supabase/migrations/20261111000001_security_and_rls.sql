@@ -14,20 +14,34 @@ BEGIN
   RETURN lower(coalesce(auth.jwt() ->> 'email', '')) IN (
     'conghaunguyen994@gmail.com',
     'conghaunguyen994@gmail.com.vn',
-    'conghaunguyen994@gmai.com'
+    'haudev99@gmail.com.vn',
+    'haudev99@gmail.com'
   );
 END;
 $$;
 
--- Trigger to prevent regular users from escalating their own role
+-- Trigger to prevent regular users from escalating their own role or unblocking themselves
 CREATE OR REPLACE FUNCTION public.protect_profile_role()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER SET search_path = public
 AS $$
 BEGIN
-  IF NEW.role = 'admin'::public.user_role AND NOT public.is_admin() THEN
-    NEW.role := 'customer'::public.user_role;
+  IF NOT public.is_admin() THEN
+    -- Người dùng thường KHÔNG được phép tự sửa role hoặc tự gỡ trạng thái chặn (is_blocked)
+    IF TG_OP = 'UPDATE' THEN
+      NEW.role := OLD.role;
+      NEW.is_blocked := OLD.is_blocked;
+      NEW.blocked_reason := OLD.blocked_reason;
+      NEW.blocked_at := OLD.blocked_at;
+    ELSIF TG_OP = 'INSERT' THEN
+      IF NEW.role = 'admin'::public.user_role THEN
+        NEW.role := 'customer'::public.user_role;
+      END IF;
+      NEW.is_blocked := FALSE;
+      NEW.blocked_reason := NULL;
+      NEW.blocked_at := NULL;
+    END IF;
   END IF;
   RETURN NEW;
 END;
@@ -54,7 +68,8 @@ BEGIN
       WHEN lower(NEW.email) IN (
         'conghaunguyen994@gmail.com',
         'conghaunguyen994@gmail.com.vn',
-        'conghaunguyen994@gmai.com'
+        'haudev99@gmail.com.vn',
+        'haudev99@gmail.com'
       ) THEN 'admin'::public.user_role
       ELSE 'customer'::public.user_role
     END
@@ -189,9 +204,15 @@ USING (
 );
 
 DROP POLICY IF EXISTS "Payments insertable by anyone" ON public.payments;
-CREATE POLICY "Payments insertable by anyone"
+DROP POLICY IF EXISTS "Payments insertable for valid orders" ON public.payments;
+CREATE POLICY "Payments insertable for valid orders"
 ON public.payments FOR INSERT
-WITH CHECK (true);
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.orders o
+    WHERE o.id = payments.order_id
+  )
+);
 
 DROP POLICY IF EXISTS "Payments verifiable by admin only" ON public.payments;
 CREATE POLICY "Payments verifiable by admin only"
@@ -199,10 +220,15 @@ ON public.payments FOR UPDATE
 USING (public.is_admin());
 
 -- 10. SHOP SETTINGS POLICIES
+-- Chỉ công khai các cấu hình chung (thông tin shop, ngân hàng, phí ship).
+-- Các cấu hình nhạy cảm như chi phí xưởng, đơn ngoài web CHỈ Admin mới được xem.
 DROP POLICY IF EXISTS "Shop settings viewable by everyone" ON public.shop_settings;
 CREATE POLICY "Shop settings viewable by everyone"
 ON public.shop_settings FOR SELECT
-USING (true);
+USING (
+  public.is_admin() OR
+  setting_key NOT IN ('workshop_expenses', 'manual_orders', 'financial_reports', 'admin_notes')
+);
 
 DROP POLICY IF EXISTS "Shop settings manageable by admin only" ON public.shop_settings;
 CREATE POLICY "Shop settings manageable by admin only"
@@ -390,7 +416,8 @@ END;
 $$;
 
 -- ====================================================================
--- 12. SECURE RPC: LOOKUP GUEST ORDER BY REFERENCE OR PHONE (1 IN 2 OR BOTH)
+-- 12. SECURE RPC: LOOKUP GUEST ORDER BY REFERENCE OR PHONE
+-- Bảo mật chống quét dữ liệu (Data Scraping / Enumeration) & Che giấu thông tin cá nhân (PII Masking)
 -- ====================================================================
 CREATE OR REPLACE FUNCTION public.get_guest_order(
   p_order_ref TEXT DEFAULT '',
@@ -403,10 +430,14 @@ AS $$
 DECLARE
   v_ref TEXT := upper(trim(coalesce(p_order_ref, '')));
   v_phone TEXT := regexp_replace(coalesce(p_phone, ''), '\D', '', 'g');
+  v_is_caller_admin BOOLEAN := public.is_admin();
+  v_caller_uid UUID := auth.uid();
   v_orders JSONB;
 BEGIN
-  IF v_ref = '' AND v_phone = '' THEN
-    RETURN NULL;
+  -- 1. Xác thực tham số đầu vào tối thiểu để chống quét bừa dữ liệu
+  -- Yêu cầu Mã đơn hợp lệ (ít nhất 6 ký tự) HOẶC Số điện thoại (ít nhất 9 chữ số)
+  IF (v_ref = '' OR length(v_ref) < 6) AND (v_phone = '' OR length(v_phone) < 9) THEN
+    RETURN '[]'::jsonb;
   END IF;
 
   SELECT jsonb_agg(order_obj) INTO v_orders
@@ -415,8 +446,25 @@ BEGIN
       'id', o.id,
       'order_reference', o.order_reference,
       'customer_name', o.customer_name,
-      'customer_phone', o.customer_phone,
-      'shipping_address', o.shipping_address,
+      -- Nếu là Admin hoặc chính chủ đã đăng nhập -> Hiển thị đủ SĐT & Địa chỉ
+      -- Nếu là khách tra cứu công khai -> Che giấu bớt thông tin cá nhân để bảo vệ quyền riêng tư
+      'customer_phone', CASE
+        WHEN v_is_caller_admin OR (v_caller_uid IS NOT NULL AND o.customer_id = v_caller_uid)
+          THEN o.customer_phone
+        ELSE substring(o.customer_phone from 1 for 3) || '****' || right(o.customer_phone, 3)
+      END,
+      'customer_email', CASE
+        WHEN v_is_caller_admin OR (v_caller_uid IS NOT NULL AND o.customer_id = v_caller_uid)
+          THEN o.customer_email
+        ELSE NULL
+      END,
+      'shipping_address', CASE
+        WHEN v_is_caller_admin OR (v_caller_uid IS NOT NULL AND o.customer_id = v_caller_uid)
+          THEN o.shipping_address
+        WHEN position(',' in o.shipping_address) > 0
+          THEN '*** ' || substring(o.shipping_address from position(',' in o.shipping_address))
+        ELSE '*** (Đã ẩn địa chỉ cụ thể)'
+      END,
       'subtotal', o.subtotal,
       'shipping_fee', o.shipping_fee,
       'total_amount', o.total_amount,
@@ -441,15 +489,100 @@ BEGIN
       ), '[]'::jsonb)
     ) AS order_obj
     FROM public.orders o
-    WHERE (v_ref = '' OR upper(o.order_reference) LIKE '%' || v_ref || '%')
-      AND (
-        v_phone = '' OR
-        right(regexp_replace(o.customer_phone, '\D', '', 'g'), 9) = right(v_phone, 9) OR
-        regexp_replace(o.customer_phone, '\D', '', 'g') LIKE '%' || v_phone || '%'
+    WHERE (
+      -- Khớp chính xác mã đơn hàng (hoặc tiền tố chuẩn BD-...)
+      (v_ref <> '' AND (upper(o.order_reference) = v_ref OR (length(v_ref) >= 8 AND upper(o.order_reference) LIKE v_ref || '%')))
+      OR
+      -- Khớp chính xác 9 số cuối của SĐT
+      (v_phone <> '' AND length(v_phone) >= 9 AND right(regexp_replace(o.customer_phone, '\D', '', 'g'), 9) = right(v_phone, 9))
+    )
+    AND (
+      -- Nếu cung cấp cả hai, bắt buộc phải khớp cả hai để bảo mật tuyệt đối
+      (v_ref = '' OR v_phone = '') OR
+      (
+        (upper(o.order_reference) = v_ref OR upper(o.order_reference) LIKE v_ref || '%') AND
+        (right(regexp_replace(o.customer_phone, '\D', '', 'g'), 9) = right(v_phone, 9))
       )
+    )
     ORDER BY o.created_at DESC
+    LIMIT 5 -- Giới hạn tối đa 5 đơn gần nhất để chống quét dữ liệu hàng loạt
   ) sub;
 
-  RETURN v_orders;
+  RETURN COALESCE(v_orders, '[]'::jsonb);
+END;
+$$;
+
+-- ====================================================================
+-- 13. SECURE RPC: SUBMIT CUSTOMER DEMO REVIEW
+-- Duyệt chốt in hoặc yêu cầu chỉnh sửa mẫu 3D có xác thực quyền sở hữu đơn
+-- ====================================================================
+CREATE OR REPLACE FUNCTION public.submit_order_demo_review(
+  p_order_id UUID,
+  p_status TEXT,
+  p_feedback TEXT DEFAULT '',
+  p_order_ref TEXT DEFAULT '',
+  p_phone TEXT DEFAULT ''
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_item_id UUID;
+  v_custom JSONB;
+  v_order_ref_clean TEXT := upper(trim(coalesce(p_order_ref, '')));
+  v_phone_digits TEXT := regexp_replace(coalesce(p_phone, ''), '\D', '', 'g');
+  v_is_authorized BOOLEAN := FALSE;
+BEGIN
+  IF p_status NOT IN ('approved', 'revision_requested') THEN
+    RAISE EXCEPTION 'Trạng thái duyệt mẫu 3D không hợp lệ';
+  END IF;
+
+  -- Chống XSS trong phản hồi góp ý
+  IF coalesce(p_feedback, '') ~* '(<script|javascript:|onerror=|onload=|<iframe|<svg|<object|eval\(|document\.cookie)' THEN
+    RAISE EXCEPTION 'Phản hồi chứa mã lệnh không an toàn (XSS bị chặn)';
+  END IF;
+
+  -- Kiểm tra quyền sở hữu đơn hàng
+  SELECT EXISTS (
+    SELECT 1 FROM public.orders o
+    WHERE o.id = p_order_id
+      AND (
+        public.is_admin()
+        OR (auth.uid() IS NOT NULL AND o.customer_id = auth.uid())
+        OR (v_order_ref_clean <> '' AND upper(o.order_reference) = v_order_ref_clean)
+        OR (length(v_phone_digits) >= 9 AND right(regexp_replace(o.customer_phone, '\D', '', 'g'), 9) = right(v_phone_digits, 9))
+      )
+  ) INTO v_is_authorized;
+
+  IF NOT v_is_authorized THEN
+    RAISE EXCEPTION 'Không có quyền thao tác trên đơn hàng này';
+  END IF;
+
+  SELECT id, COALESCE(customization_data, '{}'::jsonb)
+  INTO v_item_id, v_custom
+  FROM public.order_items
+  WHERE order_id = p_order_id
+  ORDER BY id ASC
+  LIMIT 1;
+
+  IF v_item_id IS NULL THEN
+    RETURN FALSE;
+  END IF;
+
+  UPDATE public.order_items
+  SET customization_data = jsonb_set(
+    v_custom,
+    '{demoPreview}',
+    COALESCE(v_custom->'demoPreview', '{}'::jsonb) || jsonb_build_object(
+      'status', p_status,
+      'customerFeedback', COALESCE(trim(p_feedback), ''),
+      'reviewedAt', to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+    ),
+    true
+  )
+  WHERE id = v_item_id;
+
+  RETURN TRUE;
 END;
 $$;

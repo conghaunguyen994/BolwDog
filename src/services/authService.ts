@@ -1,12 +1,16 @@
 import { supabase, isSupabaseConfigured } from './supabase/client';
 import { UserProfile } from '../features/auth/authSlice';
-import { setLocalBlockedStatus } from '../utils/securityGuard';
+import {
+  assertCsrfAndSameOrigin,
+  enforceRateLimit,
+  sanitizeText,
+  setLocalBlockedStatus,
+} from '../utils/securityGuard';
 
 // Danh sách email chủ tiệm duy nhất được phép truy cập quyền Quản trị viên (Admin)
 const ALLOWED_ADMIN_EMAILS = [
   'conghaunguyen994@gmail.com',
   'conghaunguyen994@gmail.com.vn',
-  'conghaunguyen994@gmai.com',
   'haudev99@gmail.com.vn',
   'haudev99@gmail.com',
 ];
@@ -258,15 +262,22 @@ export const authService = {
    * Block hoặc Bỏ Block người dùng (Chỉ Admin mới có quyền thực thi)
    */
   async setBlockUser(userId: string, isBlocked: boolean, reason?: string): Promise<void> {
+    assertCsrfAndSameOrigin();
+    enforceRateLimit('admin_mutation');
+
     if (!isSupabaseConfigured || !supabase) {
       throw new Error('Chưa kết nối Supabase.');
     }
+
+    const cleanReason = isBlocked
+      ? sanitizeText(reason || 'Admin đã chặn tài khoản này do có hành vi phá hoại hoặc spam.', 300)
+      : null;
 
     const { error } = await supabase
       .from('profiles')
       .update({
         is_blocked: isBlocked,
-        blocked_reason: isBlocked ? (reason || 'Admin đã chặn tài khoản này do có hành vi phá hoại hoặc spam.') : null,
+        blocked_reason: cleanReason,
         blocked_at: isBlocked ? new Date().toISOString() : null,
         updated_at: new Date().toISOString(),
       })

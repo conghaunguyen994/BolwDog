@@ -18,10 +18,17 @@ Website thương mại điện tử chuyên nghiệp, phong cách **Cute, Soft &
      - Hết hàng ➔ **"Bé đang tạm hết hàng"**
      - Liên hệ ➔ **"Nhắn tin cho shop nhé"**
 
-2. **Tùy biến in 3D trực quan (Live Customization)**:
-   - Nhập tên bé cún hiển thị mô phỏng khắc nổi 3D theo thời gian thực.
-   - Nhập tuổi, sinh nhật, ghi chú riêng cho nghệ nhân in 3D và tải ảnh tham khảo màu lông.
-   - Tùy chọn kiểu dáng móc khóa (khoen vàng hồng, càng cua trái tim, dây chuông).
+2. **Bát ăn chống gù – chống kiến & Tùy biến 3D trực quan (Bâu Shop Standard)**:
+   - Quy chuẩn dòng bát ăn Bâu Shop: Thiết kế **nghiêng 15° chống gù** (size S, M, L), đế chống kiến khoang chứa nước, lòng bát Inox 304 tháo rời, chất liệu nhựa PETG an toàn.
+   - **5 kích thước & bảng giá niêm yết:**
+     - Size S : H1: 12 cm - H2: 8cm - D: 18cm (Bát Inox Ø14cm) ➔ **199.000đ**
+     - Size M : H1: 14cm - H2: 10cm - D: 19cm (Bát Inox Ø14cm) ➔ **229.000đ**
+     - Size L : H1: 16cm - H2: 12cm - D: 20cm (Bát Inox Ø14cm) ➔ **259.000đ**
+     - Size XL : H1: 15 cm - H2: 15cm - D: 22,5cm (Bát Inox Ø18-20cm) ➔ **300.000đ**
+     - Size XXL: H1: 17cm - H2: 17cm - D: 25cm (Bát Inox Ø18-20cm) ➔ **350.000đ**
+   - Tự do phối **2 màu sắc** (Màu thân ở trên & Màu đế ở dưới).
+   - In nổi **Tên thú cưng**, chọn tối đa **2 icon ngộ nghĩnh**, in **Ngày sinh** của bé.
+   - **Cửa sổ xem trước mô phỏng 3D (`BowlDemoPreviewModal`)**: Cho phép khách xoay ngắm bản mô phỏng 3D trước khi quyết định đặt hàng.
 
 3. **Mua hàng ẩn danh (Guest Checkout) bảo mật**:
    - **Tuyệt đối KHÔNG ép buộc khách hàng phải đăng ký hay đăng nhập** mới được mua hàng.
@@ -122,14 +129,17 @@ WHERE id = (SELECT id FROM auth.users WHERE email = 'admin@bowldog.vn');
 
 ---
 
-## 🔒 Kiến Trúc Bảo Mật & Phòng Chống Gian Lận
+## 🔒 Kiến Trúc Bảo Mật & Phòng Chống Gian Lận (Security Hardened)
 
 | Rủi ro / Tấn công | Giải pháp bảo mật của BolwDog |
 |---|---|
 | **Sửa đổi giá sản phẩm từ Client** | Hàm RPC `create_secure_order` trên PostgreSQL tự động truy vấn giá thực tế trong bảng `products` để tính tổng tiền và tiền cọc. Mọi dữ liệu giá từ trình duyệt đều bị bỏ qua. |
-| **Leo thang đặc quyền (Privilege Escalation)** | Trigger PostgreSQL `tr_protect_profile_role` chặn người dùng tự cập nhật cột `role` trong bảng `profiles`. Quyền Admin được kiểm tra bằng hàm `is_admin()` (`SECURITY DEFINER`). |
-| **Thu thập trái phép đơn hàng của khách khác** | Bảng `orders` được kích hoạt RLS. Người dùng ẩn danh không thể chạy `SELECT * FROM orders`. Khách mua chỉ có thể tra cứu đơn của mình thông qua RPC yêu cầu đồng thời Mã đơn ngẫu nhiên (`BD-YYYYMMDD-XXXXX`) và Số điện thoại đặt hàng. |
-| **Giả mạo trạng thái đã thanh toán** | Khách hàng chỉ có quyền tải ảnh biên lai lên bảng `payments` ở trạng thái `pending_verification`. Chỉ tài khoản có `role = 'admin'` mới có quyền cập nhật `order_status` sang `confirmed` và `payment_status` sang `partially_paid` / `paid`. |
+| **Quét dữ liệu đơn & Lộ thông tin cá nhân (IDOR / Scraping)** | Hàm `get_guest_order` tự động **che giấu dữ liệu PII**: Ẩn số điện thoại (`098****231`) và che giấu địa chỉ cụ thể (`***, Phường...`). Bắt buộc khớp chính xác mã đơn (>= 6-8 ký tự) hoặc số điện thoại (>= 9 chữ số) và giới hạn `LIMIT 5`. |
+| **Leo thang đặc quyền (Privilege Escalation)** | Trigger PostgreSQL `tr_protect_profile_role` chặn người dùng tự cập nhật cột `role` và cột `is_blocked`. Quyền Admin được xác thực bằng `is_admin()` (`SECURITY DEFINER`) với danh sách email Whitelist chính chủ (đã loại bỏ mọi domain lỗi chính tả). |
+| **Rò rỉ dữ liệu tài chính & Đơn hàng ngoài web** | RLS trên `shop_settings` ẩn các key nhạy cảm (`workshop_expenses`, `manual_orders`, `financial_reports`) đối với khách công khai. Chỉ tài khoản Admin mới được đọc/ghi. |
+| **Tấn công CSRF & Spam thao tác Admin** | Mọi API Admin (thêm chi phí, đơn Zalo/FB, chặn người dùng) đều được bảo vệ bởi `assertCsrfAndSameOrigin()` và bộ giới hạn tần suất trượt `enforceRateLimit('admin_mutation')`. |
+| **Giả mạo trạng thái đã thanh toán** | Khách hàng chỉ có quyền tải ảnh biên lai vào bảng `payments` ở trạng thái `pending_verification`. Chỉ tài khoản có `role = 'admin'` mới có quyền cập nhật `order_status` sang `confirmed` và `payment_status` sang `partially_paid` / `paid`. |
+| **Tấn công Cross-Site Scripting (XSS)** | Tự động kiểm tra `containsXssPayload` và làm sạch `sanitizeText` ở cả tầng Client lẫn tầng Database RPC trước khi lưu dữ liệu. |
 
 ---
 

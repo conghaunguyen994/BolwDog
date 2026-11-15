@@ -29,7 +29,8 @@
 2. **Không dùng Mock Data (`mockData.ts` đã xóa bỏ hoàn toàn):**
    - 100% sản phẩm, đơn hàng, hồ sơ người dùng và cài đặt cửa hàng đều đọc/ghi trực tiếp từ PostgreSQL trên Supabase.
 3. **Bảo mật cổng Admin tuyệt đối (`/admin/*`):**
-   - Chỉ tài khoản chủ sở hữu nằm trong danh sách `ALLOWED_ADMIN_EMAILS = ['conghaunguyen994@gmail.com.vn', 'conghaunguyen994@gmail.com']` **VÀ** có `role = 'admin'` trong bảng `public.profiles` trên Supabase mới truy cập được `/admin/*`.
+2   - Chỉ tài khoản chủ sở hữu nằm trong danh sách `ALLOWED_ADMIN_EMAILS = ['conghaunguyen994@gmail.com', 'conghaunguyen994@gmail.com.vn', 'haudev99@gmail.com.vn', 'haudev99@gmail.com']` **VÀ** có `role = 'admin'` trong bảng `public.profiles` trên Supabase mới truy cập được `/admin/*`.
+   - Cơ chế bảo vệ đa lớp: Xác thực server session thực với Supabase Auth, trigger Database `protect_profile_role` chặn người dùng tự nâng quyền hoặc tự gỡ trạng thái chặn (`is_blocked`).
 4. **Ngôn ngữ hiển thị 100% Tiếng Việt:**
    - Mọi trạng thái đơn hàng (`order_status`), trạng thái thanh toán (`payment_status`), trạng thái duyệt mẫu 3D (`demoPreview.status`) đều hiển thị Tiếng Việt qua `src/utils/statusLabels.ts`.
 
@@ -45,12 +46,16 @@ BolwDog/
 ├── tailwind.config.js                       # Cấu hình màu sắc cute-pink, cute-brown, cute-cream, animations
 ├── vite.config.ts / vitest.config.ts        # Cấu hình bundler Vite (chia vendor chunks) & Vitest
 │
+├── scripts/
+│   └── patch-vite.cjs                       # Polyfill Node 16 cho Vite 6 / Vitest (constants, getRandomValues, isBuiltin, availableParallelism)
+│
 ├── supabase/                                # Toàn bộ SQL Schema, RLS, Trigger & RPC trên Supabase
 │   ├── FIX_AUTH_AND_SEED_DB.sql             # [QUAN TRỌNG NHẤT] Script tổng hợp chạy 1 lần: sửa lỗi Auth, tạo bảng, RLS, RPC & nạp dữ liệu gốc
-│   ├── seed.sql                             # Dữ liệu sản phẩm & cài đặt mẫu ban đầu
+│   ├── FINANCE_MANAGEMENT.sql               # Bảng workshop_expenses & manual_orders quản lý chi phí xưởng in & đơn Zalo/FB
+│   ├── seed.sql                             # Dữ liệu sản phẩm chuẩn Bâu Shop & cài đặt mẫu ban đầu
 │   └── migrations/
 │       ├── 20261111000000_init_schema.sql   # Khởi tạo bảng products, profiles, orders, order_items, shop_settings
-│       └── 20261111000001_security_and_rls.sql # Chính sách RLS & RPC bảo mật
+│       └── 20261111000001_security_and_rls.sql # Chính sách RLS bảo mật & RPC chống quét đơn
 │
 └── src/
     ├── main.tsx                             # Điểm khởi chạy ứng dụng React + Redux Provider
@@ -63,8 +68,9 @@ BolwDog/
     │
     ├── types/                               # Định nghĩa TypeScript Interfaces toàn cục
     │   ├── product.ts                       # `Product`, `ProductCategory`, `ProductSizeOption`, `ProductCustomizationConfig`
-    │   ├── cart.ts                          # `CartItem`, `CartItemCustomization` (màu thân, màu đế, tên bé, icon, ghi chú)
+    │   ├── cart.ts                          # `CartItem`, `CartItemCustomization` (màu thân, màu đế, tên bé, icon, ngày sinh, ghi chú)
     │   ├── order.ts                         # `Order`, `OrderItem`, `OrderStatus`, `PaymentStatus`, `Demo3DPreview`, `CreateOrderPayload`
+    │   ├── finance.ts                       # `ExpenseRecord`, `ManualOrderRecord`, `MonthlyFinancialSummary`, `ExpenseCategory`
     │   └── settings.ts                      # `ShopSettings`, `BankAccountConfig`, `DepositConfig`, `EmailNotificationConfig`
     │
     ├── constants/
@@ -78,18 +84,19 @@ BolwDog/
     │
     ├── services/                            # Tầng giao tiếp Backend (Supabase & Email)
     │   ├── supabase/client.ts               # Khởi tạo `supabase` client (không cần `.env`)
-    │   ├── authService.ts                   # Đăng ký, Đăng nhập, Đăng xuất, kiểm tra quyền Admin từ `public.profiles`
-    │   ├── productService.ts                # CRUD sản phẩm (`products`) từ Supabase DB
-    │   ├── orderService.ts                  # Tạo đơn (`create_secure_order`), tra cứu đơn (`lookup_order_details`), duyệt cọc, gửi/duyệt Demo 3D
+    │   ├── authService.ts                   # Đăng ký, Đăng nhập, Đăng xuất, quản lý block user, kiểm tra quyền Admin
+    │   ├── productService.ts                # Dữ liệu sản phẩm & 5 kích thước chuẩn Bâu Shop (S: 199K, M: 229K, L: 259K, XL: 300K, XXL: 350K)
+    │   ├── orderService.ts                  # Tạo đơn (`create_secure_order`), tra cứu đơn bảo mật PII, duyệt cọc, gửi/duyệt Demo 3D
+    │   ├── financeService.ts                # Quản lý chi phí xưởng in 3D & đơn ngoài web (Zalo/Facebook), P&L tháng
     │   ├── settingsService.ts               # Đọc/lưu cài đặt cửa hàng (`shop_settings`) trên Supabase DB
     │   └── emailService.ts                  # Gửi Email tự động 2 chiều (Khách hàng ⇄ Admin) qua Webhook / EmailJS / FormSubmit / Gmail
     │
     ├── schemas/                             # Validation Schemas (Zod)
     │   ├── checkoutSchema.ts                # Kiểm tra form Thanh toán (Tên, SĐT VN, Email, Địa chỉ, Honeypot, Chống XSS)
-    │   └── customizationSchema.ts           # Kiểm tra form Cá nhân hóa 3D (tên thú cưng, ký tự hợp lệ, độ dài)
+    │   └── customizationSchema.ts           # Kiểm tra form Cá nhân hóa 3D (tên thú cưng, ngày sinh, ký tự hợp lệ, độ dài)
     │
     ├── utils/                               # Các hàm tiện ích dùng chung
-    │   ├── securityGuard.ts                 # Chống Spam click, Rate Limit, Chống trùng đơn, Sanitize XSS, CSRF token, Honeypot
+    │   ├── securityGuard.ts                 # Chống Spam click, Rate Limit, Chống trùng đơn, Sanitize XSS, CSRF token, Honeypot, Block status
     │   ├── statusLabels.ts                  # Chuyển đổi trạng thái sang Tiếng Việt, trích xuất `Demo3DPreview`, nén ảnh sang DataURL
     │   ├── currency.ts                      # Định dạng tiền tệ VNĐ (`formatVND`) & tính tiền cọc (`calculateDeposit`)
     │   ├── date.ts                          # Định dạng ngày giờ Việt Nam (`formatDate`)
@@ -103,7 +110,7 @@ BolwDog/
     ├── components/
     │   ├── common/                          # `Button.tsx`, `Badge.tsx`, `Modal.tsx`, `ThemeToggle.tsx`
     │   ├── layout/                          # `Header.tsx`, `Footer.tsx`, `MobileNav.tsx`, `MainLayout.tsx`, `AdminLayout.tsx`
-    │   ├── products/                        # `ProductCard.tsx`, `CustomizationForm.tsx` (Chọn màu thân/đế/icon & xem mô phỏng 3D trực tiếp)
+    │   ├── products/                        # `ProductCard.tsx`, `CustomizationForm.tsx`, `BowlDemoPreviewModal.tsx` (Mô phỏng 3D trực tiếp 2 màu, tên bé, icon, ngày sinh)
     │   ├── cart/                            # `CartDrawer.tsx` (Giỏ hàng trượt bên phải)
     │   └── checkout/                        # `BankTransferQRModal.tsx` (Quét VietQR), `OrderSuccessModal.tsx`
     │
@@ -138,41 +145,60 @@ Toàn bộ cấu trúc DB nằm tại [`supabase/FIX_AUTH_AND_SEED_DB.sql`](file
 
 ### 4.1. Các Bảng Dữ Liệu (`public.*`)
 1. **`public.profiles`**:
-   - Cột: `id` (UUID, FK `auth.users`), `email`, `full_name`, `phone`, `role` (`'customer'` | `'admin'`), `created_at`, `updated_at`.
-   - Trigger `on_auth_user_created` (`public.handle_new_user`): Tự động tạo dòng trong `profiles` khi người dùng đăng ký. Nếu email thuộc chủ shop (`conghaunguyen994@gmail.com.vn` / `conghaunguyen994@gmail.com`) thì tự động gán `role = 'admin'`.
+   - Cột: `id` (UUID, FK `auth.users`), `email`, `full_name`, `phone`, `role` (`'customer'` | `'admin'`), `is_blocked` (BOOLEAN), `blocked_reason` (TEXT), `blocked_at` (TIMESTAMPTZ), `created_at`, `updated_at`.
+   - Trigger `on_auth_user_created` (`public.handle_new_user`): Tự động tạo dòng trong `profiles` khi người dùng đăng ký. Nếu email thuộc danh sách Whitelist Admin chủ shop (`conghaunguyen994@gmail.com`, `conghaunguyen994@gmail.com.vn`, `haudev99@gmail.com.vn`, `haudev99@gmail.com`) thì tự động gán `role = 'admin'`.
+   - Trigger `tr_protect_profile_role` (`public.protect_profile_role`): Bảo vệ đa tầng, cấm người dùng thường tự ý đổi `role` hoặc tự gỡ trạng thái chặn (`is_blocked`).
 2. **`public.products`**:
    - Cột: `id` (UUID), `name`, `slug` (UNIQUE), `category` (`'bowls'` | `'accessories'` | `'tags'` | `'sanitation'`), `short_description`, `description`, `price` (NUMERIC), `original_price`, `images` (TEXT[]), `video_url`, `rating`, `review_count`, `in_stock` (BOOLEAN), `stock_quantity` (INT), `featured` (BOOLEAN), `is_customizable` (BOOLEAN), `customization_config` (JSONB), `size_options` (JSONB), `specifications` (JSONB), `tags` (TEXT[]).
+   - Sản phẩm chủ lực: **BÁT ĂN CHỐNG GÙ – CHỐNG KIẾN CHO CHÓ MÈO | BÂU SHOP** với 5 size chuẩn (S: 199K, M: 229K, L: 259K, XL: 300K, XXL: 350K).
 3. **`public.orders`**:
    - Cột: `id` (UUID), `order_reference` (TEXT UNIQUE, VD: `BD-20261112-94A21`), `user_id` (UUID nullable), `customer_name`, `customer_phone`, `customer_email`, `shipping_address`, `notes`, `subtotal`, `shipping_fee`, `total_amount`, `deposit_required` (BOOLEAN), `deposit_amount`, `remaining_amount`, `payment_method` (`'bank_transfer_qr'` | `'cod'`), `payment_status` (`'unpaid'` | `'deposit_pending'` | `'partially_paid'` | `'paid'` | `'refunded'`), `order_status` (`'pending'` | `'confirmed'` | `'processing'` | `'shipping'` | `'completed'` | `'cancelled'`), `payment_proof_url`, `created_at`, `updated_at`.
 4. **`public.order_items`**:
    - Cột: `id` (UUID), `order_id` (UUID FK `orders`), `product_id` (UUID FK `products`), `product_name`, `product_image`, `size_label`, `quantity`, `unit_price`, `total_price`, `customization_data` (JSONB).
    - **Lưu ý quan trọng về `customization_data` (JSONB):**
-     - Ngoài việc lưu thông tin cá nhân hóa của khách (`petName`, `customText`, `selectedColor` [màu thân], `baseColor` [màu đế], `fontStyle`, `selectedIcons`, `weightEstimate`, `designNotes`), trường này ở `items[0]` còn lưu object **`demoPreview`** (`Demo3DPreview`) chứa ảnh bản dựng 3D và trạng thái khách duyệt/yêu cầu sửa! Nhờ vậy không cần thay đổi schema bảng khi nâng cấp tính năng duyệt file 3D.
+     - Lưu thông tin cá nhân hóa của khách (`petName`, `customText`, `selectedColor` [màu thân trên], `baseColor` [màu đế dưới], `fontStyle`, `selectedIcons`, `petBirthday`, `designNotes`), kèm object **`demoPreview`** (`Demo3DPreview`) chứa ảnh bản dựng 3D và trạng thái khách duyệt/yêu cầu sửa.
 5. **`public.shop_settings`**:
-   - Cột: `id` (INT PK = `1`), `settings_data` (JSONB), `updated_at`.
-   - Lưu cấu hình tài khoản ngân hàng VietQR, cấu hình đặt cọc, thông tin hotline/địa chỉ shop và cấu hình thông báo Email 2 chiều (`email_notifications`).
+   - Cột: `id` (INT PK = `1`), `setting_key` (TEXT), `setting_value` (JSONB), `updated_at`.
+   - **RLS Policy:** Khách chỉ đọc các cấu hình công khai (ngân hàng VietQR, cọc, hotline shop). Các key nhạy cảm (`workshop_expenses`, `manual_orders`, `financial_reports`) CHỈ Admin mới được xem.
+6. **`public.workshop_expenses` & `public.manual_orders`**:
+   - Bảng quản lý chi phí xưởng in 3D (nhựa PETG, tiền điện, ads, hao hụt bàn in) & đơn chốt ngoài web (Zalo/Facebook/Offline). Kích hoạt RLS chỉ Admin mới truy cập được.
 
 ### 4.2. Các Hàm RPC Bảo Mật (`SECURITY DEFINER`)
 Để khách vãng lai (Guest) có thể đặt hàng và tra cứu đơn mà không cần mở quyền `SELECT/UPDATE` công khai trên bảng `orders`:
 1. **`public.is_admin()`**:
-   - Kiểm tra JWT của user đang đăng nhập có `role = 'admin'` trong `public.profiles` hay không.
+   - Kiểm tra JWT của user đang đăng nhập có email nằm trong danh sách Admin chính chủ (`conghaunguyen994@gmail.com`, `conghaunguyen994@gmail.com.vn`, `haudev99@gmail.com.vn`, `haudev99@gmail.com`). Đã loại bỏ hoàn toàn các domain sai chính tả.
 2. **`public.create_secure_order(...)`**:
    - Nhận thông tin khách hàng và mảng JSON `p_items`.
    - **Tự động đọc giá sản phẩm thực tế từ bảng `public.products` trên Server** để tính `subtotal`, `deposit_amount`, `total_amount` (chống hacker sửa giá ở client).
-   - Chặn đặt trùng đơn liên tiếp trong 20 giây cho cùng SĐT + cùng tổng tiền.
+   - Kiểm tra độ dài hợp lệ, chống XSS SQL regex, chặn đặt trùng đơn liên tiếp trong 45 giây cho cùng SĐT.
    - Tạo mã đơn `BD-YYYYMMDD-XXXXX` và lưu vào `orders` + `order_items`.
-3. **`public.lookup_order_details(p_order_reference TEXT, p_customer_phone TEXT)`**:
-   - Cho phép tra cứu linh hoạt **chỉ cần 1 trong 2** (Mã đơn hàng **HOẶC** Số điện thoại). Nếu nhập cả 2 thì khớp cả 2. Trả về danh sách đơn hàng kèm mảng `items`.
+3. **`public.get_guest_order(p_order_ref TEXT, p_phone TEXT)`**:
+   - Tra cứu đơn hàng an toàn: Bắt buộc khớp chính xác mã đơn (>= 6-8 ký tự) hoặc số điện thoại (>= 9 chữ số). Loại bỏ so khớp mờ `LIKE %...%` để chống hacker quét cạn database.
+   - **Che giấu dữ liệu PII (Data Masking):** Khách ngoài chỉ thấy SĐT ẩn `098****231` và địa chỉ ẩn `***, [Quận/Huyện, Tỉnh/Thành]`. Chỉ Admin hoặc chủ sở hữu đăng nhập mới xem được đầy đủ.
+   - Giới hạn tối đa 5 đơn gần nhất (`LIMIT 5`).
+4. **`public.submit_order_demo_review(...)`**:
+   - Duyệt chốt in (`approved`) hoặc yêu cầu chỉnh sửa (`revision_requested`) có xác thực quyền sở hữu đơn hàng (chỉ Admin, chủ tài khoản đăng nhập hoặc người có đúng Mã đơn và Số điện thoại đặt hàng). Kiểm tra chống XSS trong ghi chú phản hồi.
 
 ---
 
 ## 5. Luồng Nghiệp Vụ Chính (Core Business Workflows)
 
-### 5.1. Luồng Cá Nhân Hóa Màu Sắc & Khắc Tên 3D (`CustomizationForm.tsx`)
-- Khi khách vào trang Chi tiết sản phẩm (`/products/:slug`), nếu sản phẩm có `is_customizable = true`:
-  - Khách chọn **Màu thân bát** (`selectedColor` - 9 màu пластик PLA+ sinh học) và **Màu chân đế chống kiến** (`baseColor`).
-  - Khách nhập **Tên thú cưng** (`petName`), chọn **Kiểu chữ 3D** (`fontStyle`), chọn tối đa **2 Icon nổi 3D** (`selectedIcons`).
-  - **Mô phỏng trực tiếp (Live 2D/3D Preview):** Hình vẽ mô phỏng chiếc bát đổi màu thân, màu chân đế, hiển thị tên bé theo đúng màu chân đế và hiển thị 2 icon hai bên theo thời gian thực.
+### 5.1. Luồng Bát Ăn Chống Gù – Chống Kiến Chuẩn Bâu Shop & Mô Phỏng 3D
+- **Quy tắc sản phẩm & Bảng giá chuẩn Bâu Shop:**
+  - Thiết kế nghiêng **15° chống gù** bảo vệ cột sống cổ thú cưng (size S, M, L).
+  - Đế chống kiến với **khoang chứa nước** bảo vệ đồ ăn 100%.
+  - Lòng bát Inox 304 tháo rời dễ vệ sinh, thân nhựa sinh học PETG an toàn thực phẩm.
+  - **Bát Inox Ø14cm:**
+    - Size S : H1: 12 cm - H2: 8cm - D: 18cm ➔ **199.000đ**
+    - Size M : H1: 14cm - H2: 10cm - D: 19cm ➔ **229.000đ**
+    - Size L : H1: 16cm - H2: 12cm - D: 20cm ➔ **259.000đ**
+  - **Bát Inox Ø18-20cm:**
+    - Size XL : H1: 15 cm - H2: 15cm - D: 22,5cm ➔ **300.000đ**
+    - Size XXL: H1: 17cm - H2: 17cm - D: 25cm ➔ **350.000đ**
+- **Cá nhân hóa theo yêu cầu & Xem trước Demo 3D:**
+  - Khách tự do chọn **2 màu**: Màu thân ở trên & Màu đế ở dưới.
+  - Nhập **Tên thú cưng** in nổi 3D, chọn tối đa **2 icon ngộ nghĩnh**, nhập **Ngày sinh của bé**.
+  - **Cửa sổ xem trước mô phỏng 3D (`BowlDemoPreviewModal.tsx`):** Khách có thể bấm nút *"Xem Demo 3D Trước Khi Đặt"* để kiểm tra toàn diện chiếc bát đa góc độ, kiểm tra phối 2 màu, tên nổi, icon và ngày sinh trước khi quyết định bấm đặt hàng.
 
 ### 5.2. Luồng Đặt Hàng, Tính Tiền Cọc & VietQR (`Checkout` ➔ `orderService.createOrder`)
 - Đơn hàng có sản phẩm in 3D theo yêu cầu (`isCustomized`) hoặc tổng đơn vượt ngưỡng cài đặt (`minOrderValueForDeposit`) sẽ yêu cầu đặt cọc trước (mặc định **50%**).
@@ -203,23 +229,33 @@ Toàn bộ cấu trúc DB nằm tại [`supabase/FIX_AUTH_AND_SEED_DB.sql`](file
 
 ---
 
-## 6. Hệ Thống Bảo Mật Đa Tầng (`src/utils/securityGuard.ts` & `vercel.json`)
+## 6. Hệ Thống Bảo Mật Đa Tầng (`src/utils/securityGuard.ts`, PostgreSQL RLS & `vercel.json`)
 
-1. **Chống Spam Click / Double Submit (`withActionLock`):**
-   - Khóa bất đồng bộ theo `actionKey` (VD: `checkout_submit`, `add_to_cart`, `demo_review_...`), chặn hoàn toàn việc bấm liên tục nhiều lần khi request trước chưa xong + thời gian hồi (cooldown).
-2. **Sliding-Window Rate Limiter (`enforceRateLimit`):**
-   - Giới hạn tần suất theo cửa sổ trượt lưu kết hợp bộ nhớ & `sessionStorage`:
-     - Đặt hàng: tối đa 3 lần / 60 giây.
+1. **Che Giấu Thông Tin Cá Nhân (PII Data Masking) & Chống Quét Đơn Hàng (Anti-Scraping / IDOR):**
+   - Hàm `public.get_guest_order`: Khách vãng lai chỉ thấy SĐT ẩn `098****231` và địa chỉ che số nhà/tên đường `***, [Quận, Thành phố]`. Chỉ Admin hoặc chủ sở hữu đăng nhập mới xem được thông tin gốc.
+   - Loại bỏ so khớp mờ `LIKE %...%`, bắt buộc khớp chính xác mã đơn (>= 6 ký tự) hoặc số điện thoại (>= 9 chữ số) và giới hạn `LIMIT 5`.
+2. **Chống Leo Thang Đặc Quyền (Privilege Escalation):**
+   - Loại bỏ hoàn toàn domain sai chính tả. Whitelist Admin kiểm tra bằng hàm `is_admin()` (`SECURITY DEFINER`) với JWT chính chủ.
+   - Trigger Database `protect_profile_role` cấm người dùng thông thường tự ý thay đổi `role`, tự gỡ chặn `is_blocked`, `blocked_reason`, `blocked_at`.
+3. **Bảo Vệ Dữ Liệu Tài Chính Xưởng In & Đơn Ngoài Web:**
+   - Policy RLS trên `shop_settings` chặn truy cập công khai vào các cấu hình nhạy cảm (`workshop_expenses`, `manual_orders`, `financial_reports`). Chỉ Admin mới được phép đọc và cập nhật.
+4. **Bảo Mật Thao Tác Quản Trị & Chống CSRF (`assertCsrfAndSameOrigin`):**
+   - Mọi thao tác thêm/sửa/xóa chi phí xưởng, đơn ngoài web và chặn người dùng đều kiểm tra CSRF token và Origin tính hợp lệ.
+5. **Chống Spam Click / Double Submit (`withActionLock`):**
+   - Khóa bất đồng bộ theo `actionKey` (VD: `create_order`, `submit_payment_proof`, `admin_mutation`), chặn hoàn toàn việc bấm liên tục nhiều lần khi request trước chưa xong + thời gian hồi (cooldown).
+6. **Sliding-Window Rate Limiter (`enforceRateLimit`):**
+   - Giới hạn tần suất theo cửa sổ trượt lưu kết hợp bộ nhớ & `localStorage`:
+     - Đặt đơn hàng: tối đa 3 lần / 15 phút, cooldown 45 giây.
      - Tra cứu đơn hàng: tối đa 10 lần / 60 giây.
-     - Gửi phản hồi duyệt mẫu 3D: tối đa 5 lần / 60 giây.
-3. **Chống Đặt Trùng Đơn Hàng (`assertNotDuplicateOrder`):**
-   - Băm (fingerprint) SĐT + Địa chỉ + Danh sách sản phẩm + Tổng tiền, chặn tạo đơn y hệt trong vòng 30 giây ở cả Client và PostgreSQL RPC (`create_secure_order`).
-4. **Chống XSS (`containsXssPayload`, `sanitizeText`, `sanitizeObject`):**
-   - Tự động phát hiện và loại bỏ các thẻ độc hại (`<script>`, `<iframe>`, `javascript:`, `onerror=`, `onload=`, ...) trong mọi dữ liệu đầu vào trước khi gửi lên Supabase.
-5. **Chống Bot & CSRF (`assertHumanNotBot`, `assertCsrfAndSameOrigin`):**
-   - Trường bẫy bot ẩn (Honeypot `websiteUrl`) trong form Checkout + kiểm tra thời gian điền form tối thiểu + kiểm tra Origin/CSRF token mỗi phiên.
-6. **HTTP Security Headers (`vercel.json`):**
-   - Cấu hình `Content-Security-Policy` (CSP), `Strict-Transport-Security` (HSTS), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Permissions-Policy`.
+     - Thao tác Admin: tối đa 30 lần / 60 giây.
+7. **Chống Đặt Trùng Đơn Hàng (`assertNotDuplicateOrder`):**
+   - Băm (fingerprint) SĐT + Địa chỉ + Danh sách sản phẩm, chặn tạo đơn y hệt trong vòng 5 phút ở Client và PostgreSQL RPC (`create_secure_order`).
+8. **Chống XSS (`containsXssPayload`, `sanitizeText`, `sanitizeObject`):**
+   - Tự động phát hiện và loại bỏ các thẻ độc hại (`<script>`, `<iframe>`, `javascript:`, `onerror=`, `onload=`, ...) ở cả tầng Client và tầng Database RPC.
+9. **Chống Bot & Honeypot (`assertHumanNotBot`):**
+   - Trường bẫy bot ẩn (`honeypot`) trong form Checkout. Nếu bot tự động điền, request bị từ chối ngay lập tức.
+10. **HTTP Security Headers (`vercel.json`):**
+    - Cấu hình `Content-Security-Policy` (CSP), `Strict-Transport-Security` (HSTS), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Permissions-Policy`.
 
 ---
 

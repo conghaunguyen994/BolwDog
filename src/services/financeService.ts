@@ -6,6 +6,12 @@ import {
   ExpenseCategory,
 } from '../types/finance';
 import { orderService } from './orderService';
+import {
+  assertCsrfAndSameOrigin,
+  containsXssPayload,
+  enforceRateLimit,
+  sanitizeText,
+} from '../utils/securityGuard';
 
 const STORAGE_EXPENSES_KEY = 'bowldog_workshop_expenses_v1';
 const STORAGE_MANUAL_ORDERS_KEY = 'bowldog_manual_orders_v1';
@@ -169,6 +175,19 @@ export const financeService = {
     payload: Omit<ExpenseRecord, 'id' | 'createdAt'>,
     id?: string
   ): Promise<ExpenseRecord> {
+    assertCsrfAndSameOrigin();
+    enforceRateLimit('admin_mutation');
+
+    if (containsXssPayload(payload.title) || containsXssPayload(payload.notes)) {
+      throw new Error('Phát hiện nội dung không an toàn trong chi phí (XSS bị chặn).');
+    }
+
+    const cleanPayload = {
+      ...payload,
+      title: sanitizeText(payload.title, 200),
+      notes: payload.notes ? sanitizeText(payload.notes, 500) : undefined,
+    };
+
     const list = await this.getExpenses();
     const nowIso = new Date().toISOString();
 
@@ -178,14 +197,14 @@ export const financeService = {
       if (idx >= 0) {
         record = {
           ...list[idx],
-          ...payload,
+          ...cleanPayload,
           updatedAt: nowIso,
         };
         list[idx] = record;
       } else {
         record = {
           id: `exp-${Date.now()}`,
-          ...payload,
+          ...cleanPayload,
           createdAt: nowIso,
         };
         list.unshift(record);
@@ -193,7 +212,7 @@ export const financeService = {
     } else {
       record = {
         id: `exp-${Date.now()}`,
-        ...payload,
+        ...cleanPayload,
         createdAt: nowIso,
       };
       list.unshift(record);
@@ -205,6 +224,8 @@ export const financeService = {
   },
 
   async deleteExpense(id: string): Promise<void> {
+    assertCsrfAndSameOrigin();
+    enforceRateLimit('admin_mutation');
     const list = await this.getExpenses();
     const nextList = list.filter((x) => x.id !== id);
     localStorage.setItem(STORAGE_EXPENSES_KEY, JSON.stringify(nextList));
@@ -267,6 +288,26 @@ export const financeService = {
     payload: Omit<ManualOrderRecord, 'id' | 'createdAt'>,
     id?: string
   ): Promise<ManualOrderRecord> {
+    assertCsrfAndSameOrigin();
+    enforceRateLimit('admin_mutation');
+
+    if (
+      containsXssPayload(payload.customerName) ||
+      containsXssPayload(payload.customerPhone) ||
+      containsXssPayload(payload.productName) ||
+      containsXssPayload(payload.notes)
+    ) {
+      throw new Error('Phát hiện nội dung không an toàn trong đơn hàng ngoài web (XSS bị chặn).');
+    }
+
+    const cleanPayload = {
+      ...payload,
+      customerName: sanitizeText(payload.customerName, 100),
+      customerPhone: sanitizeText(payload.customerPhone, 20).replace(/[^\d+]/g, ''),
+      productName: sanitizeText(payload.productName, 200),
+      notes: payload.notes ? sanitizeText(payload.notes, 500) : undefined,
+    };
+
     const list = await this.getManualOrders();
     const nowIso = new Date().toISOString();
 
@@ -276,14 +317,14 @@ export const financeService = {
       if (idx >= 0) {
         record = {
           ...list[idx],
-          ...payload,
+          ...cleanPayload,
           updatedAt: nowIso,
         };
         list[idx] = record;
       } else {
         record = {
           id: `mo-${Date.now()}`,
-          ...payload,
+          ...cleanPayload,
           createdAt: nowIso,
         };
         list.unshift(record);
@@ -291,7 +332,7 @@ export const financeService = {
     } else {
       record = {
         id: `mo-${Date.now()}`,
-        ...payload,
+        ...cleanPayload,
         createdAt: nowIso,
       };
       list.unshift(record);
@@ -303,6 +344,8 @@ export const financeService = {
   },
 
   async deleteManualOrder(id: string): Promise<void> {
+    assertCsrfAndSameOrigin();
+    enforceRateLimit('admin_mutation');
     const list = await this.getManualOrders();
     const nextList = list.filter((x) => x.id !== id);
     localStorage.setItem(STORAGE_MANUAL_ORDERS_KEY, JSON.stringify(nextList));

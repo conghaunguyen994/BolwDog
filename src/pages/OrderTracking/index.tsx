@@ -33,8 +33,10 @@ import {
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { BankTransferQRModal } from '../../components/checkout/BankTransferQRModal';
+import { useAppSelector } from '../../app/hooks';
 
 export const OrderTrackingPage: React.FC = () => {
+  const { user, isAdmin } = useAppSelector((state) => state.auth);
   const [searchParams] = useSearchParams();
   const initialRef = searchParams.get('ref') || '';
   const initialPhone = searchParams.get('phone') || '';
@@ -638,8 +640,20 @@ export const OrderTrackingPage: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div className="p-4 rounded-2xl bg-cute-cream/40 dark:bg-cute-cream-dark/40 border border-cute-border-light space-y-1">
               <span className="font-bold text-cute-brown dark:text-cute-cream block">Người nhận hàng:</span>
-              <p>{order.customer_name} • {order.customer_phone}</p>
-              <p className="text-cute-brown-light dark:text-cute-muted">Địa chỉ: {order.shipping_address}</p>
+              <p>
+                {order.customer_name} •{' '}
+                {isAdmin || (user && order.customer_id === user.id)
+                  ? order.customer_phone
+                  : (order.customer_phone || '').replace(/(\d{3})\d{4}(\d{3})/, '$1****$2')}
+              </p>
+              <p className="text-cute-brown-light dark:text-cute-muted">
+                Địa chỉ:{' '}
+                {isAdmin || (user && order.customer_id === user.id)
+                  ? order.shipping_address
+                  : (order.shipping_address.includes(',')
+                      ? '*** ' + order.shipping_address.substring(order.shipping_address.indexOf(','))
+                      : '*** (Đã ẩn để bảo mật)')}
+              </p>
             </div>
 
             <div className="p-4 rounded-2xl bg-cute-cream/40 dark:bg-cute-cream-dark/40 border border-cute-border-light space-y-1">
