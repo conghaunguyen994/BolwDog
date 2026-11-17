@@ -50,10 +50,13 @@ vi.mock('../services/orderService', () => ({
 }));
 
 import { financeService } from '../services/financeService';
+import { resetRateLimits } from '../utils/securityGuard';
 
 describe('Finance & P&L Service Tests', () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
+    resetRateLimits();
     for (const k of Object.keys(mockSettingsStore)) {
       delete mockSettingsStore[k];
     }
@@ -95,6 +98,7 @@ describe('Finance & P&L Service Tests', () => {
   });
 
   it('should save a new manual order correctly', async () => {
+    sessionStorage.clear();
     const newOrder = await financeService.saveManualOrder({
       orderReference: 'OFF-202611-TEST',
       customerName: 'Chị Thảo (Zalo)',

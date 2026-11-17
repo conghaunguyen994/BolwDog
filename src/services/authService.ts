@@ -11,6 +11,7 @@ import {
 const ALLOWED_ADMIN_EMAILS = [
   'conghaunguyen994@gmail.com',
   'conghaunguyen994@gmail.com.vn',
+  'conghaunguyen994@gmai.com',
   'haudev99@gmail.com.vn',
   'haudev99@gmail.com',
 ];

@@ -5,7 +5,6 @@ import {
   Smile,
   Palette,
   Check,
-  Pipette,
   Key,
   Tag,
   Moon,
@@ -37,55 +36,45 @@ function formatDisplayDate(dateStr?: string): string {
   return dateStr;
 }
 
-export const BODY_COLORS = [
-  { name: 'Trắng Sứ', hex: '#FFFFFF', border: '#CBD5E1', textColor: '#1A7B8E' },
-  { name: 'Cam Đất (Mẫu Bắp)', hex: '#C86D3B', border: '#9A4E24', textColor: '#FFFFFF' },
-  { name: 'Vàng Kem (Mẫu Mr.Lu)', hex: '#F5CBA7', border: '#D9A77D', textColor: '#54382B' },
-  { name: 'Hồng Pastel', hex: '#F8C8DC', border: '#E59BBA', textColor: '#6B3FA0' },
-  { name: 'Xanh Mint Dịu', hex: '#C1F0DC', border: '#8AD6B5', textColor: '#1B5E43' },
-  { name: 'Tím Lavender', hex: '#E2D4F8', border: '#BDAAE2', textColor: '#4A2E7A' },
-  { name: 'Vàng Bơ Tươi', hex: '#FDF0A6', border: '#E5D16B', textColor: '#634819' },
-  { name: 'Xanh Bầu Trời', hex: '#C8E6FF', border: '#91C5F2', textColor: '#1A4E7A' },
+// 5 màu nhựa in 3D chính thức có sẵn tại xưởng BolwDog: Trắng, Xanh, Nâu, Đà, Rêu
+export const AVAILABLE_FILAMENT_COLORS = [
+  { name: 'Trắng', hex: '#FFFFFF', border: '#CBD5E1', textColor: '#1A7B8E' },
+  { name: 'Xanh', hex: '#1A7B8E', border: '#125967', textColor: '#FFFFFF' },
+  { name: 'Nâu', hex: '#54382B', border: '#3B251B', textColor: '#FFFFFF' },
+  { name: 'Đà', hex: '#C86D3B', border: '#9A4E24', textColor: '#FFFFFF' },
+  { name: 'Rêu', hex: '#55633C', border: '#3B4628', textColor: '#FFFFFF' },
 ];
 
-export const BASE_COLORS = [
-  { name: 'Xanh Cổ Vịt (Mẫu Ngáo)', hex: '#1A7B8E', border: '#125967' },
-  { name: 'Nâu Socola (Mẫu Mr.Lu)', hex: '#54382B', border: '#3B251B' },
-  { name: 'Xanh Rêu (Mẫu Béo)', hex: '#55633C', border: '#3B4628' },
-  { name: 'Trắng Sứ (Mẫu Bắp)', hex: '#FFFFFF', border: '#CBD5E1' },
-  { name: 'Đen Than Sang Trọng', hex: '#2B2D32', border: '#16171A' },
-  { name: 'Hồng Dâu Ngọt Ngào', hex: '#E05A8A', border: '#B93E6A' },
-  { name: 'Cam Đào Năng Động', hex: '#E07A45', border: '#B95A29' },
-  { name: 'Tím Mận Chín', hex: '#6D438A', border: '#4F2E66' },
-];
+export const BODY_COLORS = AVAILABLE_FILAMENT_COLORS;
+export const BASE_COLORS = AVAILABLE_FILAMENT_COLORS;
 
 const QUICK_COMBOS = [
   {
     label: 'Mẫu "Ngáo"',
     petSample: 'Ngáo',
-    body: BODY_COLORS[0], // Trắng Sứ
-    base: BASE_COLORS[0], // Xanh Cổ Vịt
+    body: AVAILABLE_FILAMENT_COLORS[0], // Trắng
+    base: AVAILABLE_FILAMENT_COLORS[1], // Xanh
     icons: ['🐶', '🐾'],
   },
   {
     label: 'Mẫu "Mr.Lu"',
     petSample: 'Mr.Lu',
-    body: BODY_COLORS[2], // Vàng Kem
-    base: BASE_COLORS[1], // Nâu Socola
+    body: AVAILABLE_FILAMENT_COLORS[3], // Đà
+    base: AVAILABLE_FILAMENT_COLORS[2], // Nâu
     icons: ['👑', '🐾'],
   },
   {
     label: 'Mẫu "Béo"',
     petSample: 'Béo',
-    body: BODY_COLORS[0], // Trắng Sứ
-    base: BASE_COLORS[2], // Xanh Rêu
+    body: AVAILABLE_FILAMENT_COLORS[0], // Trắng
+    base: AVAILABLE_FILAMENT_COLORS[4], // Rêu
     icons: ['🐩', '🦴'],
   },
   {
     label: 'Mẫu "Bắp"',
     petSample: 'Bắp',
-    body: BODY_COLORS[1], // Cam Đất
-    base: BASE_COLORS[3], // Trắng Sứ
+    body: AVAILABLE_FILAMENT_COLORS[3], // Đà
+    base: AVAILABLE_FILAMENT_COLORS[0], // Trắng
     icons: ['🐾', '❤️'],
   },
 ];
@@ -201,14 +190,18 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
   // =========================================================================
   if (isDogBowl) {
     const currentBodyName = customization.bodyColor || BODY_COLORS[0].name;
-    const currentBaseName = customization.baseColor || BASE_COLORS[0].name;
+    const currentBaseName = customization.baseColor || BASE_COLORS[1].name;
     const currentIcons = customization.selectedIcons || ['🐶', '🐾'];
 
-    const presetBody = BODY_COLORS.find((c) => c.name === currentBodyName);
-    const presetBase = BASE_COLORS.find((c) => c.name === currentBaseName);
+    const presetBody =
+      BODY_COLORS.find((c) => c.name === currentBodyName || currentBodyName?.toLowerCase().includes(c.name.toLowerCase())) ||
+      BODY_COLORS[0];
+    const presetBase =
+      BASE_COLORS.find((c) => c.name === currentBaseName || currentBaseName?.toLowerCase().includes(c.name.toLowerCase())) ||
+      BASE_COLORS[1];
 
     const activeBodyHex = customization.bodyColorHex || presetBody?.hex || BODY_COLORS[0].hex;
-    const activeBaseHex = customization.baseColorHex || presetBase?.hex || BASE_COLORS[0].hex;
+    const activeBaseHex = customization.baseColorHex || presetBase?.hex || BASE_COLORS[1].hex;
 
     const embossedTextColor =
       activeBodyHex.toLowerCase() === activeBaseHex.toLowerCase()
@@ -440,28 +433,20 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
         <div className="space-y-4">
           {/* Step 1: Upper Body Color */}
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex flex-wrap items-center justify-between gap-1 mb-2">
               <label className="text-xs font-extrabold text-cute-brown dark:text-cute-cream flex items-center gap-1.5">
                 <Palette style={{ color: dynamicAccentHex }} className="w-4 h-4" />
                 <span>1. Chọn màu ở trên (Thân bát chứa bát inox):</span>
               </label>
-              <label className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2.5 py-1 rounded-full cursor-pointer transition-colors">
-                <Pipette className="w-3 h-3" />
-                <span>Tự chọn mã màu khác</span>
-                <input
-                  type="color"
-                  value={activeBodyHex}
-                  onChange={(e) =>
-                    handleSelectBodyColor(`Màu tự chọn (${e.target.value.toUpperCase()})`, e.target.value)
-                  }
-                  className="sr-only"
-                />
-              </label>
+              <span className="text-[11px] font-bold text-cute-brown-light dark:text-cute-muted bg-white/80 dark:bg-cute-surface-dark px-2.5 py-1 rounded-full border border-cute-border-light shadow-sm">
+                ✨ 5 màu nhựa có sẵn tại xưởng
+              </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
               {BODY_COLORS.map((col) => {
-                const isSelected = currentBodyName === col.name;
+                const isSelected =
+                  currentBodyName === col.name || currentBodyName?.toLowerCase().includes(col.name.toLowerCase());
                 return (
                   <button
                     key={col.name}
@@ -471,14 +456,14 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
                       isSelected
                         ? {
                             borderColor: dynamicAccentHex,
-                            backgroundColor: `${col.hex}40`,
+                            backgroundColor: `${col.hex === '#FFFFFF' ? '#F8FAFC' : col.hex}25`,
                             boxShadow: `0 0 0 2px ${dynamicAccentHex}40`,
                           }
                         : undefined
                     }
-                    className={`flex items-center gap-2 p-2 rounded-xl text-xs font-semibold border transition-all text-left ${
+                    className={`flex items-center justify-center gap-2 py-3 px-3 rounded-2xl text-xs font-bold border transition-all text-center ${
                       isSelected
-                        ? 'text-cute-brown font-extrabold'
+                        ? 'text-cute-brown dark:text-cute-cream font-black shadow-sm ring-1'
                         : 'bg-white dark:bg-cute-surface-dark border-cute-border-light text-cute-brown dark:text-cute-cream hover:bg-cute-cream'
                     }`}
                   >
@@ -488,12 +473,12 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
                     >
                       {isSelected && (
                         <Check
-                          className="w-3 h-3"
+                          className="w-3.5 h-3.5"
                           style={{ color: isLightHex(col.hex) ? '#1A7B8E' : '#FFFFFF' }}
                         />
                       )}
                     </span>
-                    <span className="truncate text-[11px]">{col.name}</span>
+                    <span className="text-xs font-extrabold">{col.name}</span>
                   </button>
                 );
               })}
@@ -502,28 +487,20 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
 
           {/* Step 2: Base & Embossed Text Color */}
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex flex-wrap items-center justify-between gap-1 mb-2">
               <label className="text-xs font-extrabold text-cute-brown dark:text-cute-cream flex items-center gap-1.5">
                 <Palette style={{ color: dynamicAccentHex }} className="w-4 h-4" />
                 <span>2. Chọn màu ở dưới (Đế chống kiến có khoang chứa nước & chữ in):</span>
               </label>
-              <label className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2.5 py-1 rounded-full cursor-pointer transition-colors">
-                <Pipette className="w-3 h-3" />
-                <span>Tự chọn mã màu khác</span>
-                <input
-                  type="color"
-                  value={activeBaseHex}
-                  onChange={(e) =>
-                    handleSelectBaseColor(`Màu tự chọn (${e.target.value.toUpperCase()})`, e.target.value)
-                  }
-                  className="sr-only"
-                />
-              </label>
+              <span className="text-[11px] font-bold text-cute-brown-light dark:text-cute-muted bg-white/80 dark:bg-cute-surface-dark px-2.5 py-1 rounded-full border border-cute-border-light shadow-sm">
+                ✨ 5 màu nhựa có sẵn tại xưởng
+              </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
               {BASE_COLORS.map((col) => {
-                const isSelected = currentBaseName === col.name;
+                const isSelected =
+                  currentBaseName === col.name || currentBaseName?.toLowerCase().includes(col.name.toLowerCase());
                 return (
                   <button
                     key={col.name}
@@ -533,14 +510,14 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
                       isSelected
                         ? {
                             borderColor: dynamicAccentHex,
-                            backgroundColor: `${col.hex}25`,
+                            backgroundColor: `${col.hex === '#FFFFFF' ? '#F8FAFC' : col.hex}25`,
                             boxShadow: `0 0 0 2px ${dynamicAccentHex}40`,
                           }
                         : undefined
                     }
-                    className={`flex items-center gap-2 p-2 rounded-xl text-xs font-semibold border transition-all text-left ${
+                    className={`flex items-center justify-center gap-2 py-3 px-3 rounded-2xl text-xs font-bold border transition-all text-center ${
                       isSelected
-                        ? 'text-cute-brown font-extrabold'
+                        ? 'text-cute-brown dark:text-cute-cream font-black shadow-sm ring-1'
                         : 'bg-white dark:bg-cute-surface-dark border-cute-border-light text-cute-brown dark:text-cute-cream hover:bg-cute-cream'
                     }`}
                   >
@@ -550,12 +527,12 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
                     >
                       {isSelected && (
                         <Check
-                          className="w-3 h-3"
+                          className="w-3.5 h-3.5"
                           style={{ color: isLightHex(col.hex) ? '#3B251B' : '#FFFFFF' }}
                         />
                       )}
                     </span>
-                    <span className="truncate text-[11px]">{col.name}</span>
+                    <span className="text-xs font-extrabold">{col.name}</span>
                   </button>
                 );
               })}

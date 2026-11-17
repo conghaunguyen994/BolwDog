@@ -42,9 +42,9 @@ export const ProductDetailPage: React.FC = () => {
   const [quantity, setQuantity] = useState<number>(1);
   const [customization, setCustomization] = useState<PetCustomization>({
     petName: 'Ngáo',
-    bodyColor: 'Trắng Sứ',
+    bodyColor: 'Trắng',
     bodyColorHex: '#FFFFFF',
-    baseColor: 'Xanh Cổ Vịt (Mẫu Ngáo)',
+    baseColor: 'Xanh',
     baseColorHex: '#1A7B8E',
     selectedIcons: ['🐶', '🐾'],
     petBirthday: '',
@@ -170,9 +170,9 @@ export const ProductDetailPage: React.FC = () => {
           if (isBowl) {
             setCustomization({
               petName: 'Ngáo',
-              bodyColor: 'Trắng Sứ',
+              bodyColor: 'Trắng',
               bodyColorHex: '#FFFFFF',
-              baseColor: 'Xanh Cổ Vịt (Mẫu Ngáo)',
+              baseColor: 'Xanh',
               baseColorHex: '#1A7B8E',
               selectedIcons: ['🐶', '🐾'],
               petBirthday: '',

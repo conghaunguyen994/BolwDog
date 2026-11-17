@@ -54,9 +54,9 @@ export const BowlDemoPreviewModal: React.FC<BowlDemoPreviewModalProps> = ({
   if (!isOpen) return null;
 
   const topColorHex = customization.bodyColorHex || '#FFFFFF';
-  const topColorName = customization.bodyColor || 'Trắng Sứ';
+  const topColorName = customization.bodyColor || 'Trắng';
   const bottomColorHex = customization.baseColorHex || '#1A7B8E';
-  const bottomColorName = customization.baseColor || 'Xanh Cổ Vịt (Mẫu Ngáo)';
+  const bottomColorName = customization.baseColor || 'Xanh';
   const petName = customization.petName || 'Ngáo';
   const icons = customization.selectedIcons && customization.selectedIcons.length > 0
     ? customization.selectedIcons
