@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy, Check, UploadCloud, AlertCircle, ShieldCheck, Heart } from 'lucide-react';
+import { Copy, Check, UploadCloud, AlertCircle, ShieldCheck, Heart, ArrowRight } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { Order } from '../../types/order';
@@ -13,6 +13,7 @@ interface BankTransferQRModalProps {
   onClose: () => void;
   order: Order;
   settings: ShopSettings;
+  onProofUploaded?: () => void;
 }
 
 export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
@@ -20,6 +21,7 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
   onClose,
   order,
   settings,
+  onProofUploaded,
 }) => {
   const [copiedAccount, setCopiedAccount] = useState(false);
   const [copiedNote, setCopiedNote] = useState(false);
@@ -61,6 +63,7 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
     try {
       await orderService.submitPaymentProof(order.id, previewImage, order.deposit_amount);
       setProofUploaded(true);
+      onProofUploaded?.();
     } catch (e) {
       console.error('Failed to submit proof', e);
     } finally {
@@ -201,8 +204,17 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
         </div>
 
         {/* Action Button */}
-        <div className="flex justify-end pt-2">
-          <Button variant="secondary" size="md" onClick={onClose}>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+          <span className="text-[11px] text-cute-brown-light dark:text-cute-muted text-center sm:text-left">
+            💡 Sau khi chuyển khoản, ba mẹ có thể theo dõi tiến độ duyệt mẫu 3D và giao hàng bất kỳ lúc nào.
+          </span>
+          <Button
+            variant="primary"
+            size="md"
+            onClick={onClose}
+            className="w-full sm:w-auto flex-shrink-0"
+            rightIcon={<ArrowRight className="w-4 h-4" />}
+          >
             Đã hoàn tất chuyển khoản
           </Button>
         </div>

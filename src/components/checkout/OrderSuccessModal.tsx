@@ -102,10 +102,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
           <Button
             variant="soft"
             size="sm"
-            onClick={() => {
-              onClose();
-              navigate(`/track?ref=${encodeURIComponent(order.order_reference)}&phone=${encodeURIComponent(order.customer_phone)}`);
-            }}
+            onClick={onClose}
             className="w-full justify-center"
             leftIcon={<PackageCheck className="w-4 h-4" />}
           >

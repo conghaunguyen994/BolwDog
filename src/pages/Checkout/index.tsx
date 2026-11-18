@@ -136,6 +136,28 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
+  const navigateToTracking = (order: Order) => {
+    navigate(
+      `/track?ref=${encodeURIComponent(order.order_reference)}&phone=${encodeURIComponent(
+        order.customer_phone
+      )}`
+    );
+  };
+
+  const handleCloseSuccessModal = () => {
+    setIsSuccessModalOpen(false);
+    if (createdOrder) {
+      navigateToTracking(createdOrder);
+    }
+  };
+
+  const handleCloseQRModal = () => {
+    setIsQRModalOpen(false);
+    if (createdOrder) {
+      navigateToTracking(createdOrder);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
       {/* Title */}
@@ -399,7 +421,7 @@ export const CheckoutPage: React.FC = () => {
         <>
           <OrderSuccessModal
             isOpen={isSuccessModalOpen}
-            onClose={() => setIsSuccessModalOpen(false)}
+            onClose={handleCloseSuccessModal}
             order={createdOrder}
             onOpenQR={() => {
               setIsSuccessModalOpen(false);
@@ -409,7 +431,7 @@ export const CheckoutPage: React.FC = () => {
 
           <BankTransferQRModal
             isOpen={isQRModalOpen}
-            onClose={() => setIsQRModalOpen(false)}
+            onClose={handleCloseQRModal}
             order={createdOrder}
             settings={settings}
           />
