@@ -659,7 +659,7 @@ export const ProductDetailPage: React.FC = () => {
                 className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full border-2 font-extrabold text-sm shadow-cute-lg hover:opacity-95 hover:scale-[1.01] active:scale-95 transition-all duration-300 disabled:opacity-50"
               >
                 <Heart className="w-5 h-5 fill-white/30" />
-                <span>Đón bé về nhà</span>
+                <span>Đặt hàng về cho bé</span>
               </button>
             </div>
 
