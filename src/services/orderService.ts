@@ -503,4 +503,49 @@ export const orderService = {
       if (error) throw new Error(error.message);
     });
   },
+
+  /**
+   * Cho phép khách hàng tự hủy đơn hàng CHỈ KHI CHƯA CHUYỂN CỌC (payment_status = unpaid / deposit_pending).
+   * Kiểm tra nghiêm ngặt ở cả Client lẫn Database RPC `cancel_guest_order`.
+   */
+  async cancelGuestOrder(payload: {
+    orderReference: string;
+    phone: string;
+    reason?: string;
+  }): Promise<{ success: boolean; message: string }> {
+    return withActionLock(`cancel_order_${payload.orderReference}`, async () => {
+      assertCsrfAndSameOrigin();
+      if (containsXssPayload(payload.reason)) {
+        throw new Error('Lý do hủy đơn chứa ký tự không an toàn.');
+      }
+
+      const cleanRef = sanitizeText(payload.orderReference, 50).trim();
+      const cleanPhone = sanitizeText(payload.phone, 20).replace(/[^\d+]/g, '');
+      const cleanReason = payload.reason ? sanitizeText(payload.reason, 250).trim() : '';
+
+      const db = requireSupabase();
+      const { data, error } = await db.rpc('cancel_guest_order', {
+        p_order_ref: cleanRef,
+        p_phone: cleanPhone,
+        p_reason: cleanReason || null,
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Không thể hủy đơn hàng lúc này. Vui lòng thử lại!');
+      }
+
+      const res = data as { success?: boolean; error?: string; message?: string } | null;
+      if (!res?.success) {
+        throw new Error(
+          res?.error ||
+            'Đơn hàng đã chuyển cọc hoặc đang được xử lý nên không thể hủy.'
+        );
+      }
+
+      return {
+        success: true,
+        message: res.message || 'Đã hủy đơn hàng thành công!',
+      };
+    });
+  },
 };

@@ -68,6 +68,10 @@ export const OrderTrackingPage: React.FC = () => {
   const [emailSavedNotice, setEmailSavedNotice] = useState<string | null>(null);
   const [justConfirmedDeposit, setJustConfirmedDeposit] = useState(false);
   const [showToastNotification, setShowToastNotification] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelNotice, setCancelNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const checkingTrackRef = useRef(false);
   const paidTriggeredForOrderRef = useRef<string | null>(null);
 
@@ -207,7 +211,46 @@ export const OrderTrackingPage: React.FC = () => {
   useEffect(() => {
     setEmailInput(order?.customer_email || '');
     setEmailSavedNotice(null);
+    setShowCancelConfirm(false);
+    setCancelReason('');
+    setCancelNotice(null);
   }, [order?.id, order?.customer_email]);
+
+  const handleCancelOrder = async () => {
+    if (!order || cancelLoading) return;
+    if (order.payment_status === 'partially_paid' || order.payment_status === 'paid') {
+      setCancelNotice({
+        ok: false,
+        text: 'Đơn hàng đã được chuyển cọc / thanh toán nên không thể tự hủy. Vui lòng liên hệ Zalo 0345 553 913 nếu cần hỗ trợ!',
+      });
+      return;
+    }
+
+    setCancelLoading(true);
+    setCancelNotice(null);
+    try {
+      const res = await orderService.cancelGuestOrder({
+        orderReference: order.order_reference,
+        phone: order.customer_phone,
+        reason: cancelReason,
+      });
+
+      setOrder((prev) => (prev ? { ...prev, order_status: 'cancelled' } : prev));
+      setOrders((prev) =>
+        prev.map((o) => (o.id === order.id ? { ...o, order_status: 'cancelled' } : o))
+      );
+      setShowCancelConfirm(false);
+      setCancelReason('');
+      setCancelNotice({ ok: true, text: res.message || 'Đã hủy đơn hàng thành công!' });
+    } catch (err: any) {
+      setCancelNotice({
+        ok: false,
+        text: err.message || 'Không thể hủy đơn hàng. Vui lòng thử lại!',
+      });
+    } finally {
+      setCancelLoading(false);
+    }
+  };
 
   useEffect(() => {
     settingsService.getSettings().then(setSettings).catch(() => { });
@@ -816,57 +859,155 @@ export const OrderTrackingPage: React.FC = () => {
             )}
           </div>
 
-          {/* Payment QR notice if unpaid, pending, or partially_paid (allow paying remaining 100%) */}
-          {(order.payment_status === 'deposit_pending' || order.payment_status === 'unpaid') && (
-            <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-50 via-teal-50/20 to-emerald-50/40 dark:from-amber-950/40 dark:to-emerald-950/40 border-2 border-amber-300 dark:border-amber-700 space-y-3">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="text-xs text-amber-900 dark:text-amber-200 space-y-1">
-                  <span className="font-bold flex items-center gap-1.5 text-sm">
-                    <Clock className="w-4 h-4 text-amber-600" />
-                    Bé đang đợi xác nhận chuyển khoản
-                  </span>
-                  <p className="opacity-90">
-                    Ba mẹ có thể chuyển khoản đặt cọc{' '}
-                    <strong className="text-rose-600 text-sm font-extrabold">
-                      {formatVND(order.deposit_amount)}
-                    </strong>{' '}
-                    hoặc chuyển đủ 100%{' '}
-                    <strong className="text-emerald-700 text-sm font-extrabold">
-                      {formatVND(order.total_amount)}
-                    </strong>{' '}
-                    để hoàn tất toàn bộ (0đ COD). Sau khi chuyển xong, trang sẽ{' '}
-                    <strong>tự động xác nhận và thông báo ngay</strong>.
-                  </p>
-
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => {
-                      setQrPaymentMode('deposit');
-                      setIsQRModalOpen(true);
-                    }}
-                    leftIcon={<QrCode className="w-4 h-4" />}
-                  >
-                    QR Cọc ({formatVND(order.deposit_amount)})
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      setQrPaymentMode('full');
-                      setIsQRModalOpen(true);
-                    }}
-                    leftIcon={<Sparkles className="w-4 h-4 text-emerald-600" />}
-                  >
-                    QR Đủ 100% ({formatVND(order.total_amount)})
-                  </Button>
-                </div>
-              </div>
+          {cancelNotice && (
+            <div
+              className={`p-3.5 rounded-2xl border text-xs font-bold flex items-center gap-2 ${
+                cancelNotice.ok
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                  : 'bg-rose-50 border-rose-300 text-rose-700'
+              }`}
+            >
+              {cancelNotice.ok ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+              )}
+              <span>{cancelNotice.text}</span>
             </div>
           )}
+
+          {/* Payment QR notice if unpaid or pending (AND not cancelled) */}
+          {order.order_status !== 'cancelled' &&
+            (order.payment_status === 'deposit_pending' || order.payment_status === 'unpaid') && (
+              <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-50 via-teal-50/20 to-emerald-50/40 dark:from-amber-950/40 dark:to-emerald-950/40 border-2 border-amber-300 dark:border-amber-700 space-y-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                    <span className="font-bold flex items-center gap-1.5 text-sm">
+                      <Clock className="w-4 h-4 text-amber-600" />
+                      Bé đang đợi xác nhận chuyển khoản
+                    </span>
+                    <p className="opacity-90">
+                      Ba mẹ có thể chuyển khoản đặt cọc{' '}
+                      <strong className="text-rose-600 text-sm font-extrabold">
+                        {formatVND(order.deposit_amount)}
+                      </strong>{' '}
+                      hoặc chuyển đủ 100%{' '}
+                      <strong className="text-emerald-700 text-sm font-extrabold">
+                        {formatVND(order.total_amount)}
+                      </strong>{' '}
+                      để hoàn tất toàn bộ (0đ COD). Sau khi chuyển xong, trang sẽ{' '}
+                      <strong>tự động xác nhận và thông báo ngay</strong>.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
+                        setQrPaymentMode('deposit');
+                        setIsQRModalOpen(true);
+                      }}
+                      leftIcon={<QrCode className="w-4 h-4" />}
+                    >
+                      QR Cọc ({formatVND(order.deposit_amount)})
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setQrPaymentMode('full');
+                        setIsQRModalOpen(true);
+                      }}
+                      leftIcon={<Sparkles className="w-4 h-4 text-emerald-600" />}
+                    >
+                      QR Đủ 100% ({formatVND(order.total_amount)})
+                    </Button>
+                    {order.order_status === 'pending' && (
+                      <button
+                        type="button"
+                        onClick={() => setShowCancelConfirm((prev) => !prev)}
+                        className="px-3 py-2 rounded-2xl border border-rose-300 bg-white hover:bg-rose-50 text-rose-600 text-xs font-bold transition-colors"
+                      >
+                        Hủy đơn hàng
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Hộp xác nhận hủy đơn khi chưa chuyển cọc */}
+                {showCancelConfirm && order.order_status === 'pending' && (
+                  <div className="p-4 rounded-2xl bg-white dark:bg-cute-surface-dark border-2 border-rose-300 space-y-3 text-xs animate-in fade-in duration-200">
+                    <div className="space-y-0.5">
+                      <span className="font-black text-rose-700 dark:text-rose-300 block">
+                        ⚠️ Xác nhận hủy đơn hàng {order.order_reference}
+                      </span>
+                      <p className="text-[11px] text-cute-brown-light dark:text-cute-muted">
+                        Vì đơn hàng chưa chuyển cọc nên ba mẹ có thể hủy miễn phí ngay lập tức. (Lưu ý: sau khi đã chuyển cọc sẽ không thể hủy đơn).
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        'Đặt nhầm size / màu sắc',
+                        'Muốn sửa lại thông tin khắc tên bé',
+                        'Thay đổi nhu cầu đặt hàng',
+                      ].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setCancelReason(preset)}
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-bold border transition-colors ${
+                            cancelReason === preset
+                              ? 'bg-rose-500 text-white border-rose-600'
+                              : 'bg-rose-50/60 text-rose-700 border-rose-200 hover:bg-rose-100'
+                          }`}
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
+
+                    <input
+                      type="text"
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      placeholder="Nhập lý do hủy đơn (không bắt buộc)..."
+                      className="w-full px-3 py-2 rounded-xl border border-cute-border-light bg-cute-cream/30 text-xs text-cute-brown focus:outline-none focus:ring-2 focus:ring-rose-300"
+                    />
+
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowCancelConfirm(false)}
+                        className="px-3.5 py-2 rounded-xl text-xs font-bold text-cute-brown-light hover:bg-gray-100"
+                      >
+                        Giữ lại đơn
+                      </button>
+                      <button
+                        type="button"
+                        disabled={cancelLoading}
+                        onClick={handleCancelOrder}
+                        className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold shadow-sm disabled:opacity-50 transition-colors"
+                      >
+                        {cancelLoading ? 'Đang hủy đơn...' : 'Xác nhận hủy đơn'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+          {/* Thông báo không thể hủy khi đã chuyển cọc / thanh toán đủ */}
+          {order.order_status !== 'cancelled' &&
+            (order.payment_status === 'partially_paid' || order.payment_status === 'paid') && (
+              <div className="px-4 py-2.5 rounded-2xl bg-cute-cream/60 dark:bg-cute-surface-dark border border-cute-border-light text-[11px] text-cute-brown-light dark:text-cute-muted flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <span>
+                  🔒 <strong>Đơn hàng đã chuyển cọc / thanh toán nên không thể tự hủy.</strong> Nếu ba mẹ cần hỗ trợ chỉnh sửa mẫu thiết kế 3D cho bé, vui lòng liên hệ Zalo <strong>0345 553 913</strong> nhé!
+                </span>
+              </div>
+            )}
 
           {order.payment_status === 'partially_paid' &&
             order.total_amount > order.deposit_amount &&
