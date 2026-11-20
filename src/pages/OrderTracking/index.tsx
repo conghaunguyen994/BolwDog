@@ -20,6 +20,7 @@ import confetti from 'canvas-confetti';
 import { orderService } from '../../services/orderService';
 import { settingsService } from '../../services/settingsService';
 import { sepayService, playPaymentSuccessChime } from '../../services/sepayService';
+import { emailService } from '../../services/emailService';
 import { supabase } from '../../services/supabase/client';
 import { DemoReviewStatus, Order, OrderStatus } from '../../types/order';
 import { ShopSettings } from '../../types/settings';
@@ -67,20 +68,52 @@ export const OrderTrackingPage: React.FC = () => {
   const [justConfirmedDeposit, setJustConfirmedDeposit] = useState(false);
   const [showToastNotification, setShowToastNotification] = useState(false);
   const checkingTrackRef = useRef(false);
+  const paidTriggeredForOrderRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!order?.id) return;
 
-    const triggerPaidSuccess = (nextPaymentStatus?: string, nextOrderStatus?: string) => {
+    const alreadyPaidOrder =
+      order.payment_status === 'partially_paid' || order.payment_status === 'paid';
+    if (alreadyPaidOrder) {
+      paidTriggeredForOrderRef.current = order.id;
+    } else if (paidTriggeredForOrderRef.current !== order.id) {
+      paidTriggeredForOrderRef.current = null;
+    }
+
+    const triggerPaidSuccess = (
+      nextPaymentStatus?: string,
+      nextOrderStatus?: string,
+      paidInfo?: {
+        amount?: number;
+        viaServerDb?: boolean;
+        emailSent?: boolean;
+        gateway?: string;
+      }
+    ) => {
+      if (paidTriggeredForOrderRef.current !== order.id) {
+        paidTriggeredForOrderRef.current = order.id;
+        playPaymentSuccessChime();
+        confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+        setJustConfirmedDeposit(true);
+        setShowToastNotification(true);
+
+        if (!paidInfo?.emailSent) {
+          emailService
+            .notifyDepositConfirmed(
+              { ...order, payment_status: (nextPaymentStatus as any) || 'partially_paid' },
+              {
+                paidAmount: paidInfo?.amount || order.deposit_amount,
+                gateway: paidInfo?.gateway || 'MB Bank / SePay',
+                skipIfServerWebhookConfigured: Boolean(paidInfo?.viaServerDb),
+              }
+            )
+            .catch(() => {});
+        }
+      }
+
       setOrder((prev) => {
         if (!prev) return prev;
-        const alreadyPaid = prev.payment_status === 'partially_paid' || prev.payment_status === 'paid';
-        if (!alreadyPaid) {
-          playPaymentSuccessChime();
-          confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
-          setJustConfirmedDeposit(true);
-          setShowToastNotification(true);
-        }
         return {
           ...prev,
           payment_status: (nextPaymentStatus as any) || 'partially_paid',
@@ -101,7 +134,9 @@ export const OrderTrackingPage: React.FC = () => {
               const updated = payload.new;
               if (updated) {
                 if (updated.payment_status === 'partially_paid' || updated.payment_status === 'paid') {
-                  triggerPaidSuccess(updated.payment_status, updated.order_status);
+                  triggerPaidSuccess(updated.payment_status, updated.order_status, {
+                    viaServerDb: true,
+                  });
                 } else {
                   setOrder((prev) => (prev ? { ...prev, ...updated } : prev));
                 }
@@ -129,7 +164,10 @@ export const OrderTrackingPage: React.FC = () => {
           snapshot.found &&
           (snapshot.payment_status === 'partially_paid' || snapshot.payment_status === 'paid')
         ) {
-          triggerPaidSuccess(snapshot.payment_status, snapshot.order_status);
+          triggerPaidSuccess(snapshot.payment_status, snapshot.order_status, {
+            amount: snapshot.deposit_amount,
+            viaServerDb: true,
+          });
           return;
         }
 
@@ -137,7 +175,12 @@ export const OrderTrackingPage: React.FC = () => {
         if (tickCount % 2 === 0 && (settings.sepay?.enabled ?? true)) {
           const sepayRes = await sepayService.checkTransactionForOrder(order, settings.sepay);
           if (sepayRes.found) {
-            triggerPaidSuccess('partially_paid', 'confirmed');
+            triggerPaidSuccess('partially_paid', 'confirmed', {
+              amount: sepayRes.amount,
+              emailSent: sepayRes.emailSent,
+              viaServerDb: sepayRes.fromDatabase,
+              gateway: sepayRes.gateway,
+            });
           }
         }
       } catch {
@@ -158,7 +201,7 @@ export const OrderTrackingPage: React.FC = () => {
         supabase.removeChannel(channel);
       }
     };
-  }, [order?.id, order?.payment_status, order?.order_reference, order?.customer_phone, settings.sepay]);
+  }, [order, settings.sepay]);
 
   useEffect(() => {
     setEmailInput(order?.customer_email || '');

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { sendDepositConfirmedEmailsServer } from './_lib/depositEmail.js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://mwuewkvddhjtxmfzvjyj.supabase.co';
 const SUPABASE_KEY =
@@ -187,9 +188,10 @@ export default async function handler(req: any, res: any) {
       }
 
       const amount = Number(matched.amount_in || matched.transferAmount || 0);
+      const gateway = matched.bank_brand_name || matched.gateway || 'MB Bank / SePay';
       const { data: rpcData, error: rpcError } = await supabase.rpc('process_sepay_webhook', {
         p_sepay_id: typeof matched.id === 'number' ? matched.id : Number(matched.id) || null,
-        p_gateway: matched.bank_brand_name || matched.gateway || 'BankTransfer',
+        p_gateway: gateway,
         p_transaction_date: matched.transaction_date || matched.transactionDate || new Date().toISOString(),
         p_account_number: matched.account_number || matched.accountNumber || '',
         p_content: matched.transaction_content || matched.content || '',
@@ -206,9 +208,55 @@ export default async function handler(req: any, res: any) {
         });
       }
 
+      const rpcResult = (rpcData || {}) as {
+        success?: boolean;
+        duplicate?: boolean;
+        insufficient_deposit?: boolean;
+        error?: string;
+        message?: string;
+        order_reference?: string;
+        customer_name?: string;
+        customer_email?: string;
+        customer_phone?: string;
+        transfer_amount?: number;
+        payment_status?: string;
+      };
+
+      if (rpcResult.error || rpcResult.insufficient_deposit) {
+        return res.status(200).json({
+          found: false,
+          message:
+            rpcResult.message ||
+            rpcResult.error ||
+            `Giao dịch ${amount.toLocaleString('vi-VN')} đ chưa đủ mức tiền cọc yêu cầu.`,
+        });
+      }
+
+      let emailSent = false;
+      if (rpcResult.success && !rpcResult.duplicate) {
+        const proto = String(req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
+        const host = String(req.headers['x-forwarded-host'] || req.headers['host'] || '').split(',')[0].trim();
+        const siteUrlHint = host ? `${proto}://${host}` : undefined;
+
+        const emailResult = await sendDepositConfirmedEmailsServer(supabase, {
+          orderReference: rpcResult.order_reference || String(orderReference),
+          customerName: rpcResult.customer_name,
+          customerPhone: rpcResult.customer_phone || (phone ? String(phone) : ''),
+          customerEmail: rpcResult.customer_email,
+          transferAmount: rpcResult.transfer_amount || amount,
+          gateway,
+          paymentStatus: rpcResult.payment_status,
+          siteUrlHint,
+        });
+        emailSent = emailResult.sent;
+      }
+
       return res.status(200).json({
         found: true,
         amount,
+        gateway,
+        emailSent,
+        duplicate: Boolean(rpcResult.duplicate),
         result: rpcData,
         message: `Đã tìm thấy giao dịch chuyển khoản ${amount.toLocaleString('vi-VN')} đ cho đơn ${orderReference}!`,
       });

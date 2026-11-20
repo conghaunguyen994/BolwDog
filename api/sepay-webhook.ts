@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { sendDepositConfirmedEmailsServer } from './_lib/depositEmail.js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://mwuewkvddhjtxmfzvjyj.supabase.co';
 const SUPABASE_KEY =
@@ -101,68 +102,32 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    // Gửi email thông báo tự động qua Google Apps Script Webhook (nếu Admin đã cấu hình webhook_url)
+    let emailSent = false;
+
+    // Gửi đồng thời Email xác nhận cọc tới Admin & Khách hàng (qua Webhook Apps Script / EmailJS nếu đã cấu hình)
     if (result?.success && !result?.duplicate && !result?.insufficient_deposit && result?.order_reference) {
-      try {
-        const { data: emailSetting } = await supabase
-          .from('shop_settings')
-          .select('setting_value')
-          .eq('setting_key', 'email_notifications')
-          .maybeSingle();
+      const proto = String(req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
+      const host = String(req.headers['x-forwarded-host'] || req.headers['host'] || '').split(',')[0].trim();
+      const siteUrlHint = host ? `${proto}://${host}` : undefined;
 
-        const emailCfg = emailSetting?.setting_value;
-        if (emailCfg?.enabled && emailCfg?.webhook_url && emailCfg?.notify_on_status_change) {
-          const siteUrl = (emailCfg.production_site_url || 'https://bowlshop.vercel.app').replace(/\/$/, '');
-          const trackUrl = `${siteUrl}/track?ref=${encodeURIComponent(result.order_reference)}&phone=${encodeURIComponent(result.customer_phone || '')}`;
-          const amountFormatted = Number(result.transfer_amount || 0).toLocaleString('vi-VN') + ' ₫';
-
-          const sendEmailPayload = async (to: string, subject: string, htmlBody: string, textBody: string) => {
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), 2500);
-            try {
-              await fetch(emailCfg.webhook_url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ to, subject, textBody, htmlBody }),
-                signal: controller.signal,
-              });
-            } finally {
-              clearTimeout(timer);
-            }
-          };
-
-          const jobs: Promise<void>[] = [];
-          if (emailCfg.admin_email) {
-            jobs.push(
-              sendEmailPayload(
-                emailCfg.admin_email,
-                `[BolwDog] ⚡ SePay đã nhận cọc #${result.order_reference} (${amountFormatted})`,
-                `<p>Hệ thống SePay vừa tự động xác nhận chuyển khoản <strong>${amountFormatted}</strong> cho đơn hàng <strong>#${result.order_reference}</strong> (${result.customer_name || 'Khách hàng'}).</p><p><a href="${siteUrl}/admin/orders">Mở quản lý đơn hàng</a></p>`,
-                `SePay đã nhận ${amountFormatted} cho đơn #${result.order_reference}.`
-              )
-            );
-          }
-          if (result.customer_email && String(result.customer_email).includes('@')) {
-            jobs.push(
-              sendEmailPayload(
-                result.customer_email,
-                `[BolwDog Studio] 🎉 Đã nhận tiền cọc đơn hàng #${result.order_reference}`,
-                `<p>Chào ba mẹ <strong>${result.customer_name || ''}</strong>,</p><p>BolwDog đã tự động nhận được số tiền cọc <strong>${amountFormatted}</strong> qua chuyển khoản cho đơn hàng <strong>#${result.order_reference}</strong>.</p><p>Xưởng đang bắt tay thiết kế bản Demo 3D cho bé nhé! <a href="${trackUrl}">Theo dõi đơn hàng tại đây</a></p>`,
-                `BolwDog đã nhận ${amountFormatted} cho đơn #${result.order_reference}. Theo dõi tại: ${trackUrl}`
-              )
-            );
-          }
-          await Promise.allSettled(jobs);
-        }
-      } catch {
-        // Không làm lỗi Webhook response khi email phụ bị chậm
-      }
+      const emailResult = await sendDepositConfirmedEmailsServer(supabase, {
+        orderReference: result.order_reference,
+        customerName: result.customer_name,
+        customerPhone: result.customer_phone,
+        customerEmail: result.customer_email,
+        transferAmount: result.transfer_amount,
+        gateway: gateway || 'MB Bank / SePay',
+        paymentStatus: result.payment_status,
+        siteUrlHint,
+      });
+      emailSent = emailResult.sent;
     }
 
     // Luôn trả về 200 để SePay đánh dấu đã nhận webhook (kể cả chuyển khoản ngoài không thuộc đơn hàng)
     return res.status(200).json({
       success: true,
       matched: Boolean(result?.success),
+      emailSent,
       message: result?.message || 'SePay Webhook processed successfully',
       result,
     });

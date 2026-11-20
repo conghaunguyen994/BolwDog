@@ -1,7 +1,7 @@
 import { supabase } from './supabase/client';
 import { Order, PaymentStatus, OrderStatus } from '../types/order';
 import { SePayConfig } from '../types/settings';
-import { emailService } from './emailService';
+import { emailService, markDepositEmailDispatched } from './emailService';
 
 export interface SePayWebhookPayload {
   id?: number | string;
@@ -26,6 +26,7 @@ export interface SePayVerificationResult {
   transfer_amount?: number;
   payment_status?: string;
   order_status?: string;
+  duplicate?: boolean;
   insufficient_deposit?: boolean;
   error?: string;
 }
@@ -130,7 +131,8 @@ export const sepayService = {
    */
   async processPaymentViaRpc(
     payload: SePayWebhookPayload,
-    apiKey?: string
+    apiKey?: string,
+    orderHint?: Order
   ): Promise<SePayVerificationResult> {
     if (!supabase) {
       throw new Error('Chưa kết nối tới cơ sở dữ liệu Supabase.');
@@ -161,43 +163,59 @@ export const sepayService = {
 
     const result = data as SePayVerificationResult;
 
-    // Nếu thành công và đủ tiền cọc, tự động kích hoạt gửi email thông báo xác nhận đơn
-    if (result && result.success && !result.insufficient_deposit && result.order_reference) {
+    // Nếu thành công và đủ tiền cọc, đồng thời gửi Email xác nhận cọc tới Admin & Khách hàng
+    if (
+      result &&
+      result.success &&
+      !result.duplicate &&
+      !result.insufficient_deposit &&
+      result.order_reference
+    ) {
       try {
-        const { data: orderData } = await supabase
-          .from('orders')
-          .select('*, items:order_items(*)')
-          .eq('order_reference', result.order_reference)
-          .single();
+        const paidAmount = Number(result.transfer_amount || payload.transferAmount || 0);
+        const gateway = payload.gateway || 'MB Bank / SePay';
 
-        if (orderData) {
-          const fullOrder: Order = {
-            id: orderData.id,
-            order_reference: orderData.order_reference,
-            customer_name: orderData.customer_name,
-            customer_phone: orderData.customer_phone,
-            customer_email: orderData.customer_email,
-            shipping_address: orderData.shipping_address,
-            subtotal: Number(orderData.subtotal),
-            shipping_fee: Number(orderData.shipping_fee),
-            total_amount: Number(orderData.total_amount),
-            deposit_amount: Number(orderData.deposit_amount),
-            order_status: orderData.order_status,
-            payment_status: orderData.payment_status,
-            notes: orderData.notes,
-            created_at: orderData.created_at,
-            items: (orderData.items || []).map((it: any) => ({
-              id: it.id,
-              order_id: it.order_id,
-              product_id: it.product_id,
-              product_name: it.product_name,
-              unit_price: Number(it.unit_price),
-              quantity: it.quantity,
-              customization_data: it.customization_data || {},
-            })),
-          };
+        if (orderHint) {
+          await emailService.notifyDepositConfirmed(
+            { ...orderHint, payment_status: 'partially_paid' },
+            { paidAmount, gateway }
+          );
+        } else {
+          const { data: orderData } = await supabase
+            .from('orders')
+            .select('*, items:order_items(*)')
+            .eq('order_reference', result.order_reference)
+            .single();
 
-          await emailService.notifyOrderStatusChanged(fullOrder, fullOrder.order_status || 'confirmed');
+          if (orderData) {
+            const fullOrder: Order = {
+              id: orderData.id,
+              order_reference: orderData.order_reference,
+              customer_name: orderData.customer_name,
+              customer_phone: orderData.customer_phone,
+              customer_email: orderData.customer_email,
+              shipping_address: orderData.shipping_address,
+              subtotal: Number(orderData.subtotal),
+              shipping_fee: Number(orderData.shipping_fee),
+              total_amount: Number(orderData.total_amount),
+              deposit_amount: Number(orderData.deposit_amount),
+              order_status: orderData.order_status,
+              payment_status: orderData.payment_status,
+              notes: orderData.notes,
+              created_at: orderData.created_at,
+              items: (orderData.items || []).map((it: any) => ({
+                id: it.id,
+                order_id: it.order_id,
+                product_id: it.product_id,
+                product_name: it.product_name,
+                unit_price: Number(it.unit_price),
+                quantity: it.quantity,
+                customization_data: it.customization_data || {},
+              })),
+            };
+
+            await emailService.notifyDepositConfirmed(fullOrder, { paidAmount, gateway });
+          }
         }
       } catch (emailErr) {
         console.warn('Không gửi được email thông báo SePay (bỏ qua):', emailErr);
@@ -274,7 +292,14 @@ export const sepayService = {
   async checkTransactionForOrder(
     order: Order,
     sepayConfig?: SePayConfig
-  ): Promise<{ found: boolean; message: string; amount?: number }> {
+  ): Promise<{
+    found: boolean;
+    message: string;
+    amount?: number;
+    emailSent?: boolean;
+    fromDatabase?: boolean;
+    gateway?: string;
+  }> {
     // Bước 1: Kiểm tra DB trước xem Webhook đã xác nhận chưa (hoạt động cho cả khách vãng lai)
     const dbStatus = await this.getOrderPaymentStatus(order.order_reference, order.customer_phone);
     if (
@@ -283,6 +308,7 @@ export const sepayService = {
     ) {
       return {
         found: true,
+        fromDatabase: true,
         amount: dbStatus.deposit_amount || order.deposit_amount,
         message: `Hệ thống SePay đã xác nhận nhận cọc cho đơn ${order.order_reference}!`,
       };
@@ -316,7 +342,25 @@ export const sepayService = {
 
       const contentType = apiRes.headers.get('content-type') || '';
       if (apiRes.ok && contentType.includes('application/json')) {
-        return await apiRes.json();
+        const apiJson = await apiRes.json();
+        if (apiJson?.found) {
+          if (apiJson.emailSent) {
+            markDepositEmailDispatched(order.id || order.order_reference);
+          } else if (!apiJson.fromDatabase) {
+            const mailRes = await emailService
+              .notifyDepositConfirmed(
+                { ...order, payment_status: 'partially_paid' },
+                {
+                  paidAmount: apiJson.amount || order.deposit_amount,
+                  gateway: apiJson.gateway || 'MB Bank / SePay',
+                  skipIfServerWebhookConfigured: Boolean(apiJson.duplicate || apiJson.result?.duplicate),
+                }
+              )
+              .catch(() => ({ sent: false }));
+            apiJson.emailSent = mailRes.sent;
+          }
+        }
+        return apiJson;
       }
     } catch {
       // Fallback below when running locally under `vite dev` without `/api` serverless routes
@@ -360,11 +404,12 @@ export const sepayService = {
 
       if (matched) {
         const amount = Number(matched.amount_in || matched.transferAmount || 0);
+        const gateway = matched.bank_brand_name || matched.gateway || 'MB Bank / SePay';
 
         const rpcRes = await this.processPaymentViaRpc(
           {
             id: matched.id,
-            gateway: matched.bank_brand_name || matched.gateway,
+            gateway,
             transactionDate: matched.transaction_date || matched.transactionDate,
             accountNumber: matched.account_number || matched.accountNumber,
             content: matched.transaction_content || matched.content,
@@ -372,7 +417,8 @@ export const sepayService = {
             transferAmount: amount,
             referenceCode: matched.reference_number || matched.referenceCode,
           },
-          token
+          token,
+          order
         );
 
         if (!rpcRes.success) {
@@ -381,6 +427,8 @@ export const sepayService = {
 
         return {
           found: true,
+          gateway,
+          emailSent: true,
           message: `Đã tìm thấy giao dịch chuyển khoản ${amount.toLocaleString('vi-VN')} đ cho đơn ${order.order_reference}!`,
           amount,
         };

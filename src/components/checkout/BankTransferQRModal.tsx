@@ -9,6 +9,7 @@ import { formatVND } from '../../utils/currency';
 import { generateVietQrUrl } from '../../utils/qrGenerator';
 import { orderService } from '../../services/orderService';
 import { sepayService, playPaymentSuccessChime } from '../../services/sepayService';
+import { emailService } from '../../services/emailService';
 import { supabase } from '../../services/supabase/client';
 
 interface BankTransferQRModalProps {
@@ -62,12 +63,29 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
   useEffect(() => {
     if (!isOpen || isAutoPaid || !order.id) return;
 
-    const markPaidSuccess = () => {
+    const markPaidSuccess = (paidInfo?: {
+      amount?: number;
+      viaServerDb?: boolean;
+      emailSent?: boolean;
+      gateway?: string;
+    }) => {
       if (notifiedRef.current) return;
       notifiedRef.current = true;
       setIsAutoPaid(true);
       playPaymentSuccessChime();
       confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+      if (!paidInfo?.emailSent) {
+        emailService
+          .notifyDepositConfirmed(
+            { ...order, payment_status: 'partially_paid' },
+            {
+              paidAmount: paidInfo?.amount || order.deposit_amount,
+              gateway: paidInfo?.gateway || 'MB Bank / SePay',
+              skipIfServerWebhookConfigured: Boolean(paidInfo?.viaServerDb),
+            }
+          )
+          .catch(() => {});
+      }
       onProofUploaded?.();
     };
 
@@ -80,7 +98,7 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
             (payload: any) => {
               const newPaymentStatus = payload.new?.payment_status;
               if (newPaymentStatus === 'partially_paid' || newPaymentStatus === 'paid') {
-                markPaidSuccess();
+                markPaidSuccess({ viaServerDb: true });
               }
             }
           )
@@ -102,7 +120,10 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
           snapshot.found &&
           (snapshot.payment_status === 'partially_paid' || snapshot.payment_status === 'paid')
         ) {
-          markPaidSuccess();
+          markPaidSuccess({
+            amount: snapshot.deposit_amount,
+            viaServerDb: true,
+          });
           return;
         }
 
@@ -110,7 +131,12 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
         if (tickCount % 2 === 0 && isSepayActive) {
           const sepayRes = await sepayService.checkTransactionForOrder(order, settings.sepay);
           if (sepayRes.found) {
-            markPaidSuccess();
+            markPaidSuccess({
+              amount: sepayRes.amount,
+              emailSent: sepayRes.emailSent,
+              viaServerDb: sepayRes.fromDatabase,
+              gateway: sepayRes.gateway,
+            });
           }
         }
       } catch {

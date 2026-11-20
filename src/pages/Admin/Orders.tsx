@@ -108,7 +108,25 @@ export const AdminOrders: React.FC = () => {
     if (!window.confirm('Xác nhận bạn đã kiểm tra sao kê ngân hàng và nhận đủ tiền cọc?')) return;
     setActionLoading(true);
     try {
+      const targetOrder =
+        orders.find((o) => o.id === orderId) ||
+        (selectedOrder && selectedOrder.id === orderId ? selectedOrder : null);
       await orderService.verifyDeposit(orderId, false);
+      if (targetOrder) {
+        emailService
+          .notifyDepositConfirmed(
+            {
+              ...targetOrder,
+              payment_status: 'partially_paid',
+            },
+            {
+              paidAmount: targetOrder.deposit_amount,
+              gateway: 'Xác nhận thủ công bởi Admin',
+              force: true,
+            }
+          )
+          .catch(() => {});
+      }
       await fetchOrders();
       if (selectedOrder && selectedOrder.id === orderId) {
         setSelectedOrder({
