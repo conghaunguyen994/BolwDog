@@ -77,8 +77,12 @@ export const AdminLayout: React.FC = () => {
             {/* Admin Header */}
             <div className="flex items-center justify-between pb-4 border-b border-cute-border-light dark:border-cute-border-dark">
               <Link to="/admin/dashboard" className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-200 to-cute-pink flex items-center justify-center text-xl shadow-sm">
-                  🐾
+                <div className="w-10 h-10 rounded-2xl overflow-hidden bg-white shadow-sm border-2 border-amber-200/80 flex-shrink-0">
+                  <img
+                    src="/images/shop-logo.jpg"
+                    alt="Logo Ú òa Shop"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <div>
                   <span className="text-base font-extrabold text-cute-brown dark:text-cute-cream block">

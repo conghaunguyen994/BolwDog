@@ -219,8 +219,12 @@ export const LoginPage: React.FC = () => {
       <div className="w-full max-w-md cute-card p-6 sm:p-8 space-y-6 shadow-cute-lg">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cute-pink to-cute-lavender flex items-center justify-center mx-auto text-2xl shadow-sm">
-            🐾
+          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white border-2 border-amber-200/80 mx-auto shadow-cute">
+            <img
+              src="/images/shop-logo.jpg"
+              alt="Logo Ú òa Shop"
+              className="w-full h-full object-cover"
+            />
           </div>
           <h1 className="text-2xl font-black text-cute-brown dark:text-cute-cream font-sans">
             {isRegister ? 'Đăng Ký Tài Khoản' : 'Đăng Nhập & Kiểm Tra Quyền'}

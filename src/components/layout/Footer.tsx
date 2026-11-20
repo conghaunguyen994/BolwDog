@@ -23,8 +23,12 @@ export const Footer: React.FC = () => {
           {/* Col 1: Shop Story & Brand */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-cute-pink flex items-center justify-center shadow-cute text-xl">
-                🐾
+              <div className="w-11 h-11 rounded-2xl overflow-hidden bg-white shadow-cute border-2 border-amber-200/80 flex-shrink-0">
+                <img
+                  src="/images/shop-logo.jpg"
+                  alt="Logo Ú òa Shop"
+                  className="w-full h-full object-cover"
+                />
               </div>
               <span className="text-2xl font-black text-cute-brown dark:text-cute-cream font-sans">
                 {info.shop_name}

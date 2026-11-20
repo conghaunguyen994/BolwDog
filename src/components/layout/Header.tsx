@@ -124,8 +124,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
 
           {/* Logo & Brand */}
           <Link to="/" className="flex items-center gap-2 sm:gap-3 group flex-shrink-0">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-cute-pink to-cute-lavender flex items-center justify-center shadow-cute group-hover:scale-105 transition-transform duration-300">
-              <span className="text-xl sm:text-2xl select-none">🐾</span>
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl overflow-hidden bg-white shadow-cute border-2 border-amber-200/80 group-hover:scale-105 transition-transform duration-300 flex-shrink-0">
+              <img
+                src="/images/shop-logo.jpg"
+                alt="Logo Ú òa Shop"
+                className="w-full h-full object-cover"
+              />
             </div>
             <div>
               <div className="flex items-center gap-1 sm:gap-1.5">
