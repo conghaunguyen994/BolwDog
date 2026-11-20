@@ -25,6 +25,7 @@ import { Product, ProductVariant } from '../../types/product';
 import { PetCustomization } from '../../types/order';
 import { productService } from '../../services/productService';
 import { formatVND } from '../../utils/currency';
+import { formatSoldCountExact, getProductSoldCount } from '../../utils/soldCount';
 import {
   calculateDiscountedPrice,
   formatSaleDateTimeVN,
@@ -273,6 +274,7 @@ export const ProductDetailPage: React.FC = () => {
   const hasSale = discountPct > 0 && unitPrice < originalUnitPrice;
   const totalPrice = unitPrice * quantity;
   const isOutOfStock = product.stock_quantity <= 0;
+  const soldCount = getProductSoldCount(product);
 
   const activeBaseHex = isDogBowl ? (customization.baseColorHex || '#1A7B8E') : '#FF6B81';
   const activeBodyHex = isDogBowl ? (customization.bodyColorHex || '#FFFFFF') : '#FFFFFF';
@@ -433,7 +435,7 @@ export const ProductDetailPage: React.FC = () => {
         {/* Right: Product Buy Info & Live Customization */}
         <div className="space-y-6">
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2.5">
               {product.category?.name && (
                 <Badge variant="lavender" size="sm">
                   {product.category.name}
@@ -442,8 +444,11 @@ export const ProductDetailPage: React.FC = () => {
               <div className="flex items-center gap-1 text-amber-400 text-xs font-bold">
                 <Star className="w-3.5 h-3.5 fill-amber-400" />
                 <span>5.0</span>
-                <span className="text-cute-brown-light dark:text-cute-muted">(28 đánh giá)</span>
+                <span className="text-cute-brown-light dark:text-cute-muted">(128 đánh giá)</span>
               </div>
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-extrabold">
+                🔥 Đã bán {formatSoldCountExact(soldCount)} sản phẩm
+              </span>
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-black text-cute-brown dark:text-cute-cream font-sans">

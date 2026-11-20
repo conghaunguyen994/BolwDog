@@ -4,6 +4,7 @@ import { ShoppingBag, Star, Sparkles, Flame } from 'lucide-react';
 import { Product } from '../../types/product';
 import { formatVND } from '../../utils/currency';
 import { calculateDiscountedPrice, getProductDiscountPercentage } from '../../utils/sale';
+import { formatSoldCountCompact, getProductSoldCount } from '../../utils/soldCount';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { addToCart } from '../../features/cart/cartSlice';
 import { Badge } from '../common/Badge';
@@ -26,6 +27,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?q=80&w=800&auto=format&fit=crop';
 
   const isOutOfStock = product.stock_quantity <= 0;
+  const soldCount = getProductSoldCount(product);
 
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -94,11 +96,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
         {/* Content Body */}
         <div className="p-4 sm:p-5 space-y-2">
-          {/* Rating */}
-          <div className="flex items-center gap-1 text-amber-400 text-xs font-semibold">
-            <Star className="w-3.5 h-3.5 fill-amber-400" />
-            <span className="text-cute-brown dark:text-cute-cream font-bold">5.0</span>
-            <span className="text-cute-brown-light dark:text-cute-muted text-[11px]">(30+ ba mẹ khen)</span>
+          {/* Rating & Sold Count */}
+          <div className="flex items-center justify-between gap-2 text-xs font-semibold">
+            <div className="flex items-center gap-1 text-amber-400">
+              <Star className="w-3.5 h-3.5 fill-amber-400" />
+              <span className="text-cute-brown dark:text-cute-cream font-bold">5.0</span>
+            </div>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-300 text-[11px] font-bold">
+              Đã bán {formatSoldCountCompact(soldCount)}
+            </span>
           </div>
 
           {/* Title */}

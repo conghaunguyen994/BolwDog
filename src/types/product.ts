@@ -44,6 +44,7 @@ export interface Product {
   description: string;
   price: number;
   stock_quantity: number;
+  sold_count?: number;
   is_featured: boolean;
   is_active: boolean;
   specifications: ProductSpecifications;

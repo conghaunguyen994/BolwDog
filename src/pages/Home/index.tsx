@@ -102,7 +102,11 @@ export const HomePage: React.FC = () => {
               </div>
 
               {/* Highlights Micro-stats */}
-              <div className="pt-4 grid grid-cols-3 gap-3 max-w-md mx-auto lg:mx-0 border-t border-cute-border-light dark:border-cute-border-dark">
+              <div className="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-xl mx-auto lg:mx-0 border-t border-cute-border-light dark:border-cute-border-dark">
+                <div className="text-center lg:text-left">
+                  <span className="block text-xl font-black text-emerald-600 dark:text-emerald-400 font-sans">2.500+</span>
+                  <span className="text-[11px] text-cute-brown-light dark:text-cute-muted">Sản phẩm đã bán</span>
+                </div>
                 <div className="text-center lg:text-left">
                   <span className="block text-xl font-black text-cute-brown dark:text-cute-cream font-sans">100% PLA</span>
                   <span className="text-[11px] text-cute-brown-light dark:text-cute-muted">An toàn tuyệt đối</span>
