@@ -176,7 +176,7 @@ export const OrderTrackingPage: React.FC = () => {
         if (tickCount % 2 === 0 && (settings.sepay?.enabled ?? true)) {
           const sepayRes = await sepayService.checkTransactionForOrder(order);
           if (sepayRes.found) {
-            triggerPaidSuccess('partially_paid', 'confirmed', {
+            triggerPaidSuccess(sepayRes.payment_status || 'partially_paid', 'confirmed', {
               amount: sepayRes.amount,
               emailSent: sepayRes.emailSent,
               viaServerDb: sepayRes.fromDatabase,

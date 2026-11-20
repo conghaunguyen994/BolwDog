@@ -52,9 +52,9 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [paymentMode, setPaymentMode] = useState<'deposit' | 'full'>(initialPaymentMode);
 
-  // Nếu đơn đã thanh toán đủ 100% từ trước thì hiển thị ngay màn hình thành công.
-  // Nếu đơn mới đặt cọc (partially_paid) nhưng khách chủ động bấm mở QR để thanh toán nốt phần còn lại,
-  // cho phép hiển thị mã QR phần còn lại và chờ chuyển sang 'paid'.
+  // Lưu trạng thái thanh toán tại thời điểm mở Modal để không bị reset mất màn hình chúc mừng
+  // khi component cha cập nhật order.payment_status từ 'deposit_pending' -> 'partially_paid'
+  const [openingStatus, setOpeningStatus] = useState<PaymentStatus>(order.payment_status);
   const [isAutoPaid, setIsAutoPaid] = useState(order.payment_status === 'paid');
   const [confirmedStatus, setConfirmedStatus] = useState<PaymentStatus>(order.payment_status);
   const [confirmedAmount, setConfirmedAmount] = useState<number>(
@@ -74,7 +74,7 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
       ? Math.round((order.deposit_amount / order.total_amount) * 100)
       : bank.deposit_percentage ?? 50;
 
-  const isPayingRemainingAfterDeposit = order.payment_status === 'partially_paid';
+  const isPayingRemainingAfterDeposit = openingStatus === 'partially_paid';
   const remainingAfterDeposit = Math.max(0, order.total_amount - order.deposit_amount);
 
   const qrAmount = isPayingRemainingAfterDeposit
@@ -91,22 +91,23 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
 
   const transferNote = `${bank.transfer_note_prefix || 'BD'} ${order.order_reference}`;
 
-  useEffect(() => {
-    setPaymentMode(isPayingRemainingAfterDeposit ? 'full' : initialPaymentMode);
-  }, [initialPaymentMode, isPayingRemainingAfterDeposit, isOpen]);
-
-  // Đồng bộ trạng thái khi order prop hoặc modal mở lại
+  // Chỉ khởi tạo lại trạng thái khi Modal vừa MỞ (isOpen -> true) hoặc đổi sang đơn hàng khác (order.id).
+  // TUYỆT ĐỐI không phụ thuộc vào order.payment_status khi modal đang mở để tránh reset mất màn hình thành công!
   useEffect(() => {
     if (!isOpen) return;
-    const alreadyFullyPaid = order.payment_status === 'paid';
+    const statusAtOpen = order.payment_status;
+    setOpeningStatus(statusAtOpen);
+    setPaymentMode(statusAtOpen === 'partially_paid' ? 'full' : initialPaymentMode);
+    const alreadyFullyPaid = statusAtOpen === 'paid';
     setIsAutoPaid(alreadyFullyPaid);
-    setConfirmedStatus(order.payment_status);
+    setConfirmedStatus(statusAtOpen);
     setConfirmedAmount(
-      alreadyFullyPaid ? order.total_amount : qrAmount
+      alreadyFullyPaid ? order.total_amount : order.deposit_amount
     );
     notifiedRef.current = alreadyFullyPaid;
     setTamperWarning(false);
-  }, [order.id, order.payment_status, isOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order.id, isOpen, initialPaymentMode]);
 
   // Lớp bảo vệ DOM Anti-Tamper: tự động phát hiện & khôi phục ngay lập tức nếu tiện ích lạ / mã độc cố thay ảnh QR hoặc STK
   useEffect(() => {
@@ -169,15 +170,14 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
       if (notifiedRef.current) return;
       notifiedRef.current = true;
 
-      const resolvedAmount =
-        paidInfo?.amount ||
-        (paidInfo?.status === 'paid' || paymentMode === 'full'
-          ? order.total_amount
-          : order.deposit_amount);
       const resolvedStatus: PaymentStatus =
-        paidInfo?.status === 'paid' || resolvedAmount >= order.total_amount * 0.98
+        paidInfo?.status === 'paid' ||
+        (!paidInfo?.status && Number(paidInfo?.amount || 0) >= order.total_amount * 0.98)
           ? 'paid'
           : 'partially_paid';
+      const resolvedAmount =
+        paidInfo?.amount ||
+        (resolvedStatus === 'paid' ? order.total_amount : order.deposit_amount);
 
       setConfirmedStatus(resolvedStatus);
       setConfirmedAmount(resolvedStatus === 'paid' ? order.total_amount : resolvedAmount);
