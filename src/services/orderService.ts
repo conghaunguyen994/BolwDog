@@ -173,17 +173,36 @@ export const orderService = {
 
       enforceRateLimit('track_order');
 
-      const matchesQuery = (o: Order) => {
+      const matchesQuery = (o: Order, fromVerifiedRpc = false) => {
         const refOk = !cleanRef || (o.order_reference || '').toUpperCase().includes(cleanRef);
-        const orderDigits = (o.customer_phone || '').replace(/\D/g, '');
-        const phoneOk =
-          !cleanPhoneDigits ||
-          (phoneLast9.length > 0 && orderDigits.endsWith(phoneLast9)) ||
-          orderDigits.includes(cleanPhoneDigits);
+        const rawOrderPhone = o.customer_phone || '';
+        const isMaskedPhone = rawOrderPhone.includes('*');
+
+        let phoneOk = true;
+        if (cleanPhoneDigits) {
+          if (isMaskedPhone && fromVerifiedRpc) {
+            // RPC get_guest_order (SECURITY DEFINER) đã xác thực SĐT gốc trên DB rồi mới che dạng 033****344
+            const [prefixPart, suffixPart] = rawOrderPhone.split(/\*+/);
+            const prefixDigits = (prefixPart || '').replace(/\D/g, '');
+            const suffixDigits = (suffixPart || '').replace(/\D/g, '');
+            const suffixMatch = !suffixDigits || cleanPhoneDigits.endsWith(suffixDigits);
+            const prefixMatch =
+              !prefixDigits ||
+              cleanPhoneDigits.startsWith(prefixDigits) ||
+              (cleanPhoneDigits.startsWith('84') &&
+                ('0' + cleanPhoneDigits.slice(2)).startsWith(prefixDigits));
+            phoneOk = suffixMatch && prefixMatch;
+          } else {
+            const orderDigits = rawOrderPhone.replace(/\D/g, '');
+            phoneOk =
+              (phoneLast9.length > 0 && orderDigits.endsWith(phoneLast9)) ||
+              orderDigits.includes(cleanPhoneDigits);
+          }
+        }
         return refOk && phoneOk;
       };
 
-      // 1. Thử gọi RPC get_guest_order (hỗ trợ cả khách vãng lai chưa đăng nhập)
+      // 1. Thử gọi RPC get_guest_order (hỗ trợ cả khách vãng lai chưa đăng nhập: chỉ mã đơn, chỉ SĐT, hoặc cả 2)
       const { data: rpcData, error: rpcError } = await db.rpc('get_guest_order', {
         p_order_ref: cleanRef,
         p_phone: cleanPhoneDigits,
@@ -191,9 +210,26 @@ export const orderService = {
 
       if (!rpcError && rpcData) {
         const list: Order[] = Array.isArray(rpcData) ? rpcData : [rpcData as Order];
-        const filtered = list.filter((o) => o && o.id && matchesQuery(o));
+        const filtered = list.filter((o) => o && o.id && matchesQuery(o, true));
         if (filtered.length > 0) {
           return filtered;
+        }
+      }
+
+      // 1b. Nếu khách nhập đồng thời SĐT + một phần mã đơn (vd: 5 ký tự cuối), lấy danh sách theo SĐT rồi lọc theo mã đơn
+      if (cleanRef && cleanPhoneDigits) {
+        const { data: phoneRpcData, error: phoneRpcError } = await db.rpc('get_guest_order', {
+          p_order_ref: '',
+          p_phone: cleanPhoneDigits,
+        });
+        if (!phoneRpcError && phoneRpcData) {
+          const list: Order[] = Array.isArray(phoneRpcData)
+            ? phoneRpcData
+            : [phoneRpcData as Order];
+          const filtered = list.filter((o) => o && o.id && matchesQuery(o, true));
+          if (filtered.length > 0) {
+            return filtered;
+          }
         }
       }
 
@@ -218,7 +254,7 @@ export const orderService = {
 
       const { data: tableData, error: tableError } = await query;
       if (!tableError && tableData && tableData.length > 0) {
-        return (tableData as Order[]).filter(matchesQuery);
+        return (tableData as Order[]).filter((o) => matchesQuery(o, false));
       }
 
       return [];

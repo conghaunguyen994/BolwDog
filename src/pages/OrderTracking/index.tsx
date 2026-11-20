@@ -231,7 +231,7 @@ export const OrderTrackingPage: React.FC = () => {
     try {
       const res = await orderService.cancelGuestOrder({
         orderReference: order.order_reference,
-        phone: order.customer_phone,
+        phone: phone.trim() || order.customer_phone,
         reason: cancelReason,
       });
 
@@ -423,7 +423,7 @@ export const OrderTrackingPage: React.FC = () => {
           Tra cứu tiến độ in 3D & vận chuyển
         </h1>
         <p className="text-xs sm:text-sm text-cute-brown-light dark:text-cute-muted">
-          Chỉ cần nhập <strong>Mã đơn hàng</strong> hoặc <strong>Số điện thoại đặt hàng</strong> (1 trong 2) để kiểm tra trạng thái
+          Nhập <strong>Mã đơn hàng</strong>, <strong>Số điện thoại đặt hàng</strong>, hoặc <strong>cả hai</strong> để kiểm tra trạng thái
         </p>
       </div>
 
