@@ -106,10 +106,14 @@ Khi bạn đã sẵn sàng sử dụng cơ sở dữ liệu Supabase thực tế
    - `anon public key` (chỉ dùng anon key, **tuyệt đối KHÔNG dùng service_role key**)
 
 ### Bước 2: Điền biến môi trường `.env`
-Mở file `.env` và điền:
+Copy `.env.example` thành `.env` (file `.env` đã nằm trong `.gitignore`, **không bao giờ** đẩy lên GitHub) và điền các biến:
 ```env
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOi...your-anon-key
+SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOi...your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...your-service-role-key
+SEPAY_API_KEY=your_sepay_api_token
 ```
 
 ### Bước 3: Chạy SQL Migrations trong SQL Editor của Supabase

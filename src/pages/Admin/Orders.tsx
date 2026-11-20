@@ -145,8 +145,7 @@ export const AdminOrders: React.FC = () => {
   const handleCheckSepay = async (order: Order) => {
     setActionLoading(true);
     try {
-      const settings = await settingsService.getSettings();
-      const res = await sepayService.checkTransactionForOrder(order, settings.sepay);
+      const res = await sepayService.checkTransactionForOrder(order);
       if (res.found) {
         alert(`🎉 ${res.message}`);
         await fetchOrders();

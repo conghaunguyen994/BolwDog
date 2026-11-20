@@ -106,11 +106,28 @@ async function getEmailConfig(): Promise<EmailNotificationConfig> {
   }
 }
 
+async function checkHasServerEmailProvider(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'status' }),
+    });
+    const contentType = res.headers.get('content-type') || '';
+    if (res.ok && contentType.includes('application/json')) {
+      const json = await res.json();
+      return Boolean(json?.hasServerProvider);
+    }
+  } catch {
+    // Bỏ qua nếu đang chạy vite dev local không có `/api/send-email`
+  }
+  return false;
+}
+
 /**
- * Gửi email tự động qua đa kênh:
- * 1. Google Apps Script / Webhook tùy chỉnh (Gửi 2 chiều từ Gmail chính chủ tới cả Khách hàng & Admin)
- * 2. EmailJS REST API (Nếu Admin cấu hình Service ID / Template ID)
- * 3. FormSubmit AJAX Relay (Gửi thông báo trực tiếp tới hộp thư Admin & CC khách hàng không cần API key)
+ * Gửi email tự động qua đa kênh (không lưu bất kỳ API key hay Webhook URL nào ở client/DB):
+ * 1. Serverless API `/api/send-email` (đọc `EMAIL_WEBHOOK_URL` / `EMAILJS_*` từ `.env` server)
+ * 2. FormSubmit AJAX Relay (dự phòng khi server `.env` chưa cấu hình kênh gửi email)
  */
 export async function dispatchEmail(
   payload: EmailPayload,
@@ -121,68 +138,34 @@ export async function dispatchEmail(
     return { ok: false, channel: 'disabled', error: 'Tính năng gửi email đang tắt.' };
   }
 
-  // Kênh 1: Google Apps Script / Custom Webhook (Khuyên dùng - Gửi được tới mọi email khách hàng & Admin)
-  if (config.webhook_url && config.webhook_url.trim().startsWith('https://')) {
-    try {
-      const res = await fetch(config.webhook_url.trim(), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain;charset=utf-8',
-        },
-        body: JSON.stringify({
-          to: payload.to,
-          cc: payload.cc || '',
-          replyTo: payload.replyTo || config.admin_email,
-          subject: payload.subject,
-          textBody: payload.textBody,
-          htmlBody: payload.htmlBody,
-          eventType: payload.eventType,
-          orderReference: payload.orderReference || '',
-          sentAt: new Date().toISOString(),
-        }),
-      });
-      if (res.ok) {
-        return { ok: true, channel: 'webhook' };
+  // Kênh 1: Serverless Backend /api/send-email (đọc EMAIL_WEBHOOK_URL & EmailJS keys an toàn từ .env)
+  try {
+    const apiRes = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: payload.to,
+        cc: payload.cc || '',
+        replyTo: payload.replyTo || config.admin_email,
+        subject: payload.subject,
+        textBody: payload.textBody,
+        htmlBody: payload.htmlBody,
+        eventType: payload.eventType,
+        orderReference: payload.orderReference || '',
+      }),
+    });
+    const contentType = apiRes.headers.get('content-type') || '';
+    if (apiRes.ok && contentType.includes('application/json')) {
+      const json = await apiRes.json();
+      if (json?.ok) {
+        return { ok: true, channel: json.channel || 'server' };
       }
-    } catch (err) {
-      console.warn('Webhook email error, falling back:', err);
     }
+  } catch (err) {
+    console.warn('Server email relay error, falling back:', err);
   }
 
-  // Kênh 2: EmailJS REST API (Nếu có cấu hình trong Cài đặt tiệm)
-  if (
-    config.emailjs_service_id?.trim() &&
-    config.emailjs_template_id?.trim() &&
-    config.emailjs_public_key?.trim()
-  ) {
-    try {
-      const res = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          service_id: config.emailjs_service_id.trim(),
-          template_id: config.emailjs_template_id.trim(),
-          user_id: config.emailjs_public_key.trim(),
-          template_params: {
-            to_email: payload.to,
-            cc_email: payload.cc || '',
-            reply_to: payload.replyTo || config.admin_email,
-            subject: payload.subject,
-            message: payload.textBody,
-            html_message: payload.htmlBody,
-            order_reference: payload.orderReference || '',
-          },
-        }),
-      });
-      if (res.ok) {
-        return { ok: true, channel: 'emailjs' };
-      }
-    } catch (err) {
-      console.warn('EmailJS error, falling back:', err);
-    }
-  }
-
-  // Kênh 3: FormSubmit.co AJAX Relay (Không cần backend hay API key trong .env)
+  // Kênh 2: FormSubmit.co AJAX Relay (Dự phòng miễn phí không cần API key)
   try {
     const targetEmail = payload.to || config.admin_email || 'conghaunguyen994@gmail.com.vn';
     const bodyData: Record<string, string> = {
@@ -692,7 +675,7 @@ export const emailService = {
       return { sent: false, adminSent: false, customerSent: false };
     }
 
-    if (options?.skipIfServerWebhookConfigured && config.webhook_url?.trim()) {
+    if (options?.skipIfServerWebhookConfigured && (await checkHasServerEmailProvider())) {
       markDepositEmailDispatched(dedupeKey);
       return { sent: false, adminSent: false, customerSent: false };
     }

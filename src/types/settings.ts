@@ -32,12 +32,6 @@ export interface EmailNotificationConfig {
   admin_backup_email?: string;
   /** Tên miền website chính thức (ví dụ: https://bowlshop.vercel.app) để gắn link vào Email */
   production_site_url?: string;
-  /** URL Google Apps Script hoặc Webhook gửi email 2 chiều (Admin ⇄ Khách hàng) */
-  webhook_url?: string;
-  /** Cấu hình EmailJS (Tùy chọn) */
-  emailjs_service_id?: string;
-  emailjs_template_id?: string;
-  emailjs_public_key?: string;
   notify_on_new_order: boolean;
   notify_on_demo_sent: boolean;
   notify_on_demo_review: boolean;
@@ -54,8 +48,6 @@ export interface BlockedClientRule {
 
 export interface SePayConfig {
   enabled: boolean;
-  /** API Key tạo tại https://my.sepay.vn (Menu Cấu hình Công ty -> API Access) */
-  api_key: string;
   /** Số tài khoản ngân hàng liên kết với SePay (ví dụ: 0345553913) */
   account_number?: string;
   /** Tiền tố cú pháp nội dung chuyển khoản (mặc định BD) */
@@ -72,4 +64,3 @@ export interface ShopSettings {
   blocked_rules?: BlockedClientRule[];
   sepay?: SePayConfig;
 }
-

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Save, Check, Building2, Store, Share2, Mail, Send, Copy, Zap, ExternalLink, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { Save, Check, Building2, Store, Share2, Mail, Send, Copy, Zap, ExternalLink, RefreshCw, ShieldCheck } from 'lucide-react';
 import { settingsService } from '../../services/settingsService';
 import { emailService } from '../../services/emailService';
 import { sepayService } from '../../services/sepayService';
@@ -34,13 +34,9 @@ export const AdminSettings: React.FC = () => {
   const [testingSepay, setTestingSepay] = useState(false);
   const [sepayTestStatus, setSepayTestStatus] = useState<string | null>(null);
   const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false);
-  const [copiedAuthWebhookUrl, setCopiedAuthWebhookUrl] = useState(false);
-  const [showApiKey, setShowApiKey] = useState(false);
+  const [dbCleanedNotice, setDbCleanedNotice] = useState<string | null>(null);
 
   const sepayConfig = settings.sepay || defaultShopSettings.sepay!;
-  const cleanSepayApiKey = (sepayConfig.api_key || '')
-    .trim()
-    .replace(/^(Bearer|Apikey)\s+/i, '');
 
   const siteOrigin =
     typeof window !== 'undefined' &&
@@ -51,32 +47,18 @@ export const AdminSettings: React.FC = () => {
       : 'https://bowlshop.vercel.app';
 
   const webhookUrl = `${siteOrigin}/api/sepay-webhook`;
-  const authenticatedWebhookUrl = cleanSepayApiKey
-    ? `${webhookUrl}?api_key=${encodeURIComponent(cleanSepayApiKey)}`
-    : '';
 
-  const handleCopyWebhookUrl = (withKey = false) => {
-    const targetUrl = withKey && authenticatedWebhookUrl ? authenticatedWebhookUrl : webhookUrl;
-    navigator.clipboard.writeText(targetUrl);
-    if (withKey) {
-      setCopiedAuthWebhookUrl(true);
-      setTimeout(() => setCopiedAuthWebhookUrl(false), 2000);
-    } else {
-      setCopiedWebhookUrl(true);
-      setTimeout(() => setCopiedWebhookUrl(false), 2000);
-    }
+  const handleCopyWebhookUrl = () => {
+    navigator.clipboard.writeText(webhookUrl);
+    setCopiedWebhookUrl(true);
+    setTimeout(() => setCopiedWebhookUrl(false), 2000);
   };
 
   const handleTestSepay = async () => {
-    const apiKey = sepayConfig.api_key || '';
-    if (!apiKey.trim()) {
-      setSepayTestStatus('⚠️ Vui lòng nhập SePay API Key trước khi kiểm tra.');
-      return;
-    }
     setTestingSepay(true);
     setSepayTestStatus(null);
     try {
-      const res = await sepayService.verifySepayApiKey(apiKey);
+      const res = await sepayService.verifySepayConnection();
       if (res.ok) {
         setSepayTestStatus(`✅ ${res.message}`);
       } else {
@@ -124,6 +106,13 @@ export const AdminSettings: React.FC = () => {
   };
 
   useEffect(() => {
+    settingsService.purgeLegacySecretsFromDatabase().then((cleaned) => {
+      if (cleaned.length > 0) {
+        setDbCleanedNotice(
+          `Đã tự động xóa các API Key cũ lưu trước đó trong DB (${cleaned.join(', ')}). Tất cả API Key hiện chỉ đọc từ file .env.`
+        );
+      }
+    });
     settingsService.getSettings().then((s) => {
       setSettings(s);
       setLoading(false);
@@ -171,6 +160,13 @@ export const AdminSettings: React.FC = () => {
           </div>
         )}
       </div>
+
+      {dbCleanedNotice && (
+        <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-900 font-semibold flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span>{dbCleanedNotice}</span>
+        </div>
+      )}
 
       <form onSubmit={handleSave} className="space-y-6">
         
@@ -432,26 +428,14 @@ export const AdminSettings: React.FC = () => {
               <label className="text-xs font-bold text-cute-brown dark:text-cute-cream flex items-center gap-1.5">
                 <span>📍 Đường link Webhook nhận dữ liệu từ SePay:</span>
               </label>
-              <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-                <button
-                  type="button"
-                  onClick={() => handleCopyWebhookUrl(false)}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 transition-colors"
-                >
-                  {copiedWebhookUrl ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedWebhookUrl ? 'Đã copy Link' : 'Copy Link chuẩn'}</span>
-                </button>
-                {authenticatedWebhookUrl && (
-                  <button
-                    type="button"
-                    onClick={() => handleCopyWebhookUrl(true)}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-xl shadow-sm transition-colors"
-                  >
-                    {copiedAuthWebhookUrl ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedAuthWebhookUrl ? 'Đã copy Link kèm Key!' : 'Copy Link kèm API Key (Khuyên dùng)'}</span>
-                  </button>
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={handleCopyWebhookUrl}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 transition-colors self-start sm:self-auto"
+              >
+                {copiedWebhookUrl ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedWebhookUrl ? 'Đã sao chép Link Webhook' : 'Sao chép Link Webhook'}</span>
+              </button>
             </div>
             <div className="flex items-center gap-2">
               <input
@@ -462,64 +446,50 @@ export const AdminSettings: React.FC = () => {
               />
             </div>
             <p className="text-[11px] text-cute-brown-light dark:text-cute-muted leading-relaxed">
-              💡 Hãy dán đúng link <strong className="font-mono text-emerald-800">{webhookUrl}</strong> vào mục <strong>Cài đặt Webhook</strong> trên <a href="https://my.sepay.vn" target="_blank" rel="noreferrer" className="underline font-bold">my.sepay.vn</a>.
-              <br />
-              🔐 <strong>Xác thực Webhook:</strong> Chọn Kiểu chứng thực = <strong>API Key</strong> (nhập <code className="bg-emerald-50 px-1 rounded">Apikey [Token]</code>), <strong>hoặc</strong> bấm nút <em>"Copy Link kèm API Key"</em> để dán khi chọn <em>"Không cần chứng thực"</em>.
+              💡 Hãy dán đúng link <strong className="font-mono text-emerald-800">{webhookUrl}</strong> vào mục <strong>Cài đặt Webhook</strong> trên{' '}
+              <a href="https://my.sepay.vn" target="_blank" rel="noreferrer" className="underline font-bold">
+                my.sepay.vn
+              </a>
+              .
             </p>
           </div>
 
-          {/* Configuration Inputs */}
+          {/* Environment Security Notice & Server Connection Check */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* SePay API Key */}
-            <div className="space-y-1 sm:col-span-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-cute-brown dark:text-cute-cream flex items-center gap-1">
-                  <span>Mã SePay API Key (Webhook Token để xác thực bảo mật) *</span>
-                </label>
-                <a
-                  href="https://my.sepay.vn"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[11px] text-emerald-700 hover:underline flex items-center gap-1"
-                >
-                  <span>Mở trang SePay.vn</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <input
-                    type={showApiKey ? 'text' : 'password'}
-                    placeholder="Dán mã API Token 64 ký tự từ SePay (Cấu hình Công ty > API Access)"
-                    value={sepayConfig.api_key}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        sepay: { ...sepayConfig, api_key: e.target.value },
-                      })
-                    }
-                    className="w-full px-3.5 py-2 rounded-xl border border-cute-border-light text-xs bg-white focus:outline-none font-mono pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-cute-brown-light hover:text-cute-brown"
-                  >
-                    {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+            <div className="p-4 rounded-2xl bg-white dark:bg-cute-surface-dark border-2 border-emerald-200 dark:border-emerald-800 space-y-2.5 sm:col-span-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-extrabold text-cute-brown dark:text-cute-cream">
+                    Bảo mật API Key trong biến môi trường (.env Server-Only)
+                  </span>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleTestSepay}
-                  isLoading={testingSepay}
-                  className="border-emerald-400 text-emerald-800 hover:bg-emerald-100 flex-shrink-0"
-                  leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${testingSepay ? 'animate-spin' : ''}`} />}
-                >
-                  Kiểm tra API Key
-                </Button>
+                <div className="flex items-center gap-2">
+                  <a
+                    href="https://my.sepay.vn"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] text-emerald-700 hover:underline flex items-center gap-1"
+                  >
+                    <span>Mở SePay.vn</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleTestSepay}
+                    isLoading={testingSepay}
+                    className="border-emerald-400 text-emerald-800 hover:bg-emerald-100 flex-shrink-0"
+                    leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${testingSepay ? 'animate-spin' : ''}`} />}
+                  >
+                    Kiểm tra kết nối SePay Server (.env)
+                  </Button>
+                </div>
               </div>
+              <p className="text-[11px] text-cute-brown-light dark:text-cute-muted leading-relaxed">
+                🔒 Để chống lộ khóa qua trình duyệt hoặc Database, <code className="bg-emerald-50 px-1 rounded font-bold text-emerald-800">SEPAY_API_KEY</code> và <code className="bg-emerald-50 px-1 rounded font-bold text-emerald-800">SUPABASE_SERVICE_ROLE_KEY</code> chỉ lưu trong file <code className="bg-emerald-50 px-1 rounded font-bold text-emerald-800">.env</code> (local) và <strong>Vercel Environment Variables</strong> (production). Không lưu hay nhập API Key trên giao diện web này.
+              </p>
               {sepayTestStatus && (
                 <p className="text-[11px] font-bold mt-1 text-emerald-800 dark:text-emerald-300">
                   {sepayTestStatus}
@@ -568,20 +538,20 @@ export const AdminSettings: React.FC = () => {
           {/* Quick Setup Instructions */}
           <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-200 dark:border-emerald-800 text-xs space-y-2 text-emerald-950 dark:text-emerald-200">
             <span className="font-extrabold block text-emerald-900 dark:text-emerald-300">
-              📋 Hướng dẫn 4 bước kích hoạt SePay cho tiệm BolwDog:
+              📋 Hướng dẫn 4 bước kích hoạt SePay an toàn qua .env:
             </span>
             <ol className="list-decimal list-inside space-y-1.5 text-[11px] leading-relaxed opacity-95">
               <li>
-                Truy cập <strong>https://my.sepay.vn</strong> và đăng nhập/đăng ký tài khoản.
+                Truy cập <strong>https://my.sepay.vn</strong> và liên kết tài khoản ngân hàng (ví dụ MB Bank <strong>{settings.bank_transfer.account_number}</strong>).
               </li>
               <li>
-                Kết nối tài khoản ngân hàng của bạn (ví dụ MB Bank số tài khoản <strong>{settings.bank_transfer.account_number}</strong>).
+                Vào <strong>Cấu hình Công ty &gt; API Access</strong> trên SePay để lấy <strong>API Token</strong>, rồi dán vào biến <code>SEPAY_API_KEY</code> trong file <code>.env</code> và mục <strong>Vercel Environment Variables</strong> (kèm <code>SUPABASE_SERVICE_ROLE_KEY</code>).
               </li>
               <li>
-                Vào menu <strong>Cấu hình Công ty &gt; API Access</strong> trên SePay ➔ Tạo/copy mã <strong>API Token</strong> và dán vào ô bên trên, bấm <strong>Kiểm tra API Key</strong> để xác nhận kết nối thành công.
+                Vào mục <strong>Tích hợp Webhooks</strong> trên SePay ➔ dán link Webhook ở trên vào ô URL, chọn sự kiện <strong>Có tiền vào</strong>, mục <em>&ldquo;Bỏ qua nếu nội dung không có code thanh toán&rdquo;</em> chọn <strong>Không</strong> (có thể chọn chứng thực API Key với <code>SEPAY_API_KEY</code> hoặc để server tự đối chiếu trực tiếp).
               </li>
               <li>
-                Vào mục <strong>Tích hợp Webhooks</strong> trên SePay ➔ bấm <strong>Thêm Webhook</strong> ➔ dán link Webhook ở trên vào ô URL, chọn sự kiện <strong>Có tiền vào</strong>, kiểu chứng thực <strong>API Key</strong> (dán đúng mã API Token vừa copy vào đây để bảo mật 2 chiều), và mục <em>&ldquo;Bỏ qua nếu nội dung không có code thanh toán&rdquo;</em> chọn <strong>Không</strong> (vì BolwDog tự bắt mã đơn <code>BD-...</code>). Cuối cùng bấm <strong>Lưu cấu hình tiệm</strong> ở góc trên!
+                Bấm nút <strong>Kiểm tra kết nối SePay Server (.env)</strong> bên trên để xác nhận server đọc biến môi trường thành công!
               </li>
             </ol>
           </div>
@@ -743,11 +713,12 @@ export const AdminSettings: React.FC = () => {
             </label>
           </div>
 
-          {/* Google Apps Script Webhook (Không lưu key ở .env, gửi bằng chính Gmail chủ tiệm) */}
+          {/* Email Webhook / EmailJS Server-Only Env Notice */}
           <div className="p-4 rounded-2xl bg-purple-50/70 border border-purple-200 space-y-2.5 text-xs">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <label className="font-bold text-purple-900">
-                Link Google Apps Script / Webhook gửi Email 2 chiều (Tùy chọn – Khuyên dùng để gửi từ chính Gmail của bạn tới mọi khách hàng):
+              <label className="font-bold text-purple-900 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-purple-700" />
+                <span>Cấu hình Email Webhook / EmailJS đã chuyển sang biến môi trường (.env Server-Only)</span>
               </label>
               <button
                 type="button"
@@ -762,15 +733,8 @@ export const AdminSettings: React.FC = () => {
                 <span>{copiedScript ? 'Đã copy mã Google Script!' : 'Copy mã Google Apps Script (10 dòng)'}</span>
               </button>
             </div>
-            <input
-              type="url"
-              value={emailConfig.webhook_url || ''}
-              onChange={(e) => updateEmailConfig({ webhook_url: e.target.value })}
-              placeholder="https://script.google.com/macros/s/.../exec (Nếu để trống, hệ thống tự động dùng FormSubmit Relay)"
-              className="w-full px-3.5 py-2 rounded-xl border border-purple-200 bg-white text-xs focus:outline-none"
-            />
-            <p className="text-[11px] text-purple-800 leading-relaxed">
-              💡 <strong>Lưu ý về FormSubmit Relay:</strong> Lần đầu tiên FormSubmit gửi thư tới email mới của bạn, nó sẽ gửi một email xác thực có nút <strong>"Activate Form"</strong> để chống spam. Bạn hãy vào hộp thư mở email đó bấm kích hoạt là các lần sau sẽ nhận thư tức thì! Hoặc tốt nhất là dùng <strong>Google Apps Script</strong> ở trên (bấm Copy mã dán vào script.google.com rồi tạo Web App) để gửi từ chính Gmail cá nhân mà không cần qua bên trung gian nào.
+            <p className="text-[11px] text-purple-900 leading-relaxed">
+              🔒 Link Google Apps Script (<code className="bg-white px-1 rounded font-bold">EMAIL_WEBHOOK_URL</code>) và các khóa EmailJS (<code className="bg-white px-1 rounded font-bold">EMAILJS_SERVICE_ID</code>, <code className="bg-white px-1 rounded font-bold">EMAILJS_TEMPLATE_ID</code>, <code className="bg-white px-1 rounded font-bold">EMAILJS_PUBLIC_KEY</code>, <code className="bg-white px-1 rounded font-bold">EMAILJS_PRIVATE_KEY</code>) hiện được đọc trực tiếp từ <strong>.env / Vercel Environment Variables</strong> và gửi qua API <code className="bg-white px-1 rounded">/api/send-email</code>. Nếu để trống trên server, hệ thống tự động dự phòng qua FormSubmit Relay.
             </p>
           </div>
 

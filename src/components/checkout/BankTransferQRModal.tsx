@@ -127,9 +127,9 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
           return;
         }
 
-        // Mỗi 6 giây (tick chẵn) chủ động quét SePay API dự phòng nếu webhook chưa tới
+        // Mỗi 6 giây (tick chẵn) chủ động quét SePay API dự phòng qua /api/check-sepay
         if (tickCount % 2 === 0 && isSepayActive) {
-          const sepayRes = await sepayService.checkTransactionForOrder(order, settings.sepay);
+          const sepayRes = await sepayService.checkTransactionForOrder(order);
           if (sepayRes.found) {
             markPaidSuccess({
               amount: sepayRes.amount,

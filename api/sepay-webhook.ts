@@ -1,10 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
 import { sendDepositConfirmedEmailsServer } from './_lib/depositEmail.js';
 import {
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY,
+  createServerSupabaseClient,
+  getServerSepayApiKey,
+  getServerSepayWebhookSecret,
   stripApiKeyPrefix,
-  resolveSepayServerToken,
   verifyWebhookTransactionWithSepayApi,
 } from './_lib/sepayApi.js';
 
@@ -41,7 +40,7 @@ export default async function handler(req: any, res: any) {
     const authHeader = String(
       req.headers['authorization'] || req.headers['x-api-key'] || req.headers['api-key'] || ''
     );
-    let apiKey =
+    const incomingKey =
       stripApiKeyPrefix(authHeader) ||
       stripApiKeyPrefix(req.query?.api_key) ||
       stripApiKeyPrefix(req.query?.apikey);
@@ -67,23 +66,34 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    // Nếu SePay cấu hình Webhook "Không cần chứng thực" (không gửi Authorization / ?api_key=),
-    // chủ động đối chiếu ngược lại SePay User API xem giao dịch id/referenceCode này có thật hay không.
-    if (!apiKey) {
-      const serverToken = await resolveSepayServerToken();
-      if (
-        serverToken &&
-        (await verifyWebhookTransactionWithSepayApi(serverToken, {
-          id,
-          referenceCode,
-          transferAmount,
-        }))
-      ) {
-        apiKey = serverToken;
-      }
+    // Xác thực Webhook nghiêm ngặt bằng biến môi trường `.env` (`SEPAY_WEBHOOK_SECRET` / `SEPAY_API_KEY`)
+    const serverToken = getServerSepayApiKey();
+    const webhookSecret = getServerSepayWebhookSecret();
+
+    let authorized = false;
+    if (incomingKey) {
+      authorized = Boolean(
+        (webhookSecret && incomingKey === webhookSecret) ||
+          (serverToken && incomingKey === serverToken)
+      );
+    } else if (serverToken) {
+      // Nếu SePay cấu hình "Không cần chứng thực", đối chiếu trực tiếp giao dịch thật với SePay API
+      authorized = await verifyWebhookTransactionWithSepayApi(serverToken, {
+        id,
+        referenceCode,
+        transferAmount,
+      });
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    if (!authorized) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized SePay webhook',
+        hint: 'Kiem tra SEPAY_API_KEY/SEPAY_WEBHOOK_SECRET trong .env hoac bat chung thuc API Key tren my.sepay.vn.',
+      });
+    }
+
+    const supabase = createServerSupabaseClient({ preferServiceRole: true });
 
     const { data, error } = await supabase.rpc('process_sepay_webhook', {
       p_sepay_id: typeof id === 'number' ? id : Number(id) || null,
@@ -94,7 +104,7 @@ export default async function handler(req: any, res: any) {
       p_transfer_type: transferType || 'in',
       p_transfer_amount: Number(transferAmount) || 0,
       p_reference_code: referenceCode || null,
-      p_api_key: apiKey || null,
+      p_api_key: serverToken || incomingKey || null,
     });
 
     if (error) {
@@ -123,13 +133,11 @@ export default async function handler(req: any, res: any) {
       return res.status(401).json({
         success: false,
         error: result.error,
-        hint: 'Hay dan URL Webhook kem ?api_key=<SEPAY_API_KEY> hoac chon Kieu chung thuc API Key tren my.sepay.vn (Authorization: Apikey <SEPAY_API_KEY>).',
       });
     }
 
     let emailSent = false;
 
-    // Gửi đồng thời Email xác nhận cọc tới Admin & Khách hàng (qua Webhook Apps Script / EmailJS nếu đã cấu hình)
     if (result?.success && !result?.duplicate && !result?.insufficient_deposit && result?.order_reference) {
       const proto = String(req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
       const host = String(req.headers['x-forwarded-host'] || req.headers['host'] || '').split(',')[0].trim();
@@ -148,7 +156,6 @@ export default async function handler(req: any, res: any) {
       emailSent = emailResult.sent;
     }
 
-    // Luôn trả về 200 để SePay đánh dấu đã nhận webhook (kể cả chuyển khoản ngoài không thuộc đơn hàng)
     return res.status(200).json({
       success: true,
       matched: Boolean(result?.success),

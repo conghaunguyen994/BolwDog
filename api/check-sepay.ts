@@ -1,10 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
 import { sendDepositConfirmedEmailsServer } from './_lib/depositEmail.js';
+import { hasServerEmailProvider } from './_lib/emailDispatch.js';
 import {
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY,
-  stripApiKeyPrefix,
-  resolveSepayServerToken,
+  createServerSupabaseClient,
+  getServerSepayApiKey,
   fetchSepayTransactions,
 } from './_lib/sepayApi.js';
 
@@ -28,12 +26,16 @@ export default async function handler(req: any, res: any) {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
-    const { action, apiKey, orderReference, phone } = body;
+    const { action, orderReference, phone } = body;
 
     if (action === 'verify-key') {
-      const token = stripApiKeyPrefix(apiKey);
+      const token = getServerSepayApiKey();
       if (!token) {
-        return res.status(400).json({ ok: false, message: 'Vui lòng nhập SePay API Token để kiểm tra.' });
+        return res.status(200).json({
+          ok: false,
+          configured: false,
+          message: 'Chưa cấu hình biến môi trường SEPAY_API_KEY trong file .env hoặc Vercel Environment Variables.',
+        });
       }
 
       const sepayRes = await fetchSepayTransactions(token, 1);
@@ -43,11 +45,13 @@ export default async function handler(req: any, res: any) {
         if (sepayRes.status === 401 || sepayRes.status === 403) {
           return res.status(200).json({
             ok: false,
-            message: 'API Token không hợp lệ hoặc đã bị vô hiệu hóa trên SePay (401 Unauthorized).',
+            configured: true,
+            message: 'SEPAY_API_KEY trong .env không hợp lệ hoặc đã bị vô hiệu hóa trên SePay (401).',
           });
         }
         return res.status(200).json({
           ok: false,
+          configured: true,
           message: json.error || `SePay trả về mã lỗi HTTP ${sepayRes.status}.`,
         });
       }
@@ -55,7 +59,8 @@ export default async function handler(req: any, res: any) {
       const count = Array.isArray(json.transactions) ? json.transactions.length : 0;
       return res.status(200).json({
         ok: true,
-        message: 'Kết nối SePay API thành công! Tài khoản ngân hàng đang sẵn sàng nhận diện giao dịch.',
+        configured: true,
+        message: 'Kết nối SePay API từ biến môi trường Server (.env) thành công!',
         count,
       });
     }
@@ -66,19 +71,12 @@ export default async function handler(req: any, res: any) {
       }
 
       const authHeader = String(req.headers['authorization'] || '').trim();
-      const supabase = createClient(
-        SUPABASE_URL,
-        SUPABASE_ANON_KEY,
-        authHeader
-          ? {
-              global: {
-                headers: {
-                  Authorization: authHeader,
-                },
-              },
-            }
-          : undefined
-      );
+      const supabase = createServerSupabaseClient({
+        preferServiceRole: true,
+        authHeader: authHeader || undefined,
+      });
+
+      const serverEmailConfigured = hasServerEmailProvider();
 
       // 1. Kiểm tra trạng thái hiện tại trong Database trước (nếu Webhook đã cập nhật rồi)
       if (phone) {
@@ -95,6 +93,7 @@ export default async function handler(req: any, res: any) {
           return res.status(200).json({
             found: true,
             fromDatabase: true,
+            serverEmailConfigured,
             payment_status: statusData.payment_status,
             amount: Number(statusData.deposit_amount || 0),
             message: `Đã xác nhận thanh toán cho đơn ${orderReference}!`,
@@ -102,12 +101,12 @@ export default async function handler(req: any, res: any) {
         }
       }
 
-      // 2. Nếu có API Token (từ Admin, Vercel env SEPAY_API_KEY, hoặc đọc qua SUPABASE_SERVICE_ROLE_KEY) -> quét trực tiếp SePay API
-      const token = await resolveSepayServerToken(apiKey);
-
+      // 2. Lấy SEPAY_API_KEY nghiêm ngặt từ `.env` của server (KHÔNG nhận hay lưu key từ client/DB)
+      const token = getServerSepayApiKey();
       if (!token) {
         return res.status(200).json({
           found: false,
+          serverEmailConfigured,
           message: `Chưa ghi nhận giao dịch từ Webhook SePay cho đơn ${orderReference}. Nếu bạn vừa chuyển khoản, vui lòng đợi 10-30 giây để ngân hàng đồng bộ nhé!`,
         });
       }
@@ -118,6 +117,7 @@ export default async function handler(req: any, res: any) {
       if (!sepayRes.ok) {
         return res.status(200).json({
           found: false,
+          serverEmailConfigured,
           message: `Không thể kết nối SePay (HTTP ${sepayRes.status})`,
         });
       }
@@ -140,6 +140,7 @@ export default async function handler(req: any, res: any) {
       if (!matched) {
         return res.status(200).json({
           found: false,
+          serverEmailConfigured,
           message: `Chưa tìm thấy giao dịch nào có nội dung chứa mã ${orderReference}. Vui lòng đợi 10-30 giây để ngân hàng đồng bộ nhé.`,
         });
       }
@@ -161,6 +162,7 @@ export default async function handler(req: any, res: any) {
       if (rpcError) {
         return res.status(200).json({
           found: false,
+          serverEmailConfigured,
           message: `Tìm thấy giao dịch ${amount.toLocaleString('vi-VN')} đ nhưng lỗi cập nhật DB: ${rpcError.message}`,
         });
       }
@@ -182,6 +184,7 @@ export default async function handler(req: any, res: any) {
       if (rpcResult.error || rpcResult.insufficient_deposit) {
         return res.status(200).json({
           found: false,
+          serverEmailConfigured,
           message:
             rpcResult.message ||
             rpcResult.error ||
@@ -213,6 +216,7 @@ export default async function handler(req: any, res: any) {
         amount,
         gateway,
         emailSent,
+        serverEmailConfigured,
         duplicate: Boolean(rpcResult.duplicate),
         result: rpcData,
         message: `Đã tìm thấy giao dịch chuyển khoản ${amount.toLocaleString('vi-VN')} đ cho đơn ${orderReference}!`,

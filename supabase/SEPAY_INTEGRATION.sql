@@ -38,7 +38,7 @@ BEGIN
   END LOOP;
 END $$;
 
--- 4. HÀM RPC XỬ LÝ THANH TOÁN SEPAY AN TOÀN (SECURITY DEFINER)
+-- 4. HÀM RPC XỬ LÝ THANH TOÁN SEPAY AN TOÀN (CHỈ SERVER .ENV SERVICE_ROLE HOẶC ADMIN ĐƯỢC GỌI)
 CREATE OR REPLACE FUNCTION public.process_sepay_webhook(
   p_sepay_id BIGINT,
   p_gateway TEXT,
@@ -62,17 +62,32 @@ DECLARE
   v_new_payment_status public.orders.payment_status%TYPE;
   v_new_order_status public.orders.order_status%TYPE;
   v_sepay_config JSONB;
-  v_configured_key TEXT;
   v_clean_content TEXT;
   v_alnum_content TEXT;
   v_clean_ref TEXT;
+  v_jwt_role TEXT := coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), auth.role(), '');
+  v_is_service_role BOOLEAN := (v_jwt_role = 'service_role');
   v_is_admin BOOLEAN := FALSE;
   v_existing_paid NUMERIC := 0;
   v_total_paid NUMERIC := 0;
   v_ref_clean TEXT := nullif(trim(coalesce(p_reference_code, '')), '');
   v_tx_id TEXT;
 BEGIN
-  -- 1. Bỏ qua nếu không phải tiền vào hoặc số tiền <= 0
+  -- 1. Xác thực quyền gọi: Chỉ Backend Vercel (SUPABASE_SERVICE_ROLE_KEY trong .env) hoặc Admin đã đăng nhập
+  BEGIN
+    v_is_admin := public.is_admin();
+  EXCEPTION WHEN OTHERS THEN
+    v_is_admin := FALSE;
+  END;
+
+  IF NOT v_is_service_role AND NOT v_is_admin THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'Unauthorized: Chi backend server (.env SUPABASE_SERVICE_ROLE_KEY) hoac Admin moi duoc goi ham nay'
+    );
+  END IF;
+
+  -- 2. Bỏ qua nếu không phải tiền vào hoặc số tiền <= 0
   IF lower(coalesce(p_transfer_type, '')) <> 'in' OR coalesce(p_transfer_amount, 0) <= 0 THEN
     RETURN jsonb_build_object(
       'success', false,
@@ -80,14 +95,7 @@ BEGIN
     );
   END IF;
 
-  -- Kiểm tra quyền Admin (an toàn ngay cả khi không gọi qua JWT Admin)
-  BEGIN
-    v_is_admin := public.is_admin();
-  EXCEPTION WHEN OTHERS THEN
-    v_is_admin := FALSE;
-  END;
-
-  -- 2. Đọc cấu hình SePay từ shop_settings (hỗ trợ cả key 'sepay' độc lập lẫn lồng trong 'general')
+  -- 3. Đọc công tắc bật/tắt SePay từ shop_settings (KHÔNG lưu hoặc đọc API key từ DB)
   SELECT CASE
            WHEN setting_key = 'sepay' THEN setting_value
            ELSE setting_value->'sepay'
@@ -98,28 +106,11 @@ BEGIN
   ORDER BY (setting_key = 'sepay') DESC, updated_at DESC
   LIMIT 1;
 
-  IF NOT v_is_admin THEN
-    IF v_sepay_config IS NULL OR coalesce((v_sepay_config->>'enabled')::boolean, false) = false THEN
-      RETURN jsonb_build_object(
-        'success', false,
-        'error', 'Cong thanh toan SePay chua duoc bat trong Cai dat Admin'
-      );
-    END IF;
-
-    v_configured_key := regexp_replace(trim(coalesce(v_sepay_config->>'api_key', '')), '^(Bearer|Apikey)\s+', '', 'i');
-    IF v_configured_key = '' THEN
-      RETURN jsonb_build_object(
-        'success', false,
-        'error', 'Chua cau hinh SePay API Key trong Cai dat Admin'
-      );
-    END IF;
-
-    IF regexp_replace(trim(coalesce(p_api_key, '')), '^(Bearer|Apikey)\s+', '', 'i') <> v_configured_key THEN
-      RETURN jsonb_build_object(
-        'success', false,
-        'error', 'Sai ma API Key xac thuc SePay'
-      );
-    END IF;
+  IF v_sepay_config IS NOT NULL AND coalesce((v_sepay_config->>'enabled')::boolean, true) = false THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'Cong thanh toan SePay chua duoc bat trong Cai dat Admin'
+    );
   END IF;
 
   -- 3. Trích xuất mã đơn hàng từ nội dung chuyển khoản (hỗ trợ cả khi ngân hàng xóa dấu gạch ngang)
@@ -265,7 +256,8 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.process_sepay_webhook(BIGINT, TEXT, TEXT, TEXT, TEXT, TEXT, NUMERIC, TEXT, TEXT) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.process_sepay_webhook(BIGINT, TEXT, TEXT, TEXT, TEXT, TEXT, NUMERIC, TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.process_sepay_webhook(BIGINT, TEXT, TEXT, TEXT, TEXT, TEXT, NUMERIC, TEXT, TEXT) TO authenticated, service_role;
 
 -- 5. HÀM RPC KIỂM TRA TRẠNG THÁI THANH TOÁN CHO KHÁCH VÃNG LAI (AN TOÀN THEO MÃ ĐƠN + SĐT)
 CREATE OR REPLACE FUNCTION public.get_order_payment_status(

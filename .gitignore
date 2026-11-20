@@ -12,9 +12,11 @@ dist
 dist-ssr
 *.local
 
-# Environment variables
+# Environment variables (NEVER commit .env secrets to GitHub)
 .env
-.env*.local
+.env.*
+!.env.example
+*.local
 
 # Editor directories and files
 .vscode/*

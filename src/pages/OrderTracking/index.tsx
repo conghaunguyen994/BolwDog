@@ -173,7 +173,7 @@ export const OrderTrackingPage: React.FC = () => {
 
         // Mỗi 6 giây (tick chẵn) chủ động đối soát thêm từ SePay API nếu webhook chậm
         if (tickCount % 2 === 0 && (settings.sepay?.enabled ?? true)) {
-          const sepayRes = await sepayService.checkTransactionForOrder(order, settings.sepay);
+          const sepayRes = await sepayService.checkTransactionForOrder(order);
           if (sepayRes.found) {
             triggerPaidSuccess('partially_paid', 'confirmed', {
               amount: sepayRes.amount,

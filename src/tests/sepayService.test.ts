@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { sepayService } from '../services/sepayService';
 import { emailService } from '../services/emailService';
-import { settingsService } from '../services/settingsService';
+import { settingsService, sanitizeSettingEntry } from '../services/settingsService';
 import { defaultShopSettings } from '../constants/defaultSettings';
 import type { Order } from '../types/order';
 import { stripApiKeyPrefix, verifyWebhookTransactionWithSepayApi } from '../../api/_lib/sepayApi';
@@ -62,35 +62,21 @@ describe('sepayService - Order Reference Extraction & Parsing', () => {
     expect(sepayService.extractOrderReference(undefined)).toBeNull();
   });
 
-  it('should reject empty API key validation gracefully', async () => {
-    const res = await sepayService.verifySepayApiKey('');
-    expect(res.ok).toBe(false);
-    expect(res.message).toContain('Vui lòng nhập SePay API Key');
-  });
+  it('should check SePay status via /api/check-sepay without sending any client API key', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({ ok: true, configured: true, count: 1, message: 'Server OK' }),
+    } as Response);
 
-  it('should call /api/check-sepay or fallback using Bearer token header', async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-        headers: new Headers({ 'content-type': 'text/html' }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({ status: 200, transactions: [{ id: 1 }] }),
-      } as Response);
-
-    const res = await sepayService.verifySepayApiKey('Bearer TEST_TOKEN_123');
+    const res = await sepayService.verifySepayConnection();
     expect(res.ok).toBe(true);
     expect(res.count).toBe(1);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[1]?.[0]).toBe('https://my.sepay.vn/userapi/transactions/list?limit=1');
-    const secondCallInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
-    expect((secondCallInit.headers as Record<string, string>)['Authorization']).toBe(
-      'Bearer TEST_TOKEN_123'
-    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/check-sepay');
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(String(init.body))).toEqual({ action: 'verify-key' });
   });
 });
 
@@ -123,7 +109,7 @@ function buildSampleOrder(overrides?: Partial<Order>): Order {
 }
 
 describe('emailService.notifyDepositConfirmed - Simultaneous Admin & Customer Email', () => {
-  it('should send deposit confirmation emails simultaneously to both Admin and Customer', async () => {
+  it('should dispatch deposit confirmation emails simultaneously via /api/send-email', async () => {
     vi.spyOn(settingsService, 'getSettings').mockResolvedValue({
       ...defaultShopSettings,
       email_notifications: {
@@ -131,7 +117,6 @@ describe('emailService.notifyDepositConfirmed - Simultaneous Admin & Customer Em
         enabled: true,
         admin_email: 'admin@bolwdog.vn',
         admin_backup_email: 'backup@bolwdog.vn',
-        webhook_url: 'https://script.google.com/macros/s/fake-webhook/exec',
         production_site_url: 'https://bowlshop.vercel.app',
       },
     });
@@ -139,7 +124,8 @@ describe('emailService.notifyDepositConfirmed - Simultaneous Admin & Customer Em
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ ok: true }),
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({ ok: true, channel: 'webhook' }),
     } as Response);
 
     const res = await emailService.notifyDepositConfirmed(buildSampleOrder(), {
@@ -151,6 +137,8 @@ describe('emailService.notifyDepositConfirmed - Simultaneous Admin & Customer Em
     expect(res.adminSent).toBe(true);
     expect(res.customerSent).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/send-email');
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/send-email');
 
     const bodies = fetchMock.mock.calls.map((c) => JSON.parse(String((c[1] as RequestInit).body)));
     const adminCall = bodies.find((b) => b.to === 'admin@bolwdog.vn');
@@ -176,13 +164,14 @@ describe('emailService.notifyDepositConfirmed - Simultaneous Admin & Customer Em
         enabled: true,
         admin_email: 'admin@bolwdog.vn',
         admin_backup_email: '',
-        webhook_url: 'https://script.google.com/macros/s/fake-webhook/exec',
       },
     });
 
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
       status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({ ok: true, channel: 'webhook' }),
     } as Response);
 
     const res = await emailService.notifyDepositConfirmed(
@@ -203,13 +192,14 @@ describe('emailService.notifyDepositConfirmed - Simultaneous Admin & Customer Em
         ...defaultShopSettings.email_notifications!,
         enabled: true,
         admin_email: 'admin@bolwdog.vn',
-        webhook_url: 'https://script.google.com/macros/s/fake-webhook/exec',
       },
     });
 
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
       status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({ ok: true, channel: 'webhook' }),
     } as Response);
 
     const order = buildSampleOrder({ id: 'order-dedupe-1' });
@@ -223,42 +213,65 @@ describe('emailService.notifyDepositConfirmed - Simultaneous Admin & Customer Em
     expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
-  it('should skip DB-poll client fallback when server webhook_url is configured, and send when absent', async () => {
-    const getSettingsSpy = vi.spyOn(settingsService, 'getSettings').mockResolvedValue({
+  it('should skip DB-poll client fallback when server .env email provider is configured, and fall back to FormSubmit when absent', async () => {
+    vi.spyOn(settingsService, 'getSettings').mockResolvedValue({
       ...defaultShopSettings,
       email_notifications: {
         ...defaultShopSettings.email_notifications!,
         enabled: true,
         admin_email: 'admin@bolwdog.vn',
-        webhook_url: 'https://script.google.com/macros/s/fake-webhook/exec',
       },
     });
 
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ success: 'true' }),
-    } as Response);
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      const bodyStr = init?.body ? String(init.body) : '';
+      if (String(url) === '/api/send-email' && bodyStr.includes('"action":"status"')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({ ok: true, hasServerProvider: true }),
+        } as Response;
+      }
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ ok: true }),
+      } as Response;
+    });
 
     const skippedRes = await emailService.notifyDepositConfirmed(
       buildSampleOrder({ id: 'order-webhook-skip' }),
       { skipIfServerWebhookConfigured: true }
     );
     expect(skippedRes.sent).toBe(false);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    // Without webhook_url (FormSubmit relay mode), DB-poll transition must still send via browser
-    getSettingsSpy.mockResolvedValue({
-      ...defaultShopSettings,
-      email_notifications: {
-        ...defaultShopSettings.email_notifications!,
-        enabled: true,
-        admin_email: 'admin@bolwdog.vn',
-        webhook_url: '',
-        emailjs_service_id: '',
-        emailjs_template_id: '',
-        emailjs_public_key: '',
-      },
+    fetchMock.mockReset();
+    fetchMock.mockImplementation(async (url, init) => {
+      const bodyStr = init?.body ? String(init.body) : '';
+      if (String(url) === '/api/send-email') {
+        if (bodyStr.includes('"action":"status"')) {
+          return {
+            ok: true,
+            status: 200,
+            headers: new Headers({ 'content-type': 'application/json' }),
+            json: async () => ({ ok: true, hasServerProvider: false }),
+          } as Response;
+        }
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({ ok: false, reason: 'no_server_provider' }),
+        } as Response;
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: 'true' }),
+      } as Response;
     });
 
     const fallbackRes = await emailService.notifyDepositConfirmed(
@@ -266,8 +279,10 @@ describe('emailService.notifyDepositConfirmed - Simultaneous Admin & Customer Em
       { skipIfServerWebhookConfigured: true }
     );
     expect(fallbackRes.sent).toBe(true);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('https://formsubmit.co/ajax/');
+    const formSubmitCalls = fetchMock.mock.calls.filter((c) =>
+      String(c[0]).startsWith('https://formsubmit.co/ajax/')
+    );
+    expect(formSubmitCalls).toHaveLength(2);
   });
 });
 
@@ -326,5 +341,30 @@ describe('api/_lib/sepayApi - Webhook Auth & Transaction Verification', () => {
       transferAmount: 999999,
     });
     expect(forged).toBe(false);
+  });
+
+  it('should strip legacy DB API keys and email secrets from shop_settings records', () => {
+    const cleanSepay = sanitizeSettingEntry('sepay', {
+      enabled: true,
+      api_key: 'SECRET_KEY',
+      account_number: '0345553913',
+    });
+    expect(cleanSepay.hadSecrets).toBe(true);
+    expect(cleanSepay.clean.api_key).toBeUndefined();
+    expect(cleanSepay.clean.account_number).toBe('0345553913');
+
+    const cleanEmail = sanitizeSettingEntry('email_notifications', {
+      enabled: true,
+      admin_email: 'admin@example.com',
+      webhook_url: 'https://script.google.com/macros/s/secret/exec',
+      emailjs_service_id: 'svc',
+      emailjs_template_id: 'tpl',
+      emailjs_public_key: 'pub',
+      emailjs_private_key: 'priv',
+    });
+    expect(cleanEmail.hadSecrets).toBe(true);
+    expect(cleanEmail.clean.webhook_url).toBeUndefined();
+    expect(cleanEmail.clean.emailjs_public_key).toBeUndefined();
+    expect(cleanEmail.clean.admin_email).toBe('admin@example.com');
   });
 });

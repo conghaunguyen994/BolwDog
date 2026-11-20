@@ -1,6 +1,6 @@
 import { ShopSettings } from '../types/settings';
 
-// Giá trị cấu hình mặc định trong lúc chờ tải từ bảng shop_settings trên Supabase DB
+// Giá trị cấu hình hiển thị mặc định (KHÔNG chứa bất kỳ API key hay secret nào — tất cả khóa bí mật nằm ở .env server)
 export const defaultShopSettings: ShopSettings = {
   general_info: {
     shop_name: 'BÂU SHOP',
@@ -30,10 +30,6 @@ export const defaultShopSettings: ShopSettings = {
     admin_email: 'conghaunguyen994@gmail.com.vn',
     admin_backup_email: 'conghaunguyen994@gmail.com',
     production_site_url: 'https://bowlshop.vercel.app',
-    webhook_url: '',
-    emailjs_service_id: '',
-    emailjs_template_id: '',
-    emailjs_public_key: '',
     notify_on_new_order: true,
     notify_on_demo_sent: true,
     notify_on_demo_review: true,
@@ -42,10 +38,8 @@ export const defaultShopSettings: ShopSettings = {
   blocked_rules: [],
   sepay: {
     enabled: true,
-    api_key: '',
     account_number: '0345553913',
     pattern_prefix: 'BD',
     auto_confirm_order: true,
   },
 };
-

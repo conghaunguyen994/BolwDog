@@ -1,11 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-export const SUPABASE_URL =
-  process.env.VITE_SUPABASE_URL || 'https://mwuewkvddhjtxmfzvjyj.supabase.co';
-export const SUPABASE_ANON_KEY =
-  process.env.VITE_SUPABASE_ANON_KEY ||
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  'sb_publishable_4Ri-LJHIAOjRCU64cLaYgQ_ZwRb2wqv';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 export function stripApiKeyPrefix(raw?: unknown): string {
   return String(raw || '')
@@ -13,30 +6,68 @@ export function stripApiKeyPrefix(raw?: unknown): string {
     .replace(/^(Bearer|Apikey)\s+/i, '');
 }
 
-/**
- * Resolve SePay API Token từ request/admin, biến môi trường Vercel SEPAY_API_KEY,
- * hoặc bảng shop_settings qua SUPABASE_SERVICE_ROLE_KEY.
- */
-export async function resolveSepayServerToken(providedKey?: unknown): Promise<string> {
-  let token = stripApiKeyPrefix(providedKey) || stripApiKeyPrefix(process.env.SEPAY_API_KEY);
+export function getSupabaseUrl(): string {
+  return String(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
+}
 
-  if (!token && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    try {
-      const serviceClient = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-      const { data: sepayRow } = await serviceClient
-        .from('shop_settings')
-        .select('setting_value')
-        .eq('setting_key', 'sepay')
-        .maybeSingle();
-      if (sepayRow?.setting_value?.enabled && sepayRow.setting_value.api_key) {
-        token = stripApiKeyPrefix(sepayRow.setting_value.api_key);
-      }
-    } catch {
-      // Ignore fallback DB read error
-    }
+export function getSupabaseAnonKey(): string {
+  return String(
+    process.env.SUPABASE_ANON_KEY ||
+      process.env.VITE_SUPABASE_ANON_KEY ||
+      process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+      ''
+  ).trim();
+}
+
+export function getSupabaseServiceRoleKey(): string {
+  return String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+}
+
+/**
+ * Tạo Supabase Client trên server chỉ dùng biến môi trường `.env`
+ * (ưu tiên SUPABASE_SERVICE_ROLE_KEY để thực thi RPC nội bộ an toàn sau khi server đã xác thực).
+ */
+export function createServerSupabaseClient(options?: {
+  preferServiceRole?: boolean;
+  authHeader?: string;
+}): SupabaseClient {
+  const url = getSupabaseUrl();
+  const serviceKey = getSupabaseServiceRoleKey();
+  const anonKey = getSupabaseAnonKey();
+  const key = options?.preferServiceRole && serviceKey ? serviceKey : anonKey;
+
+  if (!url || !key) {
+    throw new Error(
+      'Thiếu biến môi trường SUPABASE_URL hoặc SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ANON_KEY trong .env.'
+    );
   }
 
-  return token;
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    ...(options?.authHeader && !(options?.preferServiceRole && serviceKey)
+      ? {
+          global: {
+            headers: { Authorization: options.authHeader },
+          },
+        }
+      : {}),
+  });
+}
+
+/**
+ * Đọc SePay API Token nghiêm ngặt từ biến môi trường `.env` (`SEPAY_API_KEY`).
+ * Không đọc hoặc lưu API Key trong cơ sở dữ liệu hay trình duyệt.
+ */
+export function getServerSepayApiKey(): string {
+  return stripApiKeyPrefix(process.env.SEPAY_API_KEY);
+}
+
+/**
+ * Đọc secret dùng để xác thực header `Authorization: Apikey ...` của Webhook SePay.
+ * Mặc định sử dụng `SEPAY_WEBHOOK_SECRET` (nếu có) hoặc `SEPAY_API_KEY`.
+ */
+export function getServerSepayWebhookSecret(): string {
+  return stripApiKeyPrefix(process.env.SEPAY_WEBHOOK_SECRET) || getServerSepayApiKey();
 }
 
 export async function fetchSepayTransactions(

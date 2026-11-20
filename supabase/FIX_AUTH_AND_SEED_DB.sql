@@ -578,25 +578,33 @@ DECLARE
   v_new_payment_status public.orders.payment_status%TYPE;
   v_new_order_status public.orders.order_status%TYPE;
   v_sepay_config JSONB;
-  v_configured_key TEXT;
   v_clean_content TEXT;
   v_alnum_content TEXT;
   v_clean_ref TEXT;
+  v_jwt_role TEXT := coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), auth.role(), '');
+  v_is_service_role BOOLEAN := (v_jwt_role = 'service_role');
   v_is_admin BOOLEAN := FALSE;
   v_existing_paid NUMERIC := 0;
   v_total_paid NUMERIC := 0;
   v_ref_clean TEXT := nullif(trim(coalesce(p_reference_code, '')), '');
   v_tx_id TEXT;
 BEGIN
-  IF lower(coalesce(p_transfer_type, '')) <> 'in' OR coalesce(p_transfer_amount, 0) <= 0 THEN
-    RETURN jsonb_build_object('success', false, 'message', 'Bo qua giao dich khong phai tien vao');
-  END IF;
-
   BEGIN
     v_is_admin := public.is_admin();
   EXCEPTION WHEN OTHERS THEN
     v_is_admin := FALSE;
   END;
+
+  IF NOT v_is_service_role AND NOT v_is_admin THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'Unauthorized: Chi backend server (.env SUPABASE_SERVICE_ROLE_KEY) hoac Admin moi duoc goi ham nay'
+    );
+  END IF;
+
+  IF lower(coalesce(p_transfer_type, '')) <> 'in' OR coalesce(p_transfer_amount, 0) <= 0 THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Bo qua giao dich khong phai tien vao');
+  END IF;
 
   SELECT CASE
            WHEN setting_key = 'sepay' THEN setting_value
@@ -608,19 +616,8 @@ BEGIN
   ORDER BY (setting_key = 'sepay') DESC, updated_at DESC
   LIMIT 1;
 
-  IF NOT v_is_admin THEN
-    IF v_sepay_config IS NULL OR coalesce((v_sepay_config->>'enabled')::boolean, false) = false THEN
-      RETURN jsonb_build_object('success', false, 'error', 'Cong thanh toan SePay chua duoc bat');
-    END IF;
-
-    v_configured_key := regexp_replace(trim(coalesce(v_sepay_config->>'api_key', '')), '^(Bearer|Apikey)\s+', '', 'i');
-    IF v_configured_key = '' THEN
-      RETURN jsonb_build_object('success', false, 'error', 'Chua cau hinh SePay API Key');
-    END IF;
-
-    IF regexp_replace(trim(coalesce(p_api_key, '')), '^(Bearer|Apikey)\s+', '', 'i') <> v_configured_key THEN
-      RETURN jsonb_build_object('success', false, 'error', 'Sai ma API Key xac thuc SePay');
-    END IF;
+  IF v_sepay_config IS NOT NULL AND coalesce((v_sepay_config->>'enabled')::boolean, true) = false THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Cong thanh toan SePay chua duoc bat');
   END IF;
 
   v_clean_content := upper(coalesce(p_content, ''));
@@ -757,7 +754,8 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.process_sepay_webhook(BIGINT, TEXT, TEXT, TEXT, TEXT, TEXT, NUMERIC, TEXT, TEXT) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.process_sepay_webhook(BIGINT, TEXT, TEXT, TEXT, TEXT, TEXT, NUMERIC, TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.process_sepay_webhook(BIGINT, TEXT, TEXT, TEXT, TEXT, TEXT, NUMERIC, TEXT, TEXT) TO authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.get_order_payment_status(
   p_order_ref TEXT,
