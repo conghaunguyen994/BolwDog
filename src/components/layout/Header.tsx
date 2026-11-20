@@ -1,10 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Search, ShieldCheck, Heart, PackageCheck, Menu, X, LogIn, LogOut, User, Phone, MessageCircle } from 'lucide-react';
+import {
+  ShoppingBag,
+  Search,
+  ShieldCheck,
+  Heart,
+  PackageCheck,
+  Menu,
+  X,
+  LogIn,
+  LogOut,
+  User,
+  ChevronDown,
+  LayoutGrid,
+  Sparkles,
+} from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { logout } from '../../features/auth/authSlice';
 import { authService } from '../../services/authService';
+import { productService } from '../../services/productService';
+import { Category } from '../../types/product';
 import { ThemeToggle } from '../common/ThemeToggle';
+
+function getCategoryEmoji(slug: string, name: string): string {
+  const s = `${slug} ${name}`.toLowerCase();
+  if (s.includes('bat-an') || s.includes('bát')) return '🥣';
+  if (s.includes('moc-khoa') || s.includes('móc khóa')) return '🔑';
+  if (s.includes('phu-kien') || s.includes('thẻ tên')) return '🏷️';
+  if (s.includes('decor') || s.includes('trang trí')) return '🪴';
+  if (s.includes('qua-tang') || s.includes('quà')) return '🎁';
+  return '✨';
+}
 
 interface HeaderProps {
   onOpenCart: () => void;
@@ -18,8 +44,40 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
   const auth = useAppSelector((state) => state.auth);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileCategoriesOpen, setIsMobileCategoriesOpen] = useState(true);
+  const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
+  const categoryMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    productService
+      .getCategories()
+      .then((cats) => setCategories(cats || []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!isCategoryMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        categoryMenuRef.current &&
+        !categoryMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsCategoryMenuOpen(false);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsCategoryMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isCategoryMenuOpen]);
 
   const handleLogout = async () => {
     await authService.logout();
@@ -78,9 +136,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
                   In 3D Đáng Yêu
                 </span>
               </div>
-              <p className="hidden sm:block text-[11px] text-cute-brown-light dark:text-cute-muted font-medium tracking-wide">
-                Quà tặng, phụ kiện & đồ in 3D cá nhân hóa
-              </p>
+
             </div>
           </Link>
 
@@ -92,23 +148,91 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
             >
               Trang chủ
             </Link>
+
+            {/* Dropdown Danh Mục Sản Phẩm (Mở khi hover hoặc click) */}
+            <div
+              ref={categoryMenuRef}
+              className="relative"
+              onMouseEnter={() => setIsCategoryMenuOpen(true)}
+              onMouseLeave={() => setIsCategoryMenuOpen(false)}
+            >
+              <button
+                type="button"
+                onClick={() => setIsCategoryMenuOpen((prev) => !prev)}
+                aria-expanded={isCategoryMenuOpen}
+                aria-haspopup="menu"
+                className={`text-sm font-semibold transition-colors flex items-center gap-1.5 py-2 ${
+                  isCategoryMenuOpen
+                    ? 'text-rose-500 dark:text-cute-pink-200'
+                    : 'text-cute-brown dark:text-cute-cream hover:text-cute-pink-400 dark:hover:text-cute-pink-200'
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4 text-cute-pink-400" />
+                <span>Danh mục sản phẩm</span>
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform duration-200 ${
+                    isCategoryMenuOpen ? 'rotate-180 text-rose-500' : ''
+                  }`}
+                />
+              </button>
+
+              {isCategoryMenuOpen && (
+                <div className="absolute left-0 top-full pt-1.5 w-80 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="bg-white dark:bg-cute-surface-dark border border-cute-border-light dark:border-cute-border-dark rounded-3xl shadow-cute-lg p-2.5 space-y-1">
+                    <Link
+                      to="/products"
+                      onClick={() => setIsCategoryMenuOpen(false)}
+                      className="flex items-center gap-3 p-2.5 rounded-2xl bg-gradient-to-r from-cute-pink/35 to-cute-peach/30 hover:from-cute-pink/60 hover:to-cute-peach/50 dark:from-cute-pink-dark/30 dark:to-cute-lavender-dark/30 transition-all group"
+                    >
+                      <span className="w-9 h-9 rounded-xl bg-white dark:bg-cute-surface-dark flex items-center justify-center shadow-xs flex-shrink-0">
+                        <Sparkles className="w-4 h-4 text-rose-500" />
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-xs font-extrabold text-cute-brown dark:text-cute-cream group-hover:text-rose-600 block">
+                          Tất cả sản phẩm
+                        </span>
+                        <span className="text-[11px] text-cute-brown-light dark:text-cute-muted block truncate">
+                          Khám phá toàn bộ gian hàng Ú òa Shop
+                        </span>
+                      </div>
+                    </Link>
+
+                    <div className="border-t border-cute-border-light/70 dark:border-cute-border-dark my-1.5" />
+
+                    <div className="max-h-72 overflow-y-auto space-y-1 pr-0.5">
+                      {categories.map((cat) => (
+                        <Link
+                          key={cat.id}
+                          to={`/products?category=${encodeURIComponent(cat.slug)}`}
+                          onClick={() => setIsCategoryMenuOpen(false)}
+                          className="flex items-start gap-3 p-2.5 rounded-2xl hover:bg-cute-cream dark:hover:bg-cute-cream-dark/60 transition-colors group"
+                        >
+                          <span className="w-9 h-9 rounded-xl bg-cute-cream dark:bg-cute-cream-dark flex items-center justify-center text-base flex-shrink-0 group-hover:scale-105 transition-transform">
+                            {getCategoryEmoji(cat.slug, cat.name)}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <span className="text-xs font-bold text-cute-brown dark:text-cute-cream group-hover:text-rose-500 block truncate">
+                              {cat.name}
+                            </span>
+                            {cat.description && (
+                              <span className="text-[11px] text-cute-brown-light dark:text-cute-muted line-clamp-1">
+                                {cat.description}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <Link
               to="/products"
               className="text-sm font-semibold text-cute-brown dark:text-cute-cream hover:text-cute-pink-400 dark:hover:text-cute-pink-200 transition-colors"
             >
-              Tất cả sản phẩm
-            </Link>
-            <Link
-              to="/products?category=bat-an-cho-cho"
-              className="text-sm font-semibold text-cute-brown dark:text-cute-cream hover:text-cute-pink-400 dark:hover:text-cute-pink-200 transition-colors"
-            >
-              Bát ăn in tên
-            </Link>
-            <Link
-              to="/products?category=moc-khoa-3d"
-              className="text-sm font-semibold text-cute-brown dark:text-cute-cream hover:text-cute-pink-400 dark:hover:text-cute-pink-200 transition-colors"
-            >
-              Móc khóa 3D
+              Sản phẩm
             </Link>
             <Link
               to="/track"
@@ -117,8 +241,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
               <PackageCheck className="w-4 h-4 text-cute-pink-400" />
               <span>Tra cứu đơn</span>
             </Link>
-
-
           </nav>
 
           {/* Right Action Icons */}
@@ -251,27 +373,40 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
             >
               ✨ Tất cả sản phẩm
             </Link>
-            <Link
-              to="/products?category=bat-an-cho-cho"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="py-1.5 hover:text-cute-pink-400"
-            >
-              🥣 Bát ăn cho cún (In tên)
-            </Link>
-            <Link
-              to="/products?category=moc-khoa-3d"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="py-1.5 hover:text-cute-pink-400"
-            >
-              🔑 Móc khóa 3D mông cún
-            </Link>
-            <Link
-              to="/products?category=phu-kien-ca-nhan-hoa"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="py-1.5 hover:text-cute-pink-400"
-            >
-              🏷️ Thẻ tên dạ quang chống lạc
-            </Link>
+
+            {/* Mobile Accordion Danh mục sản phẩm */}
+            <div className="rounded-2xl bg-cute-cream/60 dark:bg-cute-cream-dark/50 border border-cute-border-light dark:border-cute-border-dark overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setIsMobileCategoriesOpen((prev) => !prev)}
+                className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-extrabold text-cute-brown dark:text-cute-cream"
+              >
+                <span className="flex items-center gap-2">
+                  <LayoutGrid className="w-4 h-4 text-rose-500" />
+                  <span>Danh mục sản phẩm</span>
+                </span>
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform duration-200 ${
+                    isMobileCategoriesOpen ? 'rotate-180 text-rose-500' : ''
+                  }`}
+                />
+              </button>
+              {isMobileCategoriesOpen && (
+                <div className="px-3 pb-2.5 space-y-1.5 border-t border-cute-border-light/60 dark:border-cute-border-dark pt-2">
+                  {categories.map((cat) => (
+                    <Link
+                      key={cat.id}
+                      to={`/products?category=${encodeURIComponent(cat.slug)}`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-2 py-1.5 px-2 rounded-xl text-xs font-bold hover:bg-white dark:hover:bg-cute-surface-dark hover:text-rose-500 transition-colors"
+                    >
+                      <span>{getCategoryEmoji(cat.slug, cat.name)}</span>
+                      <span>{cat.name}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
             <Link
               to="/track"
               onClick={() => setIsMobileMenuOpen(false)}
