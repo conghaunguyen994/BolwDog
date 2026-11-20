@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Copy, Check, UploadCloud, AlertCircle, ShieldCheck, Heart, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import confetti from 'canvas-confetti';
+import { Copy, Check, UploadCloud, AlertCircle, ShieldCheck, Heart, ArrowRight, Zap, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { Order } from '../../types/order';
@@ -7,6 +8,8 @@ import { ShopSettings } from '../../types/settings';
 import { formatVND } from '../../utils/currency';
 import { generateVietQrUrl } from '../../utils/qrGenerator';
 import { orderService } from '../../services/orderService';
+import { sepayService } from '../../services/sepayService';
+import { supabase } from '../../services/supabase/client';
 
 interface BankTransferQRModalProps {
   isOpen: boolean;
@@ -28,8 +31,14 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
   const [isSubmittingProof, setIsSubmittingProof] = useState(false);
   const [proofUploaded, setProofUploaded] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isAutoPaid, setIsAutoPaid] = useState(
+    order.payment_status === 'partially_paid' || order.payment_status === 'paid'
+  );
+  const [checkingSepay, setCheckingSepay] = useState(false);
+  const [sepayNotice, setSepayNotice] = useState<string | null>(null);
 
   const bank = settings.bank_transfer;
+  const isSepayActive = settings.sepay?.enabled ?? true;
   const qrUrl = generateVietQrUrl({
     bankConfig: bank,
     amount: order.deposit_amount,
@@ -37,6 +46,52 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
   });
 
   const transferNote = `${bank.transfer_note_prefix || 'BD'} ${order.order_reference}`;
+
+  // Lắng nghe biến động số dư Realtime từ SePay Webhook cập nhật vào Supabase
+  useEffect(() => {
+    if (!isOpen || isAutoPaid || !order.id) return;
+
+    if (supabase) {
+      const channel = supabase
+        .channel(`qr-listen-${order.id}`)
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${order.id}` },
+          (payload: any) => {
+            const newPaymentStatus = payload.new?.payment_status;
+            if (newPaymentStatus === 'partially_paid' || newPaymentStatus === 'paid') {
+              setIsAutoPaid(true);
+              confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+              onProofUploaded?.();
+            }
+          }
+        )
+        .subscribe();
+
+      // Polling dự phòng mỗi 4 giây
+      const interval = setInterval(async () => {
+        try {
+          const { data } = await supabase
+            .from('orders')
+            .select('payment_status')
+            .eq('id', order.id)
+            .single();
+
+          if (data && (data.payment_status === 'partially_paid' || data.payment_status === 'paid')) {
+            setIsAutoPaid(true);
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+            onProofUploaded?.();
+            clearInterval(interval);
+          }
+        } catch {}
+      }, 4000);
+
+      return () => {
+        clearInterval(interval);
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [isOpen, isAutoPaid, order.id, onProofUploaded]);
 
   const copyToClipboard = (text: string, type: 'account' | 'note') => {
     navigator.clipboard.writeText(text);
@@ -46,6 +101,26 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
     } else {
       setCopiedNote(true);
       setTimeout(() => setCopiedNote(false), 2000);
+    }
+  };
+
+  const handleManualCheckSepay = async () => {
+    setCheckingSepay(true);
+    setSepayNotice(null);
+    try {
+      const res = await sepayService.checkTransactionForOrder(order, settings.sepay);
+      if (res.found) {
+        setIsAutoPaid(true);
+        confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+        setSepayNotice(`🎉 ${res.message}`);
+        onProofUploaded?.();
+      } else {
+        setSepayNotice(res.message);
+      }
+    } catch (e: any) {
+      setSepayNotice(`⚠️ ${e.message || 'Chưa tìm thấy giao dịch. Vui lòng thử lại sau ít giây.'}`);
+    } finally {
+      setCheckingSepay(false);
     }
   };
 
@@ -71,17 +146,92 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
     }
   };
 
+  // Nếu SePay đã xác nhận tự động thành công -> Hiển thị màn hình chúc mừng
+  if (isAutoPaid) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Thanh Toán Cọc Thành Công!" maxWidth="md">
+        <div className="text-center space-y-4 py-4">
+          <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 flex items-center justify-center mx-auto text-3xl animate-bounce">
+            <CheckCircle2 className="w-10 h-10 text-emerald-600" />
+          </div>
+
+          <div>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-xs mb-2">
+              <Zap className="w-3.5 h-3.5 fill-emerald-600" />
+              Đã Nhận Chuyển Khoản Tự Động Qua SePay
+            </span>
+            <h4 className="text-lg font-black text-cute-brown dark:text-cute-cream">
+              Cảm ơn ba mẹ <span className="text-rose-500 font-extrabold">{order.customer_name}</span>!
+            </h4>
+            <p className="text-xs text-cute-brown-light dark:text-cute-muted mt-1 leading-relaxed">
+              Hệ thống SePay đã tự động xác nhận số tiền cọc <strong>{formatVND(order.deposit_amount)}</strong> cho đơn hàng <strong>{order.order_reference}</strong>.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 text-xs text-purple-900 dark:text-purple-200 text-left space-y-1">
+            <p className="font-bold flex items-center gap-1.5">
+              <span>🎨 Bước tiếp theo của xưởng BolwDog:</span>
+            </p>
+            <p className="text-[11px] opacity-90 leading-relaxed">
+              Nghệ nhân xưởng đang dựng file 3D cho bé. Ngay khi dựng xong, xưởng sẽ gửi ảnh Demo 3D vào trang Tra Cứu và Email để ba mẹ duyệt và bấm <strong>&ldquo;Chốt In&rdquo;</strong> nhé!
+            </p>
+          </div>
+
+          <div className="pt-2">
+            <Button
+              variant="primary"
+              size="md"
+              onClick={onClose}
+              className="w-full justify-center"
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+            >
+              Đến Trang Theo Dõi Đơn Hàng Ngay
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Chuyển Khoản Đặt Cọc Yêu Thương" maxWidth="lg">
-      <div className="space-y-5">
+      <div className="space-y-4">
         
-        {/* Security / Anti-fake warning alert */}
-        <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-xs flex gap-2.5 items-start">
-          <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-          <p className="leading-relaxed">
-            <strong>Lưu ý bảo mật:</strong> Đơn hàng sẽ ở trạng thái <em>"Chờ xác nhận đặt cọc"</em> cho tới khi quản trị viên của BolwDog đối soát sao kê ngân hàng. Không tự động chuyển trạng thái đơn hàng khi chưa được duyệt thủ công.
-          </p>
-        </div>
+        {/* Banner Tự Động Nhận Diện SePay */}
+        {isSepayActive && (
+          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-sky-50 dark:from-emerald-950/30 dark:to-sky-950/30 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-start gap-2.5">
+              <span className="p-1.5 rounded-xl bg-emerald-500 text-white flex-shrink-0 animate-pulse mt-0.5 sm:mt-0">
+                <Zap className="w-4 h-4" />
+              </span>
+              <div>
+                <span className="font-black text-emerald-800 dark:text-emerald-300 block">
+                  Cổng Thanh Toán Tự Động SePay 24/7 Đang Hoạt Động
+                </span>
+                <p className="text-[11px] text-emerald-700 dark:text-emerald-300 opacity-90">
+                  Quét mã QR và giữ nguyên nội dung chuyển khoản. Hệ thống sẽ <strong>tự động duyệt cọc trong 3 - 5 giây</strong> mà không cần chụp biên lai!
+                </p>
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleManualCheckSepay}
+              isLoading={checkingSepay}
+              className="border-emerald-400 text-emerald-800 hover:bg-emerald-100 flex-shrink-0 text-[11px]"
+              leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${checkingSepay ? 'animate-spin' : ''}`} />}
+            >
+              Kiểm tra ngay
+            </Button>
+          </div>
+        )}
+
+        {sepayNotice && (
+          <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 text-xs text-amber-900 dark:text-amber-200">
+            {sepayNotice}
+          </div>
+        )}
 
         {/* QR Code and Bank Details Grid */}
         <div className="flex flex-col sm:flex-row items-center gap-5 p-4 rounded-3xl bg-cute-cream/60 dark:bg-cute-cream-dark/60 border border-cute-border-light dark:border-cute-border-dark">
@@ -156,12 +306,12 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
           </div>
         </div>
 
-        {/* Upload Proof Slip */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-cute-surface-dark border border-cute-border-light dark:border-cute-border-dark space-y-3">
+        {/* Upload Proof Slip (Dự phòng nếu chuyển từ cây ATM hoặc sai cú pháp) */}
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-cute-surface-dark border border-cute-border-light dark:border-cute-border-dark space-y-2.5">
           <div className="flex items-center justify-between">
             <h5 className="text-xs font-bold text-cute-brown dark:text-cute-cream flex items-center gap-1.5">
               <UploadCloud className="w-4 h-4 text-cute-pink-400" />
-              <span>Tải ảnh biên lai / sao kê chuyển tiền (để shop duyệt nhanh hơn)</span>
+              <span>Dự phòng: Gửi ảnh biên lai (nếu ba mẹ chuyển nhầm cú pháp hoặc chuyển từ quầy ATM)</span>
             </h5>
           </div>
 
@@ -204,7 +354,7 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
         </div>
 
         {/* Action Button */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
           <span className="text-[11px] text-cute-brown-light dark:text-cute-muted text-center sm:text-left">
             💡 Sau khi chuyển khoản, ba mẹ có thể theo dõi tiến độ duyệt mẫu 3D và giao hàng bất kỳ lúc nào.
           </span>

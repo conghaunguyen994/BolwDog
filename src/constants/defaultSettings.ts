@@ -40,5 +40,12 @@ export const defaultShopSettings: ShopSettings = {
     notify_on_status_change: true,
   },
   blocked_rules: [],
+  sepay: {
+    enabled: true,
+    api_key: '',
+    account_number: '5801769728',
+    pattern_prefix: 'BD',
+    auto_confirm_order: true,
+  },
 };
 

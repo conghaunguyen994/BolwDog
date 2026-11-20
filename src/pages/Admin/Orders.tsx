@@ -12,8 +12,11 @@ import {
   MessageSquareWarning,
   Printer,
   Mail,
+  Zap,
 } from 'lucide-react';
 import { orderService } from '../../services/orderService';
+import { settingsService } from '../../services/settingsService';
+import { sepayService } from '../../services/sepayService';
 import { emailService, buildGmailComposeUrl, buildOrderTrackingUrl } from '../../services/emailService';
 import { Order, OrderStatus, PaymentStatus } from '../../types/order';
 import { formatVND } from '../../utils/currency';
@@ -116,6 +119,28 @@ export const AdminOrders: React.FC = () => {
       }
     } catch (e) {
       console.error(e);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCheckSepay = async (order: Order) => {
+    setActionLoading(true);
+    try {
+      const settings = await settingsService.getSettings();
+      const res = await sepayService.checkTransactionForOrder(order, settings.sepay);
+      if (res.found) {
+        alert(`🎉 ${res.message}`);
+        await fetchOrders();
+        const updated = await orderService.lookupOrders(order.order_reference, '');
+        if (updated && updated[0]) {
+          setSelectedOrder(updated[0]);
+        }
+      } else {
+        alert(res.message);
+      }
+    } catch (err: any) {
+      alert(`⚠️ Lỗi kiểm tra SePay: ${err.message}`);
     } finally {
       setActionLoading(false);
     }
@@ -530,15 +555,28 @@ export const AdminOrders: React.FC = () => {
               </div>
 
               {selectedOrder.payment_status === 'deposit_pending' && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => handleVerifyDeposit(selectedOrder.id)}
-                  isLoading={actionLoading}
-                  leftIcon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
-                >
-                  Xác nhận đã nhận cọc
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleCheckSepay(selectedOrder)}
+                    isLoading={actionLoading}
+                    className="border-emerald-400 text-emerald-800 hover:bg-emerald-100"
+                    leftIcon={<Zap className="w-4 h-4 text-emerald-600" />}
+                  >
+                    Quét SePay
+                  </Button>
+
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleVerifyDeposit(selectedOrder.id)}
+                    isLoading={actionLoading}
+                    leftIcon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+                  >
+                    Xác nhận đã nhận cọc
+                  </Button>
+                </div>
               )}
             </div>
 
