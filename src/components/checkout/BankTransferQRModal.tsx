@@ -7,7 +7,6 @@ import {
   ShieldCheck,
   ArrowRight,
   Zap,
-  RefreshCw,
   CheckCircle2,
   Sparkles,
   QrCode,
@@ -416,33 +415,6 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
                 {formatVND(order.total_amount)}
               </span>
             </button>
-          </div>
-        )}
-
-        {/* Banner Tự Động Nhận Diện SePay (Không cần bấm nút) */}
-        {isSepayActive && (
-          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-sky-50 dark:from-emerald-950/30 dark:to-sky-950/30 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
-            <div className="flex items-start gap-2.5">
-              <span className="p-1.5 rounded-xl bg-emerald-500 text-white flex-shrink-0 animate-pulse mt-0.5 sm:mt-0">
-                <Zap className="w-4 h-4" />
-              </span>
-              <div>
-                <span className="font-black text-emerald-800 dark:text-emerald-300 block">
-                  Cổng Thanh Toán Tự Động SePay 24/7 Đang Trực
-                </span>
-                <p className="text-[11px] text-emerald-700 dark:text-emerald-300 opacity-90">
-                  Quét mã QR bên dưới (đã điền sẵn số tiền{' '}
-                  <strong>{formatVND(qrAmount)}</strong> và nội dung). Sau khi chuyển xong, hệ thống{' '}
-                  <strong>tự động xác nhận ngay lập tức</strong>!
-                </p>
-              </div>
-            </div>
-
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 dark:bg-emerald-950/60 border border-emerald-300 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold flex-shrink-0">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-              <RefreshCw className="w-3 h-3 animate-spin text-emerald-600" />
-              <span>Đang tự động chờ tiền vào...</span>
-            </div>
           </div>
         )}
 
