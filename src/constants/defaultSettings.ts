@@ -17,9 +17,9 @@ export const defaultShopSettings: ShopSettings = {
     instagram: 'https://instagram.com/bowldog.petboutique',
   },
   bank_transfer: {
-    bank_name: 'Ngân hàng TMCP Đầu Tư Và Phát Triển Việt Nam (BIDV)',
-    bank_code: 'BIDV',
-    account_number: '5801769728',
+    bank_name: 'Ngân hàng TMCP Quân Đội (MB Bank)',
+    bank_code: 'MB',
+    account_number: '0345553913',
     account_holder: 'NGUYEN CONG HAU',
     deposit_percentage: 50,
     qr_template: 'compact2',
@@ -43,7 +43,7 @@ export const defaultShopSettings: ShopSettings = {
   sepay: {
     enabled: true,
     api_key: '',
-    account_number: '5801769728',
+    account_number: '0345553913',
     pattern_prefix: 'BD',
     auto_confirm_order: true,
   },

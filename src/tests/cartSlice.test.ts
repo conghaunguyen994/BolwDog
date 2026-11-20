@@ -3,6 +3,7 @@ import cartReducer, {
   addToCart,
   removeFromCart,
   updateQuantity,
+  setDepositPercentage,
   clearCart,
 } from '../features/cart/cartSlice';
 import { Product } from '../types/product';
@@ -71,6 +72,23 @@ describe('Redux Cart Slice: Precision Math & Customization Composite Keys', () =
     expect(state.shippingFee).toBe(0); // Free shipping threshold met!
     expect(state.total).toBe(500000);
     expect(state.depositAmount).toBe(250000);
+  });
+
+  it('should dynamically recalculate depositAmount when depositPercentage is changed (e.g. 10%)', () => {
+    let state = cartReducer(undefined, { type: 'unknown' });
+    state = cartReducer(
+      state,
+      addToCart({
+        product: mockProduct,
+        quantity: 2, // 500k total (free ship)
+        customization: { petName: 'Bé Bắp' },
+      })
+    );
+
+    expect(state.depositAmount).toBe(250000);
+    state = cartReducer(state, setDepositPercentage(10));
+    expect(state.depositPercentage).toBe(10);
+    expect(state.depositAmount).toBe(50000); // 10% of 500k
   });
 
   it('should create separate line items when customizations differ', () => {

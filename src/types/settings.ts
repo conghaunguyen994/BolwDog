@@ -54,13 +54,13 @@ export interface BlockedClientRule {
 
 export interface SePayConfig {
   enabled: boolean;
-  /** API Key tạo tại https://my.sepay.vn (Menu Cài đặt -> API Key) */
+  /** API Key tạo tại https://my.sepay.vn (Menu Cấu hình Công ty -> API Access) */
   api_key: string;
-  /** Số tài khoản ngân hàng liên kết với SePay (ví dụ: 5801769728) */
+  /** Số tài khoản ngân hàng liên kết với SePay (ví dụ: 0345553913) */
   account_number?: string;
   /** Tiền tố cú pháp nội dung chuyển khoản (mặc định BD) */
   pattern_prefix?: string;
-  /** Tự động chuyển đơn sang Đã duyệt khi nhận đủ tiền cọc (50%) */
+  /** Tự động chuyển đơn sang Đã duyệt khi nhận đủ tiền cọc */
   auto_confirm_order: boolean;
 }
 

@@ -268,6 +268,8 @@ DECLARE
   v_recent_phone_count INT := 0;
   v_pending_phone_count INT := 0;
   v_global_burst_count INT := 0;
+  v_status_pending public.orders.order_status%TYPE := 'pending';
+  v_status_deposit_pending public.orders.payment_status%TYPE := 'deposit_pending';
 BEGIN
   -- 1. Chống XSS / Script Injection ngay tại tầng Database
   IF coalesce(p_customer_name, '') ~* '(<script|javascript:|onerror=|onload=|<iframe|<svg|<object|eval\(|document\.cookie)'
@@ -309,7 +311,7 @@ BEGIN
   SELECT count(*) INTO v_pending_phone_count
   FROM public.orders o
   WHERE right(regexp_replace(o.customer_phone, '\D', '', 'g'), 9) = v_phone_digits
-    AND o.order_status = 'pending'::public.order_status
+    AND o.order_status::text = 'pending'
     AND o.created_at > NOW() - INTERVAL '15 minutes';
 
   IF v_pending_phone_count >= 3 THEN
@@ -325,9 +327,9 @@ BEGIN
     RAISE EXCEPTION 'Hệ thống đang nhận lượng đơn quá tải đột biến. Vui lòng thử lại sau ít giây!';
   END IF;
 
-  SELECT setting_value INTO v_deposit_setting FROM public.shop_settings WHERE setting_key = 'bank_transfer';
-  IF v_deposit_setting IS NOT NULL AND (v_deposit_setting->>'deposit_percentage') IS NOT NULL THEN
-    v_deposit_percent := (v_deposit_setting->>'deposit_percentage')::NUMERIC / 100.0;
+  SELECT setting_value INTO v_deposit_setting FROM public.shop_settings WHERE setting_key = 'bank_transfer' LIMIT 1;
+  IF v_deposit_setting IS NOT NULL AND nullif(trim(coalesce(v_deposit_setting->>'deposit_percentage', '')), '') IS NOT NULL THEN
+    v_deposit_percent := GREATEST(0, LEAST(100, (v_deposit_setting->>'deposit_percentage')::NUMERIC)) / 100.0;
   END IF;
 
   v_order_ref := 'BD-' || to_char(NOW(), 'YYYYMMDD') || '-' || upper(substring(md5(random()::text || clock_timestamp()::text) from 1 for 5));
@@ -360,6 +362,12 @@ BEGIN
     v_subtotal := v_subtotal + ((v_prod_price + COALESCE(v_var_price, 0)) * (v_item->>'quantity')::INT);
   END LOOP;
 
+  IF v_subtotal >= 500000 THEN
+    v_shipping_fee := 0;
+  ELSE
+    v_shipping_fee := 30000;
+  END IF;
+
   v_total := v_subtotal + v_shipping_fee;
   v_deposit := ROUND(v_total * v_deposit_percent);
 
@@ -370,7 +378,7 @@ BEGIN
   ) VALUES (
     v_order_ref, auth.uid(), p_customer_name, p_customer_phone, p_customer_email,
     p_shipping_address, v_subtotal, v_shipping_fee, v_total, v_deposit,
-    'pending'::public.order_status, 'deposit_pending'::public.payment_status, p_notes
+    v_status_pending, v_status_deposit_pending, p_notes
   ) RETURNING id INTO v_order_id;
 
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)

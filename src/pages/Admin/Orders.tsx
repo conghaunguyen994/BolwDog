@@ -411,7 +411,7 @@ export const AdminOrders: React.FC = () => {
             >
               <option value="all">Tất cả thanh toán</option>
               <option value="deposit_pending">Chờ chuyển cọc</option>
-              <option value="partially_paid">Đã cọc 50%</option>
+              <option value="partially_paid">Đã đặt cọc</option>
               <option value="paid">Đã thanh toán đủ</option>
               <option value="unpaid">Chưa thanh toán</option>
               <option value="refunded">Đã hoàn tiền</option>
@@ -548,7 +548,12 @@ export const AdminOrders: React.FC = () => {
             <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 flex flex-col sm:flex-row items-center justify-between gap-3">
               <div>
                 <span className="text-xs font-bold text-amber-900 dark:text-amber-200 block">
-                  Tiền cọc cần đối soát (50%): <strong className="text-rose-600 text-sm font-extrabold">{formatVND(selectedOrder.deposit_amount)}</strong>
+                  Tiền cọc cần đối soát (
+                  {selectedOrder.total_amount > 0
+                    ? Math.round((selectedOrder.deposit_amount / selectedOrder.total_amount) * 100)
+                    : 0}
+                  %):{' '}
+                  <strong className="text-rose-600 text-sm font-extrabold">{formatVND(selectedOrder.deposit_amount)}</strong>
                 </span>
                 <span className="text-[11px] text-amber-700 dark:text-amber-300">
                   Trạng thái thanh toán: <strong>{getPaymentStatusLabel(selectedOrder.payment_status)}</strong>
@@ -612,7 +617,7 @@ export const AdminOrders: React.FC = () => {
                 >
                   <option value="unpaid">Chưa thanh toán</option>
                   <option value="deposit_pending">Chờ chuyển cọc</option>
-                  <option value="partially_paid">Đã cọc 50%</option>
+                  <option value="partially_paid">Đã đặt cọc</option>
                   <option value="paid">Đã thanh toán đủ</option>
                   <option value="refunded">Đã hoàn tiền</option>
                 </select>

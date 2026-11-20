@@ -38,6 +38,9 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
     alert(`Đã chép mã đơn hàng: ${order.order_reference}`);
   };
 
+  const depositPercentage =
+    order.total_amount > 0 ? Math.round((order.deposit_amount / order.total_amount) * 100) : 0;
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Đơn Hàng Yêu Thương Đã Được Gửi!" maxWidth="md">
       <div className="text-center space-y-4 py-2">
@@ -82,7 +85,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
             <span className="font-bold">{formatVND(order.total_amount)}</span>
           </div>
           <div className="flex justify-between font-bold text-rose-600 dark:text-rose-300">
-            <span>Cần cọc trước (50%):</span>
+            <span>Cần cọc trước ({depositPercentage}%):</span>
             <span>{formatVND(order.deposit_amount)}</span>
           </div>
         </div>

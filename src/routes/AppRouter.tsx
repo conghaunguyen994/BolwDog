@@ -2,7 +2,9 @@ import React, { useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAppDispatch } from '../app/hooks';
 import { setUser } from '../features/auth/authSlice';
+import { setDepositPercentage } from '../features/cart/cartSlice';
 import { authService } from '../services/authService';
+import { settingsService } from '../services/settingsService';
 
 // Layouts
 import { MainLayout } from '../components/layout/MainLayout';
@@ -45,6 +47,15 @@ export const AppRouter: React.FC = () => {
     authService.getInitialUser().then((user) => {
       if (user) dispatch(setUser(user));
     });
+    // Đồng bộ phần trăm đặt cọc cấu hình từ Admin Settings trên Database
+    settingsService
+      .getSettings()
+      .then((s) => {
+        if (s.bank_transfer && typeof s.bank_transfer.deposit_percentage === 'number') {
+          dispatch(setDepositPercentage(s.bank_transfer.deposit_percentage));
+        }
+      })
+      .catch(() => {});
   }, [dispatch]);
 
   return (

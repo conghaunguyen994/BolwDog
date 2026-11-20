@@ -5,6 +5,8 @@ import { emailService } from '../../services/emailService';
 import { sepayService } from '../../services/sepayService';
 import { EmailNotificationConfig, ShopSettings } from '../../types/settings';
 import { defaultShopSettings } from '../../constants/defaultSettings';
+import { useAppDispatch } from '../../app/hooks';
+import { setDepositPercentage } from '../../features/cart/cartSlice';
 import { Button } from '../../components/common/Button';
 
 const GOOGLE_APPS_SCRIPT_SNIPPET = `function doPost(e) {
@@ -21,6 +23,7 @@ const GOOGLE_APPS_SCRIPT_SNIPPET = `function doPost(e) {
 }`;
 
 export const AdminSettings: React.FC = () => {
+  const dispatch = useAppDispatch();
   const [settings, setSettings] = useState<ShopSettings>(defaultShopSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -115,6 +118,9 @@ export const AdminSettings: React.FC = () => {
     try {
       const updated = await settingsService.updateSettings(settings);
       setSettings(updated);
+      if (updated.bank_transfer && typeof updated.bank_transfer.deposit_percentage === 'number') {
+        dispatch(setDepositPercentage(updated.bank_transfer.deposit_percentage));
+      }
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err: any) {
@@ -294,12 +300,21 @@ export const AdminSettings: React.FC = () => {
                 type="text"
                 required
                 value={settings.bank_transfer.account_number}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const nextAcc = e.target.value;
+                  const oldAcc = settings.bank_transfer.account_number;
+                  const shouldSyncSepay =
+                    !sepayConfig.account_number ||
+                    sepayConfig.account_number === oldAcc ||
+                    sepayConfig.account_number === '5801769728';
                   setSettings({
                     ...settings,
-                    bank_transfer: { ...settings.bank_transfer, account_number: e.target.value },
-                  })
-                }
+                    bank_transfer: { ...settings.bank_transfer, account_number: nextAcc },
+                    sepay: shouldSyncSepay
+                      ? { ...sepayConfig, account_number: nextAcc }
+                      : settings.sepay,
+                  });
+                }}
                 className="w-full px-3.5 py-2 rounded-xl border border-cute-border-light text-xs bg-white focus:outline-none font-mono font-bold"
               />
             </div>
@@ -324,7 +339,7 @@ export const AdminSettings: React.FC = () => {
               <label className="block text-xs font-bold text-cute-brown mb-1">Phần trăm đặt cọc mặc định (%)</label>
               <input
                 type="number"
-                min={10}
+                min={0}
                 max={100}
                 value={settings.bank_transfer.deposit_percentage}
                 onChange={(e) =>
@@ -487,7 +502,7 @@ export const AdminSettings: React.FC = () => {
               </label>
               <input
                 type="text"
-                placeholder={settings.bank_transfer.account_number || '5801769728'}
+                placeholder={settings.bank_transfer.account_number || '0345553913'}
                 value={sepayConfig.account_number || settings.bank_transfer.account_number}
                 onChange={(e) =>
                   setSettings({
@@ -528,7 +543,7 @@ export const AdminSettings: React.FC = () => {
                 Truy cập <strong>https://my.sepay.vn</strong> và đăng nhập/đăng ký tài khoản.
               </li>
               <li>
-                Kết nối tài khoản ngân hàng của bạn (ví dụ BIDV số tài khoản <strong>{settings.bank_transfer.account_number}</strong>).
+                Kết nối tài khoản ngân hàng của bạn (ví dụ MB Bank số tài khoản <strong>{settings.bank_transfer.account_number}</strong>).
               </li>
               <li>
                 Vào menu <strong>Cấu hình Công ty &gt; API Access</strong> trên SePay ➔ Tạo/copy mã <strong>API Token</strong> và dán vào ô bên trên, bấm <strong>Kiểm tra API Key</strong> để xác nhận kết nối thành công.

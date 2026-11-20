@@ -12,7 +12,7 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   unpaid: 'Chưa thanh toán',
   deposit_pending: 'Chờ chuyển cọc',
-  partially_paid: 'Đã cọc 50%',
+  partially_paid: 'Đã đặt cọc',
   paid: 'Đã thanh toán đủ',
   refunded: 'Đã hoàn tiền',
 };

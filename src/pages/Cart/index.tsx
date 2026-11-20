@@ -10,7 +10,7 @@ import { Badge } from '../../components/common/Badge';
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { items, subtotal, shippingFee, total, depositAmount } = useAppSelector(
+  const { items, subtotal, shippingFee, total, depositAmount, depositPercentage } = useAppSelector(
     (state) => state.cart
   );
 
@@ -193,7 +193,7 @@ export const CartPage: React.FC = () => {
             {/* Deposit Notification */}
             <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 space-y-1">
               <div className="flex justify-between font-bold">
-                <span>Cọc làm mẫu (50%):</span>
+                <span>Cọc làm mẫu ({depositPercentage}%):</span>
                 <span className="text-rose-600 dark:text-rose-300 font-extrabold">{formatVND(depositAmount)}</span>
               </div>
               <p className="text-[11px] opacity-80">

@@ -206,6 +206,8 @@ export const emailService = {
     if (!config.enabled || !config.notify_on_new_order) return;
 
     const trackingUrl = buildOrderTrackingUrl(order);
+    const depositPct =
+      order.total_amount > 0 ? Math.round((order.deposit_amount / order.total_amount) * 100) : 0;
     const itemsSummary = order.items
       .map((it) => {
         const pet = it.customization_data?.petName || it.customization_data?.customText || 'Không khắc tên';
@@ -226,7 +228,7 @@ export const emailService = {
       `• Số điện thoại: ${order.customer_phone}`,
       `• Email khách: ${order.customer_email || 'Chưa cung cấp'}`,
       `• Địa chỉ giao: ${order.shipping_address}`,
-      `• Tổng thanh toán: ${formatVND(order.total_amount)} (Cần cọc 50%: ${formatVND(order.deposit_amount)})`,
+      `• Tổng thanh toán: ${formatVND(order.total_amount)} (Cần cọc ${depositPct}%: ${formatVND(order.deposit_amount)})`,
       `• Ghi chú: ${order.notes || 'Không có'}`,
       ``,
       `Danh sách sản phẩm đặt in 3D:`,
@@ -241,7 +243,7 @@ export const emailService = {
         <p><strong>Khách hàng:</strong> ${order.customer_name} (${order.customer_phone})</p>
         <p><strong>Email khách:</strong> ${order.customer_email || 'Chưa cung cấp'}</p>
         <p><strong>Địa chỉ nhận:</strong> ${order.shipping_address}</p>
-        <p><strong>Tổng tiền:</strong> <strong style="color:#e11d48;">${formatVND(order.total_amount)}</strong> (Cọc 50%: ${formatVND(order.deposit_amount)})</p>
+        <p><strong>Tổng tiền:</strong> <strong style="color:#e11d48;">${formatVND(order.total_amount)}</strong> (Cọc ${depositPct}%: ${formatVND(order.deposit_amount)})</p>
         <pre style="background:#ffffff;padding:12px;border-radius:10px;border:1px solid #eee;white-space:pre-wrap;">${itemsSummary}</pre>
         <p style="margin-top:16px;">
           <a href="${getBaseSiteUrl()}/admin/orders" style="display:inline-block;padding:10px 18px;background:#9333ea;color:#fff;text-decoration:none;border-radius:99px;font-weight:bold;">
@@ -274,7 +276,7 @@ export const emailService = {
         `Cảm ơn ba mẹ đã đặt sản phẩm in 3D cá nhân hóa tại BolwDog Studio!`,
         ``,
         `• Mã đơn hàng: ${order.order_reference}`,
-        `• Tổng tiền: ${formatVND(order.total_amount)} (Số tiền đặt cọc 50%: ${formatVND(order.deposit_amount)})`,
+        `• Tổng tiền: ${formatVND(order.total_amount)} (Số tiền đặt cọc ${depositPct}%: ${formatVND(order.deposit_amount)})`,
         ``,
         `Chi tiết sản phẩm:`,
         itemsSummary,
@@ -290,7 +292,7 @@ export const emailService = {
           <p>Xin chào <strong>${order.customer_name}</strong>,</p>
           <p>Đơn hàng <strong>#${order.order_reference}</strong> của bé đã được ghi nhận trên hệ thống.</p>
           <pre style="background:#ffffff;padding:12px;border-radius:10px;border:1px solid #f3d6dc;white-space:pre-wrap;">${itemsSummary}</pre>
-          <p><strong>Tổng thanh toán:</strong> ${formatVND(order.total_amount)} (Cọc 50%: <strong>${formatVND(order.deposit_amount)}</strong>)</p>
+          <p><strong>Tổng thanh toán:</strong> ${formatVND(order.total_amount)} (Cọc ${depositPct}%: <strong>${formatVND(order.deposit_amount)}</strong>)</p>
           <p>🎨 <strong>Đặc biệt:</strong> Sau khi nghệ nhân dựng xong file 3D chuẩn bị in, xưởng sẽ gửi bản Demo 3D để ba mẹ kiểm tra và chốt duyệt trước khi bấm máy in!</p>
           <p style="margin-top:18px;">
             <a href="${trackingUrl}" style="display:inline-block;padding:12px 22px;background:#ec4899;color:#fff;text-decoration:none;border-radius:99px;font-weight:bold;">

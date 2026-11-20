@@ -12,7 +12,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { clearCart } from '../../features/cart/cartSlice';
+import { clearCart, setDepositPercentage } from '../../features/cart/cartSlice';
 import { checkoutSchema, CheckoutFormData } from '../../schemas/checkoutSchema';
 import { orderService } from '../../services/orderService';
 import { settingsService } from '../../services/settingsService';
@@ -29,7 +29,7 @@ import { OrderSuccessModal } from '../../components/checkout/OrderSuccessModal';
 export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { items, subtotal, shippingFee, total, depositAmount } = useAppSelector(
+  const { items, subtotal, shippingFee, total, depositAmount, depositPercentage } = useAppSelector(
     (state) => state.cart
   );
 
@@ -44,8 +44,23 @@ export const CheckoutPage: React.FC = () => {
   const csrfToken = getCsrfToken();
 
   useEffect(() => {
-    settingsService.getSettings().then(setSettings).catch(() => {});
-  }, []);
+    settingsService
+      .getSettings()
+      .then((s) => {
+        setSettings(s);
+        if (s.bank_transfer && typeof s.bank_transfer.deposit_percentage === 'number') {
+          dispatch(setDepositPercentage(s.bank_transfer.deposit_percentage));
+        }
+      })
+      .catch(() => {});
+  }, [dispatch]);
+
+  const effectiveDepositPercentage =
+    typeof settings.bank_transfer?.deposit_percentage === 'number'
+      ? Math.min(100, Math.max(0, settings.bank_transfer.deposit_percentage))
+      : depositPercentage;
+  const effectiveDepositAmount =
+    total > 0 ? Math.round(total * (effectiveDepositPercentage / 100)) : depositAmount;
 
   useEffect(() => {
     const syncCooldown = () => {
@@ -403,9 +418,9 @@ export const CheckoutPage: React.FC = () => {
               <div className="flex items-center justify-between font-bold text-cute-brown dark:text-cute-cream">
                 <span className="flex items-center gap-1">
                   <QrCode className="w-3.5 h-3.5 text-rose-500" />
-                  <span>Cọc trước qua VietQR:</span>
+                  <span>Cọc trước ({effectiveDepositPercentage}%) qua VietQR:</span>
                 </span>
-                <span className="text-rose-600 dark:text-rose-300 font-extrabold text-sm">{formatVND(depositAmount)}</span>
+                <span className="text-rose-600 dark:text-rose-300 font-extrabold text-sm">{formatVND(effectiveDepositAmount)}</span>
               </div>
               <p className="text-[10px] text-cute-brown-light dark:text-cute-muted">
                 Sau khi gửi đơn, mã QR chuyển khoản và thông tin tài khoản ngân hàng sẽ hiện lên để ba mẹ quét thanh toán.

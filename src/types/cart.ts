@@ -16,5 +16,6 @@ export interface CartState {
   shippingFee: number;
   total: number;
   depositAmount: number;
+  depositPercentage: number;
 }
 

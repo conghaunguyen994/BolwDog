@@ -4,13 +4,21 @@ import { Product, ProductVariant } from '../../types/product';
 import { PetCustomization } from '../../types/order';
 
 const CART_STORAGE_KEY = 'bowldog_cart_v1';
+const DEFAULT_DEPOSIT_PERCENTAGE = 50;
 
-function calculateCartTotals(items: CartItem[]) {
+function normalizeDepositPercentage(pct?: number): number {
+  const numeric = Number(pct);
+  if (!Number.isFinite(numeric)) return DEFAULT_DEPOSIT_PERCENTAGE;
+  return Math.min(100, Math.max(0, numeric));
+}
+
+function calculateCartTotals(items: CartItem[], depositPercentage = DEFAULT_DEPOSIT_PERCENTAGE) {
+  const safePct = normalizeDepositPercentage(depositPercentage);
   const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const shippingFee = items.length === 0 ? 0 : subtotal >= 500000 ? 0 : 30000;
   const total = subtotal + shippingFee;
-  const depositAmount = Math.round(total * 0.5); // 50% deposit
-  return { subtotal, shippingFee, total, depositAmount };
+  const depositAmount = Math.round(total * (safePct / 100));
+  return { subtotal, shippingFee, total, depositAmount, depositPercentage: safePct };
 }
 
 function saveCartToStorage(items: CartItem[]) {
@@ -52,6 +60,7 @@ function loadInitialCart(): CartState {
     shippingFee: 0,
     total: 0,
     depositAmount: 0,
+    depositPercentage: DEFAULT_DEPOSIT_PERCENTAGE,
   };
 }
 
@@ -91,7 +100,7 @@ export const cartSlice = createSlice({
         });
       }
 
-      const totals = calculateCartTotals(state.items);
+      const totals = calculateCartTotals(state.items, state.depositPercentage);
       state.subtotal = totals.subtotal;
       state.shippingFee = totals.shippingFee;
       state.total = totals.total;
@@ -102,7 +111,7 @@ export const cartSlice = createSlice({
 
     removeFromCart: (state, action: PayloadAction<string>) => {
       state.items = state.items.filter((item) => item.id !== action.payload);
-      const totals = calculateCartTotals(state.items);
+      const totals = calculateCartTotals(state.items, state.depositPercentage);
       state.subtotal = totals.subtotal;
       state.shippingFee = totals.shippingFee;
       state.total = totals.total;
@@ -120,13 +129,22 @@ export const cartSlice = createSlice({
           item.quantity = action.payload.quantity;
         }
       }
-      const totals = calculateCartTotals(state.items);
+      const totals = calculateCartTotals(state.items, state.depositPercentage);
       state.subtotal = totals.subtotal;
       state.shippingFee = totals.shippingFee;
       state.total = totals.total;
       state.depositAmount = totals.depositAmount;
 
       saveCartToStorage(state.items);
+    },
+
+    setDepositPercentage: (state, action: PayloadAction<number>) => {
+      const totals = calculateCartTotals(state.items, action.payload);
+      state.depositPercentage = totals.depositPercentage;
+      state.subtotal = totals.subtotal;
+      state.shippingFee = totals.shippingFee;
+      state.total = totals.total;
+      state.depositAmount = totals.depositAmount;
     },
 
     updateCustomization: (
@@ -151,6 +169,13 @@ export const cartSlice = createSlice({
   },
 });
 
-export const { addToCart, removeFromCart, updateQuantity, updateCustomization, clearCart } = cartSlice.actions;
+export const {
+  addToCart,
+  removeFromCart,
+  updateQuantity,
+  setDepositPercentage,
+  updateCustomization,
+  clearCart,
+} = cartSlice.actions;
 export default cartSlice.reducer;
 

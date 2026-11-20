@@ -11,7 +11,7 @@ export function generateVietQrUrl(params: {
     return bankConfig.qr_custom_image;
   }
 
-  const bankCode = encodeURIComponent(bankConfig.bank_code || 'VCB');
+  const bankCode = encodeURIComponent(bankConfig.bank_code || 'MB');
   const accountNo = encodeURIComponent(bankConfig.account_number);
   const template = bankConfig.qr_template || 'compact2';
   const transferNote = encodeURIComponent(`${bankConfig.transfer_note_prefix || 'BD'} ${orderReference}`);

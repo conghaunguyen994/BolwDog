@@ -39,6 +39,10 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
 
   const bank = settings.bank_transfer;
   const isSepayActive = settings.sepay?.enabled ?? true;
+  const depositPercentage =
+    order.total_amount > 0
+      ? Math.round((order.deposit_amount / order.total_amount) * 100)
+      : bank.deposit_percentage ?? 50;
   const qrUrl = generateVietQrUrl({
     bankConfig: bank,
     amount: order.deposit_amount,
@@ -310,7 +314,7 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
             </div>
 
             <div className="pt-1">
-              <span className="text-cute-brown-light dark:text-cute-muted block">Số tiền cọc làm mẫu (50%):</span>
+              <span className="text-cute-brown-light dark:text-cute-muted block">Số tiền cọc làm mẫu ({depositPercentage}%):</span>
               <span className="text-lg font-black text-rose-500 font-sans">
                 {formatVND(order.deposit_amount)}
               </span>

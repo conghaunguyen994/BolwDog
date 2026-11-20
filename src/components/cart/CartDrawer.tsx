@@ -14,7 +14,7 @@ interface CartDrawerProps {
 export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { items, subtotal, shippingFee, total, depositAmount } = useAppSelector(
+  const { items, subtotal, shippingFee, total, depositAmount, depositPercentage } = useAppSelector(
     (state) => state.cart
   );
 
@@ -216,7 +216,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                   <span className="text-base text-rose-500">{formatVND(total)}</span>
                 </div>
                 <div className="flex justify-between text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-2 rounded-xl">
-                  <span>Đặt cọc làm mẫu (50%):</span>
+                  <span>Đặt cọc làm mẫu ({depositPercentage}%):</span>
                   <span className="font-bold">{formatVND(depositAmount)}</span>
                 </div>
               </div>

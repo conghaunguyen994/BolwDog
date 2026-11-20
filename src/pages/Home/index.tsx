@@ -409,7 +409,7 @@ export const HomePage: React.FC = () => {
               03
             </span>
             <h4 className="text-sm font-bold text-cute-brown dark:text-cute-cream mt-4">
-              Chuyển khoản cọc 50%
+              Chuyển khoản đặt cọc
             </h4>
             <p className="text-xs text-cute-brown-light dark:text-cute-muted mt-2">
               Quét mã VietQR chuyển khoản cọc làm mẫu. Admin tiệm sẽ xác nhận đơn và lên máy in ngay.
