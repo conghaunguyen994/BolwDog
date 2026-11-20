@@ -106,7 +106,7 @@ BEGIN
       );
     END IF;
 
-    v_configured_key := regexp_replace(trim(coalesce(v_sepay_config->>'api_key', '')), '^Apikey\s+', '', 'i');
+    v_configured_key := regexp_replace(trim(coalesce(v_sepay_config->>'api_key', '')), '^(Bearer|Apikey)\s+', '', 'i');
     IF v_configured_key = '' THEN
       RETURN jsonb_build_object(
         'success', false,
@@ -114,7 +114,7 @@ BEGIN
       );
     END IF;
 
-    IF regexp_replace(trim(coalesce(p_api_key, '')), '^Apikey\s+', '', 'i') <> v_configured_key THEN
+    IF regexp_replace(trim(coalesce(p_api_key, '')), '^(Bearer|Apikey)\s+', '', 'i') <> v_configured_key THEN
       RETURN jsonb_build_object(
         'success', false,
         'error', 'Sai ma API Key xac thuc SePay'

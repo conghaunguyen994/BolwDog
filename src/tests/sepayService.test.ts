@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { sepayService } from '../services/sepayService';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('sepayService - Order Reference Extraction & Parsing', () => {
   it('should extract standard order reference with prefix', () => {
@@ -53,5 +57,30 @@ describe('sepayService - Order Reference Extraction & Parsing', () => {
     const res = await sepayService.verifySepayApiKey('');
     expect(res.ok).toBe(false);
     expect(res.message).toContain('Vui lòng nhập SePay API Key');
+  });
+
+  it('should call /api/check-sepay or fallback using Bearer token header', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        headers: new Headers({ 'content-type': 'text/html' }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ status: 200, transactions: [{ id: 1 }] }),
+      } as Response);
+
+    const res = await sepayService.verifySepayApiKey('Bearer TEST_TOKEN_123');
+    expect(res.ok).toBe(true);
+    expect(res.count).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('https://my.sepay.vn/userapi/transactions/list?limit=1');
+    const secondCallInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    expect((secondCallInit.headers as Record<string, string>)['Authorization']).toBe(
+      'Bearer TEST_TOKEN_123'
+    );
   });
 });

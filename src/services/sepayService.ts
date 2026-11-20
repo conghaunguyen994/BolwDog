@@ -100,7 +100,7 @@ export const sepayService = {
       throw new Error('Chưa kết nối tới cơ sở dữ liệu Supabase.');
     }
 
-    const cleanKey = apiKey ? apiKey.trim().replace(/^Apikey\s+/i, '') : null;
+    const cleanKey = apiKey ? apiKey.trim().replace(/^(Bearer|Apikey)\s+/i, '') : null;
 
     const { data, error } = await supabase.rpc('process_sepay_webhook', {
       p_sepay_id: typeof payload.id === 'number' ? payload.id : Number(payload.id) || null,
@@ -179,7 +179,7 @@ export const sepayService = {
       return { ok: false, message: 'Vui lòng nhập SePay API Key để kiểm tra.' };
     }
 
-    const token = apiKey.trim().replace(/^Apikey\s+/i, '');
+    const token = apiKey.trim().replace(/^(Bearer|Apikey)\s+/i, '');
 
     // 1. Thử gọi qua Vercel Serverless Proxy (hoạt động trên production / vercel dev, tránh CORS)
     try {
@@ -201,14 +201,14 @@ export const sepayService = {
       const response = await fetch('https://my.sepay.vn/userapi/transactions/list?limit=1', {
         method: 'GET',
         headers: {
-          Authorization: `Apikey ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-          return { ok: false, message: 'API Key không hợp lệ hoặc đã bị vô hiệu hóa trên SePay.' };
+          return { ok: false, message: 'API Token không hợp lệ hoặc đã bị vô hiệu hóa trên SePay.' };
         }
         return { ok: false, message: `SePay trả về mã lỗi HTTP ${response.status}.` };
       }
@@ -252,7 +252,9 @@ export const sepayService = {
       };
     }
 
-    const token = sepayConfig?.api_key ? sepayConfig.api_key.trim().replace(/^Apikey\s+/i, '') : '';
+    const token = sepayConfig?.api_key
+      ? sepayConfig.api_key.trim().replace(/^(Bearer|Apikey)\s+/i, '')
+      : '';
 
     // Bước 2: Gọi Serverless proxy /api/check-sepay (an toàn CORS & hỗ trợ cả SEPAY_API_KEY trên server)
     try {
@@ -296,7 +298,7 @@ export const sepayService = {
       const response = await fetch('https://my.sepay.vn/userapi/transactions/list?limit=50', {
         method: 'GET',
         headers: {
-          Authorization: `Apikey ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });

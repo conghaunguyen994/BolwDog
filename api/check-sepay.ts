@@ -31,33 +31,40 @@ export default async function handler(req: any, res: any) {
     if (action === 'verify-key') {
       const token = String(apiKey || '')
         .trim()
-        .replace(/^Apikey\s+/i, '');
+        .replace(/^(Bearer|Apikey)\s+/i, '');
       if (!token) {
-        return res.status(400).json({ ok: false, message: 'Vui lòng nhập SePay API Key để kiểm tra.' });
+        return res.status(400).json({ ok: false, message: 'Vui lòng nhập SePay API Token để kiểm tra.' });
       }
 
       const sepayRes = await fetch('https://my.sepay.vn/userapi/transactions/list?limit=1', {
         method: 'GET',
         headers: {
-          Authorization: `Apikey ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
-      if (!sepayRes.ok) {
+      const rawText = await sepayRes.text();
+      let json: any = {};
+      try {
+        json = JSON.parse(rawText);
+      } catch {
+        json = {};
+      }
+
+      if (!sepayRes.ok || json.status === 401 || json.error) {
         if (sepayRes.status === 401 || sepayRes.status === 403) {
           return res.status(200).json({
             ok: false,
-            message: 'API Key không hợp lệ hoặc đã bị vô hiệu hóa trên SePay.',
+            message: 'API Token không hợp lệ hoặc đã bị vô hiệu hóa trên SePay (401 Unauthorized).',
           });
         }
         return res.status(200).json({
           ok: false,
-          message: `SePay trả về mã lỗi HTTP ${sepayRes.status}.`,
+          message: json.error || `SePay trả về mã lỗi HTTP ${sepayRes.status}.`,
         });
       }
 
-      const json = await sepayRes.json();
       const count = Array.isArray(json.transactions) ? json.transactions.length : 0;
       return res.status(200).json({
         ok: true,
@@ -108,10 +115,10 @@ export default async function handler(req: any, res: any) {
         }
       }
 
-      // 2. Nếu có API Key (từ Admin hoặc biến môi trường server SEPAY_API_KEY) -> quét trực tiếp SePay API
+      // 2. Nếu có API Token (từ Admin hoặc biến môi trường server SEPAY_API_KEY) -> quét trực tiếp SePay API
       const token = String(apiKey || process.env.SEPAY_API_KEY || '')
         .trim()
-        .replace(/^Apikey\s+/i, '');
+        .replace(/^(Bearer|Apikey)\s+/i, '');
 
       if (!token) {
         return res.status(200).json({
@@ -123,10 +130,18 @@ export default async function handler(req: any, res: any) {
       const sepayRes = await fetch('https://my.sepay.vn/userapi/transactions/list?limit=50', {
         method: 'GET',
         headers: {
-          Authorization: `Apikey ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
+
+      const sepayText = await sepayRes.text();
+      let sepayJson: any = {};
+      try {
+        sepayJson = JSON.parse(sepayText);
+      } catch {
+        sepayJson = {};
+      }
 
       if (!sepayRes.ok) {
         return res.status(200).json({
@@ -135,7 +150,6 @@ export default async function handler(req: any, res: any) {
         });
       }
 
-      const sepayJson = await sepayRes.json();
       const transactions = sepayJson.transactions || [];
       const targetNormalized = String(orderReference)
         .toUpperCase()

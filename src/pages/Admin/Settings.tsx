@@ -443,7 +443,7 @@ export const AdminSettings: React.FC = () => {
                 <div className="relative flex-1">
                   <input
                     type={showApiKey ? 'text' : 'password'}
-                    placeholder="Ví dụ: Apikey abcdef1234567890..."
+                    placeholder="Dán mã API Token 64 ký tự từ SePay (Cấu hình Công ty > API Access)"
                     value={sepayConfig.api_key}
                     onChange={(e) =>
                       setSettings({
@@ -531,10 +531,10 @@ export const AdminSettings: React.FC = () => {
                 Kết nối tài khoản ngân hàng của bạn (ví dụ BIDV số tài khoản <strong>{settings.bank_transfer.account_number}</strong>).
               </li>
               <li>
-                Vào mục <strong>Cài đặt Webhook</strong> trên SePay -&gt; bấm <strong>Thêm Webhook</strong> -&gt; dán link Webhook ở trên vào ô URL, chọn sự kiện <strong>Khi có giao dịch tiền vào (in)</strong>, kiểu chứng thực <strong>API Key</strong>, và mục <em>&ldquo;Bỏ qua nếu nội dung không có code thanh toán&rdquo;</em> chọn <strong>Không</strong> (vì BolwDog tự bắt mã đơn <code>BD-...</code>).
+                Vào menu <strong>Cấu hình Công ty &gt; API Access</strong> trên SePay ➔ Tạo/copy mã <strong>API Token</strong> và dán vào ô bên trên, bấm <strong>Kiểm tra API Key</strong> để xác nhận kết nối thành công.
               </li>
               <li>
-                Vào menu <strong>API Key</strong> trên SePay, copy mã API Key và dán vào ô bên trên rồi bấm <strong>Lưu cấu hình tiệm</strong> ở góc trên! *(Đảm bảo đã chạy file SQL <code>supabase/SEPAY_INTEGRATION.sql</code> trên Supabase trước khi bật)*.
+                Vào mục <strong>Tích hợp Webhooks</strong> trên SePay ➔ bấm <strong>Thêm Webhook</strong> ➔ dán link Webhook ở trên vào ô URL, chọn sự kiện <strong>Có tiền vào</strong>, kiểu chứng thực <strong>API Key</strong> (dán đúng mã API Token vừa copy vào đây để bảo mật 2 chiều), và mục <em>&ldquo;Bỏ qua nếu nội dung không có code thanh toán&rdquo;</em> chọn <strong>Không</strong> (vì BolwDog tự bắt mã đơn <code>BD-...</code>). Cuối cùng bấm <strong>Lưu cấu hình tiệm</strong> ở góc trên!
               </li>
             </ol>
           </div>
