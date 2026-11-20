@@ -1,6 +1,64 @@
-import { SaleCampaignConfig } from '../types/settings';
+import { FreeshipVoucherConfig, SaleCampaignConfig } from '../types/settings';
 
 export type SaleStatus = 'disabled' | 'upcoming' | 'active' | 'expired';
+
+/**
+ * Kiểm tra mã miễn phí vận chuyển (mặc định: "bowlfreeship") có đang được bật trong Admin và trùng khớp hay không
+ */
+export function isFreeshipCodeValid(
+  inputCode?: string | null,
+  config?: FreeshipVoucherConfig | null
+): boolean {
+  if (!config || !config.enabled) return false;
+  const expected = String(config.code || 'bowlfreeship')
+    .trim()
+    .toLowerCase();
+  const actual = String(inputCode || '')
+    .trim()
+    .toLowerCase();
+  return Boolean(expected && actual && actual === expected);
+}
+
+/**
+ * Kiểm tra và trả về thông báo chi tiết khi người dùng bấm "Áp dụng" mã miễn phí vận chuyển
+ */
+export function validateFreeshipCodeAttempt(
+  inputCode: string,
+  config?: FreeshipVoucherConfig | null
+): { valid: boolean; normalizedCode: string; message: string } {
+  const cleaned = String(inputCode || '').trim();
+  if (!cleaned) {
+    return {
+      valid: false,
+      normalizedCode: '',
+      message: 'Vui lòng nhập mã giảm giá phí vận chuyển.',
+    };
+  }
+
+  const expectedCode = String(config?.code || 'bowlfreeship').trim();
+
+  if (!config || !config.enabled) {
+    return {
+      valid: false,
+      normalizedCode: cleaned,
+      message: 'Mã miễn phí vận chuyển hiện chưa được Admin kích hoạt hoặc đã tạm đóng.',
+    };
+  }
+
+  if (cleaned.toLowerCase() !== expectedCode.toLowerCase()) {
+    return {
+      valid: false,
+      normalizedCode: cleaned,
+      message: 'Mã giảm giá phí vận chuyển không chính xác. Vui lòng kiểm tra lại!',
+    };
+  }
+
+  return {
+    valid: true,
+    normalizedCode: expectedCode,
+    message: `Áp dụng mã "${expectedCode}" thành công! Đơn hàng được miễn phí vận chuyển 100%.`,
+  };
+}
 
 /**
  * Chuẩn hóa phần trăm giảm giá hợp lệ (0 - 90%)

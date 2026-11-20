@@ -1,6 +1,6 @@
 import { Product, ProductVariant } from './product';
 import { PetCustomization } from './order';
-import { SaleCampaignConfig } from './settings';
+import { FreeshipVoucherConfig, SaleCampaignConfig } from './settings';
 
 export interface CartItem {
   id: string; // Unique generated composite id: `${productId}-${variantId || 'novar'}-${hashCustomization}`
@@ -23,11 +23,19 @@ export interface CartState {
   /** Tổng số tiền được giảm giá từ chương trình Sale */
   discountAmount?: number;
   subtotal: number;
+  /** Phí vận chuyển gốc trước khi áp dụng mã freeship */
+  baseShippingFee?: number;
+  /** Số tiền phí vận chuyển được giảm nhờ mã freeship */
+  shippingDiscountAmount?: number;
   shippingFee: number;
   total: number;
   depositAmount: number;
   depositPercentage: number;
   /** Cấu hình chương trình Sale hiện tại của shop */
   saleCampaign?: SaleCampaignConfig | null;
+  /** Cấu hình mã miễn phí vận chuyển từ Admin */
+  freeshipVoucherConfig?: FreeshipVoucherConfig | null;
+  /** Mã miễn phí vận chuyển mà khách hàng đã nhập */
+  appliedFreeshipCode?: string | null;
 }
 

@@ -5,6 +5,8 @@ import cartReducer, {
   updateQuantity,
   setDepositPercentage,
   setSaleCampaign,
+  setFreeshipVoucherConfig,
+  applyFreeshipCode,
   clearCart,
 } from '../features/cart/cartSlice';
 import { Product } from '../types/product';
@@ -212,6 +214,51 @@ describe('Redux Cart Slice: Precision Math & Customization Composite Keys', () =
     expect(state.items[0].unitPrice).toBe(250000);
     expect(state.discountAmount).toBe(0);
     expect(state.subtotal).toBe(500000);
+  });
+
+  it('should apply bowlfreeship code only when enabled in admin config', () => {
+    let state = cartReducer(undefined, { type: 'unknown' });
+    state = cartReducer(
+      state,
+      addToCart({
+        product: mockProduct, // 250,000 VND (< 500k -> 30,000 shipping fee)
+        quantity: 1,
+        customization: { petName: 'Bé Bắp' },
+      })
+    );
+
+    expect(state.shippingFee).toBe(30000);
+    expect(state.total).toBe(280000);
+
+    // 1. Entering bowlfreeship when admin config has enabled: false -> still 30,000 shipping
+    state = cartReducer(
+      state,
+      setFreeshipVoucherConfig({ enabled: false, code: 'bowlfreeship' })
+    );
+    state = cartReducer(state, applyFreeshipCode('bowlfreeship'));
+    expect(state.shippingFee).toBe(30000);
+    expect(state.shippingDiscountAmount).toBe(0);
+    expect(state.total).toBe(280000);
+
+    // 2. Admin turns on enabled: true -> bowlfreeship becomes active -> shippingFee = 0
+    state = cartReducer(
+      state,
+      setFreeshipVoucherConfig({ enabled: true, code: 'bowlfreeship' })
+    );
+    state = cartReducer(state, applyFreeshipCode('BOWLFREESHIP'));
+    expect(state.baseShippingFee).toBe(30000);
+    expect(state.shippingDiscountAmount).toBe(30000);
+    expect(state.shippingFee).toBe(0);
+    expect(state.total).toBe(250000);
+
+    // 3. Admin disables it again -> automatically clears voucher & restores 30,000 shipping
+    state = cartReducer(
+      state,
+      setFreeshipVoucherConfig({ enabled: false, code: 'bowlfreeship' })
+    );
+    expect(state.appliedFreeshipCode).toBeNull();
+    expect(state.shippingFee).toBe(30000);
+    expect(state.total).toBe(280000);
   });
 });
 

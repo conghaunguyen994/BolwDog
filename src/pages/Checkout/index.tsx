@@ -12,7 +12,12 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { clearCart, setDepositPercentage, setSaleCampaign } from '../../features/cart/cartSlice';
+import {
+  clearCart,
+  setDepositPercentage,
+  setFreeshipVoucherConfig,
+  setSaleCampaign,
+} from '../../features/cart/cartSlice';
 import { checkoutSchema, CheckoutFormData } from '../../schemas/checkoutSchema';
 import { orderService } from '../../services/orderService';
 import { settingsService } from '../../services/settingsService';
@@ -25,6 +30,7 @@ import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { BankTransferQRModal } from '../../components/checkout/BankTransferQRModal';
 import { OrderSuccessModal } from '../../components/checkout/OrderSuccessModal';
+import { FreeshipVoucherBox } from '../../components/cart/FreeshipVoucherBox';
 
 export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
@@ -34,10 +40,13 @@ export const CheckoutPage: React.FC = () => {
     originalSubtotal,
     discountAmount,
     subtotal,
+    baseShippingFee,
+    shippingDiscountAmount,
     shippingFee,
     total,
     depositAmount,
     depositPercentage,
+    appliedFreeshipCode,
   } = useAppSelector((state) => state.cart);
 
   const [settings, setSettings] = useState<ShopSettings>(initialSettings);
@@ -59,6 +68,7 @@ export const CheckoutPage: React.FC = () => {
           dispatch(setDepositPercentage(s.bank_transfer.deposit_percentage));
         }
         dispatch(setSaleCampaign(s.sale_campaign || null));
+        dispatch(setFreeshipVoucherConfig(s.freeship_voucher || null));
       })
       .catch(() => {});
   }, [dispatch]);
@@ -131,6 +141,7 @@ export const CheckoutPage: React.FC = () => {
         customerEmail: data.email || undefined,
         shippingAddress: data.address,
         notes: data.notes || undefined,
+        freeshipCode: appliedFreeshipCode || undefined,
         honeypot,
         csrfToken,
         items: items.map((it) => ({
@@ -408,6 +419,9 @@ export const CheckoutPage: React.FC = () => {
               ))}
             </div>
 
+            {/* Freeship Voucher Code Input */}
+            <FreeshipVoucherBox />
+
             {/* Pricing details */}
             <div className="pt-3 border-t border-cute-border-light dark:border-cute-border-dark space-y-1.5 text-xs text-cute-brown-light dark:text-cute-muted">
               {discountAmount && discountAmount > 0 ? (
@@ -429,7 +443,16 @@ export const CheckoutPage: React.FC = () => {
               <div className="flex justify-between">
                 <span>Phí vận chuyển:</span>
                 <span className="font-semibold text-cute-brown dark:text-cute-cream">
-                  {shippingFee === 0 ? 'Miễn phí' : formatVND(shippingFee)}
+                  {(shippingDiscountAmount || 0) > 0 ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="line-through opacity-70">{formatVND(baseShippingFee || 30000)}</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">Miễn phí (Mã Freeship)</span>
+                    </span>
+                  ) : shippingFee === 0 ? (
+                    'Miễn phí'
+                  ) : (
+                    formatVND(shippingFee)
+                  )}
                 </span>
               </div>
               <div className="flex justify-between text-base font-extrabold text-cute-brown dark:text-cute-cream pt-2 border-t border-cute-border-light dark:border-cute-border-dark">

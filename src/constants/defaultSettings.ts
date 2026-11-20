@@ -52,4 +52,9 @@ export const defaultShopSettings: ShopSettings = {
     apply_scope: 'all',
     product_ids: [],
   },
+  freeship_voucher: {
+    enabled: false,
+    code: 'bowlfreeship',
+    description: 'Miễn phí 100% phí vận chuyển toàn quốc khi nhập mã bowlfreeship',
+  },
 };

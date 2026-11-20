@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { removeFromCart, updateQuantity } from '../../features/cart/cartSlice';
 import { formatVND } from '../../utils/currency';
 import { Button } from '../common/Button';
+import { FreeshipVoucherBox } from './FreeshipVoucherBox';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -19,6 +20,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
     originalSubtotal,
     discountAmount,
     subtotal,
+    baseShippingFee,
+    shippingDiscountAmount,
     shippingFee,
     total,
     depositAmount,
@@ -220,6 +223,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
           {/* Footer Summary */}
           {items.length > 0 && (
             <div className="p-5 sm:p-6 border-t border-cute-border-light dark:border-cute-border-dark bg-cute-cream/30 dark:bg-cute-cream-dark/30 space-y-3">
+              <FreeshipVoucherBox compact />
+
               <div className="space-y-1.5 text-xs text-cute-brown-light dark:text-cute-muted">
                 {discountAmount && discountAmount > 0 ? (
                   <>
@@ -240,7 +245,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                 <div className="flex justify-between">
                   <span>Phí ship ước tính:</span>
                   <span className="font-semibold text-cute-brown dark:text-cute-cream">
-                    {shippingFee === 0 ? 'Miễn phí (Freeship)' : formatVND(shippingFee)}
+                    {(shippingDiscountAmount || 0) > 0 ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="line-through opacity-70">{formatVND(baseShippingFee || 30000)}</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">Miễn phí (Mã Freeship)</span>
+                      </span>
+                    ) : shippingFee === 0 ? (
+                      'Miễn phí (Freeship)'
+                    ) : (
+                      formatVND(shippingFee)
+                    )}
                   </span>
                 </div>
                 <div className="flex justify-between pt-2 border-t border-cute-border-light dark:border-cute-border-dark text-sm font-bold text-cute-brown dark:text-cute-cream">

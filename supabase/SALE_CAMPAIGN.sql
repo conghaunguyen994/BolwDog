@@ -1,8 +1,12 @@
 -- ====================================================================
--- BOLWDOG - TÍNH NĂNG SALE GIẢM GIÁ THEO KHUNG GIỜ (FLASH SALE)
--- Tự động áp dụng % giảm giá trong hàm tạo đơn create_secure_order
--- khi thời gian đặt hàng nằm trong khoảng start_at -> end_at do Admin cấu hình
+-- BOLWDOG - TÍNH NĂNG SALE GIẢM GIÁ THEO KHUNG GIỜ & MÃ FREESHIP (bowlfreeship)
+-- 1. Tự động áp dụng % giảm giá trong hàm tạo đơn create_secure_order
+--    khi thời gian đặt hàng nằm trong khoảng start_at -> end_at do Admin cấu hình
+-- 2. Tự động miễn phí vận chuyển (shipping_fee = 0) khi khách nhập đúng mã
+--    freeship (mặc định: bowlfreeship) VÀ Admin đang BẬT hiệu lực mã trong Cài Đặt
 -- ====================================================================
+
+DROP FUNCTION IF EXISTS public.create_secure_order(TEXT, TEXT, TEXT, TEXT, TEXT, JSONB);
 
 CREATE OR REPLACE FUNCTION public.create_secure_order(
   p_customer_name TEXT,
@@ -10,7 +14,8 @@ CREATE OR REPLACE FUNCTION public.create_secure_order(
   p_customer_email TEXT,
   p_shipping_address TEXT,
   p_notes TEXT,
-  p_items JSONB
+  p_items JSONB,
+  p_freeship_code TEXT DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -32,6 +37,7 @@ DECLARE
   v_unit_price NUMERIC := 0;
   v_deposit_setting JSONB;
   v_sale_setting JSONB;
+  v_freeship_setting JSONB;
   v_sale_active BOOLEAN := FALSE;
   v_sale_pct NUMERIC := 0;
   v_sale_scope TEXT := 'all';
@@ -48,6 +54,7 @@ BEGIN
   IF coalesce(p_customer_name, '') ~* '(<script|javascript:|onerror=|onload=|<iframe|<svg|<object|eval\(|document\.cookie)'
      OR coalesce(p_shipping_address, '') ~* '(<script|javascript:|onerror=|onload=|<iframe|<svg|<object|eval\(|document\.cookie)'
      OR coalesce(p_notes, '') ~* '(<script|javascript:|onerror=|onload=|<iframe|<svg|<object|eval\(|document\.cookie)'
+     OR coalesce(p_freeship_code, '') ~* '(<script|javascript:|onerror=|onload=|<iframe|<svg|<object|eval\(|document\.cookie)'
      OR coalesce(p_items::text, '') ~* '(<script|javascript:|onerror=|onload=|<iframe|<svg|<object|eval\(|document\.cookie)'
   THEN
     RAISE EXCEPTION 'Phát hiện mã lệnh không an toàn trong dữ liệu đơn hàng (XSS bị chặn)';
@@ -177,10 +184,20 @@ BEGIN
     v_subtotal := v_subtotal + (v_unit_price * (v_item->>'quantity')::INT);
   END LOOP;
 
+  -- Tính phí vận chuyển (miễn phí khi đơn >= 500k HOẶC khi khách nhập đúng mã freeship đang được Admin BẬT)
   IF v_subtotal >= 500000 THEN
     v_shipping_fee := 0;
   ELSE
     v_shipping_fee := 30000;
+    IF nullif(trim(coalesce(p_freeship_code, '')), '') IS NOT NULL THEN
+      SELECT setting_value INTO v_freeship_setting FROM public.shop_settings WHERE setting_key = 'freeship_voucher' LIMIT 1;
+      IF v_freeship_setting IS NOT NULL
+         AND coalesce((v_freeship_setting->>'enabled')::boolean, false) = true
+         AND lower(trim(coalesce(p_freeship_code, ''))) = lower(trim(coalesce(nullif(v_freeship_setting->>'code', ''), 'bowlfreeship')))
+      THEN
+        v_shipping_fee := 0;
+      END IF;
+    END IF;
   END IF;
 
   v_total := v_subtotal + v_shipping_fee;

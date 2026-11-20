@@ -16,12 +16,18 @@ import {
   Clock,
   Tag,
   Calendar,
+  Truck,
 } from 'lucide-react';
 import { settingsService } from '../../services/settingsService';
 import { productService } from '../../services/productService';
 import { emailService } from '../../services/emailService';
 import { sepayService } from '../../services/sepayService';
-import { EmailNotificationConfig, SaleCampaignConfig, ShopSettings } from '../../types/settings';
+import {
+  EmailNotificationConfig,
+  FreeshipVoucherConfig,
+  SaleCampaignConfig,
+  ShopSettings,
+} from '../../types/settings';
 import { Product } from '../../types/product';
 import { defaultShopSettings } from '../../constants/defaultSettings';
 import { formatVND } from '../../utils/currency';
@@ -35,7 +41,11 @@ import {
   toDatetimeLocalInput,
 } from '../../utils/sale';
 import { useAppDispatch } from '../../app/hooks';
-import { setDepositPercentage, setSaleCampaign } from '../../features/cart/cartSlice';
+import {
+  setDepositPercentage,
+  setFreeshipVoucherConfig,
+  setSaleCampaign,
+} from '../../features/cart/cartSlice';
 import { Button } from '../../components/common/Button';
 
 const GOOGLE_APPS_SCRIPT_SNIPPET = `function doPost(e) {
@@ -63,6 +73,7 @@ export const AdminSettings: React.FC = () => {
   const [testingSepay, setTestingSepay] = useState(false);
   const [sepayTestStatus, setSepayTestStatus] = useState<string | null>(null);
   const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false);
+  const [copiedFreeshipCode, setCopiedFreeshipCode] = useState(false);
   const [dbCleanedNotice, setDbCleanedNotice] = useState<string | null>(null);
   const [shopProducts, setShopProducts] = useState<Product[]>([]);
   const [now, setNow] = useState<Date>(() => new Date());
@@ -71,6 +82,20 @@ export const AdminSettings: React.FC = () => {
   const saleConfig: SaleCampaignConfig = {
     ...defaultShopSettings.sale_campaign!,
     ...(settings.sale_campaign || {}),
+  };
+  const freeshipConfig: FreeshipVoucherConfig = {
+    ...defaultShopSettings.freeship_voucher!,
+    ...(settings.freeship_voucher || {}),
+  };
+
+  const updateFreeshipConfig = (patch: Partial<FreeshipVoucherConfig>) => {
+    setSettings({
+      ...settings,
+      freeship_voucher: {
+        ...freeshipConfig,
+        ...patch,
+      },
+    });
   };
 
   const updateSaleConfig = (patch: Partial<SaleCampaignConfig>) => {
@@ -216,6 +241,11 @@ export const AdminSettings: React.FC = () => {
       }
     }
 
+    if (freeshipConfig.enabled && !String(freeshipConfig.code || '').trim()) {
+      alert('Vui lòng nhập mã Freeship (ví dụ: bowlfreeship) trước khi bật hiệu lực!');
+      return;
+    }
+
     setSaving(true);
     try {
       const updated = await settingsService.updateSettings(settings);
@@ -224,6 +254,7 @@ export const AdminSettings: React.FC = () => {
         dispatch(setDepositPercentage(updated.bank_transfer.deposit_percentage));
       }
       dispatch(setSaleCampaign(updated.sale_campaign || null));
+      dispatch(setFreeshipVoucherConfig(updated.freeship_voucher || null));
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err: any) {
@@ -603,6 +634,109 @@ export const AdminSettings: React.FC = () => {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </div>
+
+        {/* Section 0B: Freeship Voucher Code Configuration (bowlfreeship) */}
+        <div className="cute-card p-6 space-y-4 border-2 border-emerald-300 bg-gradient-to-br from-white via-emerald-50/30 to-teal-50/30 dark:from-cute-surface-dark dark:to-cute-surface-dark">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-emerald-200">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white flex items-center justify-center shadow-sm">
+                <Truck className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-cute-brown dark:text-cute-cream">
+                  Mã Giảm Giá Phí Vận Chuyển (Freeship Voucher)
+                </h2>
+                <p className="text-[11px] text-cute-brown-light dark:text-cute-muted">
+                  Khi bật lên, khách hàng nhập mã <strong className="text-emerald-700">{freeshipConfig.code || 'bowlfreeship'}</strong> sẽ được miễn phí vận chuyển 100%
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 flex-wrap">
+              {freeshipConfig.enabled ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-extrabold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  <span>MÃ ĐANG CÓ HIỆU LỰC ({freeshipConfig.code || 'bowlfreeship'})</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 border border-gray-300 text-gray-600 text-xs font-bold">
+                  <span>Đang tắt (Khách nhập mã sẽ không áp dụng)</span>
+                </span>
+              )}
+
+              <label className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold cursor-pointer shadow-sm transition-colors">
+                <input
+                  type="checkbox"
+                  checked={freeshipConfig.enabled}
+                  onChange={(e) => updateFreeshipConfig({ enabled: e.target.checked })}
+                  className="rounded text-emerald-700 focus:ring-white"
+                />
+                <span>Bật hiệu lực mã Freeship</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-cute-brown mb-1">
+                Mã giảm giá phí vận chuyển (Không phân biệt chữ hoa / chữ thường) *
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={freeshipConfig.code}
+                  onChange={(e) =>
+                    updateFreeshipConfig({ code: e.target.value.replace(/\s+/g, '') })
+                  }
+                  placeholder="bowlfreeship"
+                  className="flex-1 px-3.5 py-2 rounded-xl border-2 border-emerald-300 text-xs bg-white focus:outline-none font-black text-emerald-800 tracking-wide"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard
+                      .writeText(freeshipConfig.code || 'bowlfreeship')
+                      .catch(() => {});
+                    setCopiedFreeshipCode(true);
+                    setTimeout(() => setCopiedFreeshipCode(false), 2000);
+                  }}
+                  className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-50 text-xs font-bold whitespace-nowrap"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>{copiedFreeshipCode ? 'Đã copy!' : 'Copy mã'}</span>
+                </button>
+                {freeshipConfig.code !== 'bowlfreeship' && (
+                  <button
+                    type="button"
+                    onClick={() => updateFreeshipConfig({ code: 'bowlfreeship' })}
+                    className="px-2.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-[11px] font-bold whitespace-nowrap"
+                  >
+                    Đặt lại bowlfreeship
+                  </button>
+                )}
+              </div>
+              <span className="text-[10px] text-cute-brown-light mt-1 block">
+                Mặc định: <strong>bowlfreeship</strong> — Giảm 100% phí vận chuyển (30.000 ₫ → 0 ₫) ngay cả với đơn dưới 500.000 ₫.
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-cute-brown mb-1">
+                Ghi chú / Mô tả chương trình Freeship
+              </label>
+              <input
+                type="text"
+                value={freeshipConfig.description || ''}
+                onChange={(e) => updateFreeshipConfig({ description: e.target.value })}
+                placeholder="Miễn phí 100% phí vận chuyển toàn quốc khi nhập mã bowlfreeship"
+                className="w-full px-3.5 py-2 rounded-xl border border-cute-border-light text-xs bg-white focus:outline-none"
+              />
+              <span className="text-[10px] text-cute-brown-light mt-1 block">
+                🔒 Được kiểm tra đồng thời ở cả trình duyệt (Giỏ hàng / Thanh toán) lẫn hàm tạo đơn trên Supabase Database.
+              </span>
             </div>
           </div>
         </div>

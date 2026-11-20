@@ -75,6 +75,15 @@ export interface SaleCampaignConfig {
   product_ids?: string[];
 }
 
+export interface FreeshipVoucherConfig {
+  /** Bật hoặc tắt mã miễn phí vận chuyển (khi bật lên mã mới có hiệu lực) */
+  enabled: boolean;
+  /** Mã miễn phí vận chuyển (mặc định: "bowlfreeship", không phân biệt chữ hoa/thường) */
+  code: string;
+  /** Mô tả ngắn về mã freeship */
+  description?: string;
+}
+
 export interface ShopSettings {
   general_info: GeneralShopInfo;
   social_links: SocialLinks;
@@ -83,4 +92,5 @@ export interface ShopSettings {
   blocked_rules?: BlockedClientRule[];
   sepay?: SePayConfig;
   sale_campaign?: SaleCampaignConfig;
+  freeship_voucher?: FreeshipVoucherConfig;
 }

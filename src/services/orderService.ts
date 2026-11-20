@@ -28,6 +28,7 @@ export const orderService = {
     customerEmail?: string;
     shippingAddress: string;
     notes?: string;
+    freeshipCode?: string;
     honeypot?: string;
     csrfToken?: string;
     items: {
@@ -53,7 +54,8 @@ export const orderService = {
         containsXssPayload(payload.customerPhone) ||
         containsXssPayload(payload.customerEmail) ||
         containsXssPayload(payload.shippingAddress) ||
-        containsXssPayload(payload.notes)
+        containsXssPayload(payload.notes) ||
+        containsXssPayload(payload.freeshipCode)
       ) {
         throw new Error('Phát hiện mã lệnh hoặc ký tự không an toàn trong thông tin đơn hàng (XSS bị chặn).');
       }
@@ -63,6 +65,9 @@ export const orderService = {
       const cleanEmail = payload.customerEmail ? sanitizeText(payload.customerEmail, 120) : undefined;
       const cleanAddress = sanitizeText(payload.shippingAddress, 255);
       const cleanNotes = payload.notes ? sanitizeText(payload.notes, 500) : undefined;
+      const cleanFreeshipCode = payload.freeshipCode
+        ? sanitizeText(payload.freeshipCode, 50).trim()
+        : undefined;
 
       if (!payload.items || payload.items.length === 0 || payload.items.length > 15) {
         throw new Error('Số lượng mặt hàng trong một đơn không hợp lệ (tối đa 15 sản phẩm).');
@@ -91,7 +96,7 @@ export const orderService = {
       const db = requireSupabase();
       localStorage.removeItem('bowldog_mock_orders');
 
-      const { data, error } = await db.rpc('create_secure_order', {
+      const rpcParams: Record<string, any> = {
         p_customer_name: cleanName,
         p_customer_phone: cleanPhone,
         p_customer_email: cleanEmail || null,
@@ -103,7 +108,12 @@ export const orderService = {
           quantity: i.quantity,
           customization_data: i.customization,
         })),
-      });
+      };
+      if (cleanFreeshipCode) {
+        rpcParams.p_freeship_code = cleanFreeshipCode;
+      }
+
+      const { data, error } = await db.rpc('create_secure_order', rpcParams);
 
       if (error || !data) {
         throw new Error(error?.message || 'Không thể khởi tạo đơn hàng trên cơ sở dữ liệu.');

@@ -2,7 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import { Flame, Clock, Sparkles } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { setDepositPercentage, setSaleCampaign } from '../../features/cart/cartSlice';
+import {
+  setDepositPercentage,
+  setFreeshipVoucherConfig,
+  setSaleCampaign,
+} from '../../features/cart/cartSlice';
 import { settingsService } from '../../services/settingsService';
 import { getSaleCountdown, getSaleStatus, isSaleActive } from '../../utils/sale';
 import { getLocalBlockedStatus } from '../../utils/securityGuard';
@@ -32,6 +36,7 @@ export const MainLayout: React.FC = () => {
           dispatch(setDepositPercentage(s.bank_transfer.deposit_percentage));
         }
         dispatch(setSaleCampaign(s.sale_campaign || null));
+        dispatch(setFreeshipVoucherConfig(s.freeship_voucher || null));
       } catch {
         // Ignore transient network errors
       }

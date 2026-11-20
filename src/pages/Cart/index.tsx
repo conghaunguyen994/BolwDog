@@ -6,6 +6,7 @@ import { removeFromCart, updateQuantity, clearCart } from '../../features/cart/c
 import { formatVND } from '../../utils/currency';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
+import { FreeshipVoucherBox } from '../../components/cart/FreeshipVoucherBox';
 
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
@@ -15,6 +16,8 @@ export const CartPage: React.FC = () => {
     originalSubtotal,
     discountAmount,
     subtotal,
+    baseShippingFee,
+    shippingDiscountAmount,
     shippingFee,
     total,
     depositAmount,
@@ -192,6 +195,8 @@ export const CartPage: React.FC = () => {
               Tóm tắt đơn hàng
             </h3>
 
+            <FreeshipVoucherBox />
+
             <div className="space-y-2 text-xs text-cute-brown-light dark:text-cute-muted">
               {discountAmount && discountAmount > 0 ? (
                 <>
@@ -212,7 +217,16 @@ export const CartPage: React.FC = () => {
               <div className="flex justify-between">
                 <span>Phí vận chuyển:</span>
                 <span className="font-semibold text-cute-brown dark:text-cute-cream">
-                  {shippingFee === 0 ? 'Miễn phí' : formatVND(shippingFee)}
+                  {(shippingDiscountAmount || 0) > 0 ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="line-through opacity-70">{formatVND(baseShippingFee || 30000)}</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">Miễn phí (Mã Freeship)</span>
+                    </span>
+                  ) : shippingFee === 0 ? (
+                    'Miễn phí'
+                  ) : (
+                    formatVND(shippingFee)
+                  )}
                 </span>
               </div>
               <div className="pt-2 border-t border-cute-border-light dark:border-cute-border-dark flex justify-between text-base font-extrabold text-cute-brown dark:text-cute-cream">

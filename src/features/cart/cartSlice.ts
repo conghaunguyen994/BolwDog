@@ -2,10 +2,15 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { CartItem, CartState } from '../../types/cart';
 import { Product, ProductVariant } from '../../types/product';
 import { PetCustomization } from '../../types/order';
-import { SaleCampaignConfig } from '../../types/settings';
-import { calculateDiscountedPrice, getProductDiscountPercentage } from '../../utils/sale';
+import { FreeshipVoucherConfig, SaleCampaignConfig } from '../../types/settings';
+import {
+  calculateDiscountedPrice,
+  getProductDiscountPercentage,
+  isFreeshipCodeValid,
+} from '../../utils/sale';
 
 const CART_STORAGE_KEY = 'bowldog_cart_v1';
+const FREESHIP_STORAGE_KEY = 'bowldog_freeship_code_v1';
 const DEFAULT_DEPOSIT_PERCENTAGE = 50;
 
 function normalizeDepositPercentage(pct?: number): number {
@@ -35,7 +40,9 @@ function applySaleToItems(items: CartItem[], saleCampaign?: SaleCampaignConfig |
 function calculateCartTotals(
   items: CartItem[],
   depositPercentage = DEFAULT_DEPOSIT_PERCENTAGE,
-  saleCampaign?: SaleCampaignConfig | null
+  saleCampaign?: SaleCampaignConfig | null,
+  appliedFreeshipCode?: string | null,
+  freeshipVoucherConfig?: FreeshipVoucherConfig | null
 ) {
   applySaleToItems(items, saleCampaign);
   const safePct = normalizeDepositPercentage(depositPercentage);
@@ -45,13 +52,19 @@ function calculateCartTotals(
   );
   const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const discountAmount = Math.max(0, originalSubtotal - subtotal);
-  const shippingFee = items.length === 0 ? 0 : subtotal >= 500000 ? 0 : 30000;
+  const baseShippingFee = items.length === 0 ? 0 : subtotal >= 500000 ? 0 : 30000;
+  const hasFreeshipVoucher =
+    items.length > 0 && isFreeshipCodeValid(appliedFreeshipCode, freeshipVoucherConfig);
+  const shippingDiscountAmount = hasFreeshipVoucher ? baseShippingFee : 0;
+  const shippingFee = Math.max(0, baseShippingFee - shippingDiscountAmount);
   const total = subtotal + shippingFee;
   const depositAmount = Math.round(total * (safePct / 100));
   return {
     originalSubtotal,
     discountAmount,
     subtotal,
+    baseShippingFee,
+    shippingDiscountAmount,
     shippingFee,
     total,
     depositAmount,
@@ -69,10 +82,25 @@ function saveCartToStorage(items: CartItem[]) {
   }
 }
 
+function saveFreeshipCodeToStorage(code?: string | null) {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      if (code && code.trim()) {
+        window.localStorage.setItem(FREESHIP_STORAGE_KEY, code.trim());
+      } else {
+        window.localStorage.removeItem(FREESHIP_STORAGE_KEY);
+      }
+    }
+  } catch {
+    // ignore storage errors
+  }
+}
+
 function clearCartStorage() {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       window.localStorage.removeItem(CART_STORAGE_KEY);
+      window.localStorage.removeItem(FREESHIP_STORAGE_KEY);
     }
   } catch (err) {
     console.error('Failed to remove cart from localStorage', err);
@@ -83,10 +111,23 @@ function loadInitialCart(): CartState {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       const saved = window.localStorage.getItem(CART_STORAGE_KEY);
+      const savedCode = window.localStorage.getItem(FREESHIP_STORAGE_KEY) || null;
       if (saved) {
         const items: CartItem[] = JSON.parse(saved);
-        const totals = calculateCartTotals(items, DEFAULT_DEPOSIT_PERCENTAGE, null);
-        return { items, ...totals, saleCampaign: null };
+        const totals = calculateCartTotals(
+          items,
+          DEFAULT_DEPOSIT_PERCENTAGE,
+          null,
+          savedCode,
+          null
+        );
+        return {
+          items,
+          ...totals,
+          saleCampaign: null,
+          freeshipVoucherConfig: null,
+          appliedFreeshipCode: savedCode,
+        };
       }
     }
   } catch (e) {
@@ -97,15 +138,38 @@ function loadInitialCart(): CartState {
     originalSubtotal: 0,
     discountAmount: 0,
     subtotal: 0,
+    baseShippingFee: 0,
+    shippingDiscountAmount: 0,
     shippingFee: 0,
     total: 0,
     depositAmount: 0,
     depositPercentage: DEFAULT_DEPOSIT_PERCENTAGE,
     saleCampaign: null,
+    freeshipVoucherConfig: null,
+    appliedFreeshipCode: null,
   };
 }
 
 const initialState: CartState = loadInitialCart();
+
+function syncTotalsIntoState(state: CartState) {
+  const totals = calculateCartTotals(
+    state.items,
+    state.depositPercentage,
+    state.saleCampaign,
+    state.appliedFreeshipCode,
+    state.freeshipVoucherConfig
+  );
+  state.depositPercentage = totals.depositPercentage;
+  state.originalSubtotal = totals.originalSubtotal;
+  state.discountAmount = totals.discountAmount;
+  state.subtotal = totals.subtotal;
+  state.baseShippingFee = totals.baseShippingFee;
+  state.shippingDiscountAmount = totals.shippingDiscountAmount;
+  state.shippingFee = totals.shippingFee;
+  state.total = totals.total;
+  state.depositAmount = totals.depositAmount;
+}
 
 export const cartSlice = createSlice({
   name: 'cart',
@@ -125,7 +189,6 @@ export const cartSlice = createSlice({
       const discountPercentage = getProductDiscountPercentage(product.id, state.saleCampaign);
       const unitPrice = calculateDiscountedPrice(originalUnitPrice, discountPercentage);
 
-      // Create a deterministic key based on product ID, variant ID, and serialized customization
       const customHash = JSON.stringify(customization);
       const itemId = `${product.id}-${variant?.id || 'base'}-${customHash}`;
 
@@ -147,27 +210,13 @@ export const cartSlice = createSlice({
         });
       }
 
-      const totals = calculateCartTotals(state.items, state.depositPercentage, state.saleCampaign);
-      state.originalSubtotal = totals.originalSubtotal;
-      state.discountAmount = totals.discountAmount;
-      state.subtotal = totals.subtotal;
-      state.shippingFee = totals.shippingFee;
-      state.total = totals.total;
-      state.depositAmount = totals.depositAmount;
-
+      syncTotalsIntoState(state);
       saveCartToStorage(state.items);
     },
 
     removeFromCart: (state, action: PayloadAction<string>) => {
       state.items = state.items.filter((item) => item.id !== action.payload);
-      const totals = calculateCartTotals(state.items, state.depositPercentage, state.saleCampaign);
-      state.originalSubtotal = totals.originalSubtotal;
-      state.discountAmount = totals.discountAmount;
-      state.subtotal = totals.subtotal;
-      state.shippingFee = totals.shippingFee;
-      state.total = totals.total;
-      state.depositAmount = totals.depositAmount;
-
+      syncTotalsIntoState(state);
       saveCartToStorage(state.items);
     },
 
@@ -180,38 +229,41 @@ export const cartSlice = createSlice({
           item.quantity = action.payload.quantity;
         }
       }
-      const totals = calculateCartTotals(state.items, state.depositPercentage, state.saleCampaign);
-      state.originalSubtotal = totals.originalSubtotal;
-      state.discountAmount = totals.discountAmount;
-      state.subtotal = totals.subtotal;
-      state.shippingFee = totals.shippingFee;
-      state.total = totals.total;
-      state.depositAmount = totals.depositAmount;
-
+      syncTotalsIntoState(state);
       saveCartToStorage(state.items);
     },
 
     setDepositPercentage: (state, action: PayloadAction<number>) => {
-      const totals = calculateCartTotals(state.items, action.payload, state.saleCampaign);
-      state.depositPercentage = totals.depositPercentage;
-      state.originalSubtotal = totals.originalSubtotal;
-      state.discountAmount = totals.discountAmount;
-      state.subtotal = totals.subtotal;
-      state.shippingFee = totals.shippingFee;
-      state.total = totals.total;
-      state.depositAmount = totals.depositAmount;
+      state.depositPercentage = normalizeDepositPercentage(action.payload);
+      syncTotalsIntoState(state);
     },
 
     setSaleCampaign: (state, action: PayloadAction<SaleCampaignConfig | null | undefined>) => {
       state.saleCampaign = action.payload || null;
-      const totals = calculateCartTotals(state.items, state.depositPercentage, state.saleCampaign);
-      state.originalSubtotal = totals.originalSubtotal;
-      state.discountAmount = totals.discountAmount;
-      state.subtotal = totals.subtotal;
-      state.shippingFee = totals.shippingFee;
-      state.total = totals.total;
-      state.depositAmount = totals.depositAmount;
+      syncTotalsIntoState(state);
       saveCartToStorage(state.items);
+    },
+
+    setFreeshipVoucherConfig: (
+      state,
+      action: PayloadAction<FreeshipVoucherConfig | null | undefined>
+    ) => {
+      state.freeshipVoucherConfig = action.payload || null;
+      if (
+        state.appliedFreeshipCode &&
+        !isFreeshipCodeValid(state.appliedFreeshipCode, state.freeshipVoucherConfig)
+      ) {
+        state.appliedFreeshipCode = null;
+        saveFreeshipCodeToStorage(null);
+      }
+      syncTotalsIntoState(state);
+    },
+
+    applyFreeshipCode: (state, action: PayloadAction<string | null | undefined>) => {
+      const cleaned = action.payload ? String(action.payload).trim() : null;
+      state.appliedFreeshipCode = cleaned || null;
+      saveFreeshipCodeToStorage(state.appliedFreeshipCode);
+      syncTotalsIntoState(state);
     },
 
     updateCustomization: (
@@ -230,9 +282,12 @@ export const cartSlice = createSlice({
       state.originalSubtotal = 0;
       state.discountAmount = 0;
       state.subtotal = 0;
+      state.baseShippingFee = 0;
+      state.shippingDiscountAmount = 0;
       state.shippingFee = 0;
       state.total = 0;
       state.depositAmount = 0;
+      state.appliedFreeshipCode = null;
       clearCartStorage();
     },
   },
@@ -244,6 +299,8 @@ export const {
   updateQuantity,
   setDepositPercentage,
   setSaleCampaign,
+  setFreeshipVoucherConfig,
+  applyFreeshipCode,
   updateCustomization,
   clearCart,
 } = cartSlice.actions;
