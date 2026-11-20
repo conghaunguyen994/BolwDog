@@ -45,16 +45,17 @@ function calculateCartTotals(
   freeshipVoucherConfig?: FreeshipVoucherConfig | null
 ) {
   applySaleToItems(items, saleCampaign);
+  const selectedItems = items.filter((item) => item.selected !== false);
   const safePct = normalizeDepositPercentage(depositPercentage);
-  const originalSubtotal = items.reduce(
+  const originalSubtotal = selectedItems.reduce(
     (sum, item) => sum + (item.originalUnitPrice ?? item.unitPrice) * item.quantity,
     0
   );
-  const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const subtotal = selectedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const discountAmount = Math.max(0, originalSubtotal - subtotal);
-  const baseShippingFee = items.length === 0 ? 0 : subtotal >= 500000 ? 0 : 30000;
+  const baseShippingFee = selectedItems.length === 0 ? 0 : subtotal >= 500000 ? 0 : 30000;
   const hasFreeshipVoucher =
-    items.length > 0 && isFreeshipCodeValid(appliedFreeshipCode, freeshipVoucherConfig);
+    selectedItems.length > 0 && isFreeshipCodeValid(appliedFreeshipCode, freeshipVoucherConfig);
   const shippingDiscountAmount = hasFreeshipVoucher ? baseShippingFee : 0;
   const shippingFee = Math.max(0, baseShippingFee - shippingDiscountAmount);
   const total = subtotal + shippingFee;
@@ -197,6 +198,7 @@ export const cartSlice = createSlice({
         state.items[existingIndex].quantity += quantity;
         state.items[existingIndex].product = product;
         state.items[existingIndex].selectedVariant = variant;
+        state.items[existingIndex].selected = true;
       } else {
         state.items.push({
           id: itemId,
@@ -207,6 +209,7 @@ export const cartSlice = createSlice({
           discountPercentage,
           unitPrice,
           customization,
+          selected: true,
         });
       }
 
@@ -277,6 +280,31 @@ export const cartSlice = createSlice({
       }
     },
 
+    toggleItemSelection: (state, action: PayloadAction<string>) => {
+      const item = state.items.find((it) => it.id === action.payload);
+      if (item) {
+        item.selected = item.selected === false ? true : false;
+        syncTotalsIntoState(state);
+        saveCartToStorage(state.items);
+      }
+    },
+
+    toggleAllSelection: (state, action: PayloadAction<boolean>) => {
+      for (const item of state.items) {
+        item.selected = action.payload;
+      }
+      syncTotalsIntoState(state);
+      saveCartToStorage(state.items);
+    },
+
+    removeSelectedItems: (state) => {
+      state.items = state.items.filter((item) => item.selected === false);
+      state.appliedFreeshipCode = null;
+      saveFreeshipCodeToStorage(null);
+      syncTotalsIntoState(state);
+      saveCartToStorage(state.items);
+    },
+
     clearCart: (state) => {
       state.items = [];
       state.originalSubtotal = 0;
@@ -297,6 +325,9 @@ export const {
   addToCart,
   removeFromCart,
   updateQuantity,
+  toggleItemSelection,
+  toggleAllSelection,
+  removeSelectedItems,
   setDepositPercentage,
   setSaleCampaign,
   setFreeshipVoucherConfig,

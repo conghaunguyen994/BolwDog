@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import {
-  clearCart,
+  removeSelectedItems,
   setDepositPercentage,
   setFreeshipVoucherConfig,
   setSaleCampaign,
@@ -107,12 +107,14 @@ export const CheckoutPage: React.FC = () => {
     },
   });
 
-  // Redirect if cart is empty and no order is being processed
+  const selectedItems = items.filter((it) => it.selected !== false);
+
+  // Redirect if no selected items and no order is being processed
   useEffect(() => {
-    if (items.length === 0 && !createdOrder) {
+    if (selectedItems.length === 0 && !createdOrder) {
       navigate('/cart');
     }
-  }, [items, createdOrder, navigate]);
+  }, [selectedItems.length, createdOrder, navigate]);
 
   const onSubmit = async (data: CheckoutFormData) => {
     if (isSubmitting || cooldownSec > 0) return;
@@ -147,7 +149,7 @@ export const CheckoutPage: React.FC = () => {
         freeshipCode: appliedFreeshipCode || undefined,
         honeypot,
         csrfToken,
-        items: items.map((it) => ({
+        items: selectedItems.map((it) => ({
           productId: it.product.id,
           productName: it.product.name,
           variantId: it.selectedVariant?.id,
@@ -162,7 +164,7 @@ export const CheckoutPage: React.FC = () => {
 
       setCreatedOrder(order);
       setCooldownSec(getRemainingCooldownSeconds('create_order'));
-      dispatch(clearCart());
+      dispatch(removeSelectedItems());
       setIsSuccessModalOpen(true);
     } catch (err: any) {
       console.error('Checkout error:', err);
@@ -355,12 +357,12 @@ export const CheckoutPage: React.FC = () => {
         <div className="space-y-6">
           <div className="cute-card p-6 space-y-4">
             <h3 className="text-base font-bold text-cute-brown dark:text-cute-cream pb-3 border-b border-cute-border-light dark:border-cute-border-dark">
-              Sản phẩm trong đơn ({items.length})
+              Sản phẩm trong đơn ({selectedItems.length})
             </h3>
 
             {/* List items */}
             <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-              {items.map((it) => (
+              {selectedItems.map((it) => (
                 <div key={it.id} className="flex gap-3 text-xs">
                   <img
                     src={

@@ -3,6 +3,9 @@ import cartReducer, {
   addToCart,
   removeFromCart,
   updateQuantity,
+  toggleItemSelection,
+  toggleAllSelection,
+  removeSelectedItems,
   setDepositPercentage,
   setSaleCampaign,
   setFreeshipVoucherConfig,
@@ -259,6 +262,53 @@ describe('Redux Cart Slice: Precision Math & Customization Composite Keys', () =
     expect(state.appliedFreeshipCode).toBeNull();
     expect(state.shippingFee).toBe(30000);
     expect(state.total).toBe(280000);
+  });
+
+  it('should calculate totals only for selected items and keep unselected items after checkout', () => {
+    let state = cartReducer(undefined, { type: 'unknown' });
+    state = cartReducer(
+      state,
+      addToCart({
+        product: mockProduct, // 250,000 VND
+        quantity: 2, // 500,000 VND
+        customization: { petName: 'Ngáo' },
+      })
+    );
+    state = cartReducer(
+      state,
+      addToCart({
+        product: mockProduct, // 250,000 VND
+        quantity: 1, // 250,000 VND
+        customization: { petName: 'Miu' },
+      })
+    );
+
+    expect(state.items).toHaveLength(2);
+    expect(state.subtotal).toBe(750000);
+    expect(state.shippingFee).toBe(0);
+
+    // Bỏ chọn món thứ 1 (500k) -> chỉ mua món thứ 2 (250k + 30k ship = 280k)
+    const firstId = state.items[0].id;
+    state = cartReducer(state, toggleItemSelection(firstId));
+    expect(state.items[0].selected).toBe(false);
+    expect(state.items[1].selected).toBe(true);
+    expect(state.subtotal).toBe(250000);
+    expect(state.shippingFee).toBe(30000);
+    expect(state.total).toBe(280000);
+
+    // Sau khi đặt hàng xong -> chỉ xóa món đã chọn, giữ nguyên món chưa chọn trong giỏ
+    state = cartReducer(state, removeSelectedItems());
+    expect(state.items).toHaveLength(1);
+    expect(state.items[0].customization.petName).toBe('Ngáo');
+    expect(state.items[0].selected).toBe(false);
+    expect(state.subtotal).toBe(0);
+    expect(state.total).toBe(0);
+
+    // Tích chọn lại tất cả -> tính lại đúng 500,000 VND
+    state = cartReducer(state, toggleAllSelection(true));
+    expect(state.items[0].selected).toBe(true);
+    expect(state.subtotal).toBe(500000);
+    expect(state.total).toBe(500000);
   });
 });
 

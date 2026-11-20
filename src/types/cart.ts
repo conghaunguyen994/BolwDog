@@ -14,6 +14,8 @@ export interface CartItem {
   /** Đơn giá thực tế sau khi áp dụng giảm giá (nếu có) */
   unitPrice: number;
   customization: PetCustomization;
+  /** Có được tích chọn để thanh toán trong giỏ hàng hay không (mặc định true) */
+  selected?: boolean;
 }
 
 export interface CartState {

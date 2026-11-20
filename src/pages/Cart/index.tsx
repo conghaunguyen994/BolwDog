@@ -2,7 +2,13 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, Plus, Minus, ArrowRight, Sparkles, ShieldCheck } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { removeFromCart, updateQuantity, clearCart } from '../../features/cart/cartSlice';
+import {
+  removeFromCart,
+  toggleAllSelection,
+  toggleItemSelection,
+  updateQuantity,
+  clearCart,
+} from '../../features/cart/cartSlice';
 import { formatVND } from '../../utils/currency';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -25,6 +31,9 @@ export const CartPage: React.FC = () => {
     depositAmount,
     depositPercentage,
   } = useAppSelector((state) => state.cart);
+
+  const selectedItems = items.filter((it) => it.selected !== false);
+  const allSelected = items.length > 0 && selectedItems.length === items.length;
 
   if (items.length === 0) {
     return (
@@ -72,12 +81,43 @@ export const CartPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Item List */}
         <div className="lg:col-span-2 space-y-4">
-          {items.map((item) => (
+          {/* Thanh chọn tất cả */}
+          <div className="cute-card px-4 py-3 flex items-center justify-between">
+            <label className="flex items-center gap-2.5 cursor-pointer select-none text-xs sm:text-sm font-bold text-cute-brown dark:text-cute-cream">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={(e) => dispatch(toggleAllSelection(e.target.checked))}
+                className="w-4 h-4 rounded accent-rose-500 cursor-pointer"
+              />
+              <span>
+                Chọn tất cả ({selectedItems.length}/{items.length} sản phẩm)
+              </span>
+            </label>
+            {selectedItems.length === 0 && (
+              <span className="text-xs font-semibold text-rose-500">
+                Vui lòng tích chọn ít nhất 1 sản phẩm để mua
+              </span>
+            )}
+          </div>
+
+          {items.map((item) => {
+            const isSelected = item.selected !== false;
+            return (
             <div
               key={item.id}
-              className="cute-card p-4 sm:p-5 flex flex-col sm:flex-row gap-4 sm:items-center justify-between"
+              className={`cute-card p-4 sm:p-5 flex flex-col sm:flex-row gap-4 sm:items-center justify-between transition-all ${
+                isSelected ? 'ring-1 ring-rose-200 dark:ring-rose-800/60' : 'opacity-65'
+              }`}
             >
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3.5 sm:gap-4">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => dispatch(toggleItemSelection(item.id))}
+                  aria-label={`Chọn mua ${item.product.name}`}
+                  className="w-4 h-4 rounded accent-rose-500 cursor-pointer flex-shrink-0"
+                />
                 <img
                   src={
                     item.product.images[0]?.image_url ||
@@ -187,7 +227,8 @@ export const CartPage: React.FC = () => {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Order Summary Sidebar */}
@@ -266,11 +307,14 @@ export const CartPage: React.FC = () => {
             <Button
               variant="primary"
               size="lg"
-              onClick={() => navigate('/checkout')}
-              className="w-full justify-center"
+              disabled={selectedItems.length === 0}
+              onClick={() => selectedItems.length > 0 && navigate('/checkout')}
+              className="w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed"
               rightIcon={<ArrowRight className="w-4 h-4" />}
             >
-              Hoàn tất đơn yêu thương
+              {selectedItems.length > 0
+                ? `Hoàn tất đơn yêu thương (${selectedItems.length} món)`
+                : 'Chọn ít nhất 1 sản phẩm để mua'}
             </Button>
           </div>
         </div>

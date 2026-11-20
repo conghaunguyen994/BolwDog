@@ -2,7 +2,12 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Trash2, Plus, Minus, ShoppingBag, Sparkles, ArrowRight } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { removeFromCart, updateQuantity } from '../../features/cart/cartSlice';
+import {
+  removeFromCart,
+  toggleAllSelection,
+  toggleItemSelection,
+  updateQuantity,
+} from '../../features/cart/cartSlice';
 import { formatVND } from '../../utils/currency';
 import { Button } from '../common/Button';
 import { FreeshipVoucherBox } from './FreeshipVoucherBox';
@@ -30,7 +35,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
+  const selectedItems = items.filter((it) => it.selected !== false);
+  const allSelected = items.length > 0 && selectedItems.length === items.length;
+
   const handleCheckoutClick = () => {
+    if (selectedItems.length === 0) return;
     onClose();
     navigate('/checkout');
   };
@@ -97,11 +106,49 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                 </Button>
               </div>
             ) : (
-              items.map((item) => (
+              <>
+                {/* Thanh Chọn Tất Cả */}
+                <div className="flex items-center justify-between px-3 py-2 rounded-2xl bg-cute-cream/80 dark:bg-cute-cream-dark/70 border border-cute-border-light dark:border-cute-border-dark">
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none text-xs font-bold text-cute-brown dark:text-cute-cream">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={(e) => dispatch(toggleAllSelection(e.target.checked))}
+                      className="w-4 h-4 rounded accent-rose-500 cursor-pointer"
+                    />
+                    <span>
+                      Chọn tất cả ({selectedItems.length}/{items.length} món)
+                    </span>
+                  </label>
+                  {selectedItems.length === 0 && (
+                    <span className="text-[11px] font-semibold text-rose-500">
+                      Hãy tích chọn món cần mua
+                    </span>
+                  )}
+                </div>
+
+                {items.map((item) => {
+                  const isSelected = item.selected !== false;
+                  return (
                 <div
                   key={item.id}
-                  className="p-3.5 rounded-2xl bg-cute-cream/60 dark:bg-cute-cream-dark/60 border border-cute-border-light dark:border-cute-border-dark flex gap-3.5 transition-all"
+                  className={`p-3.5 rounded-2xl border flex gap-3 transition-all ${
+                    isSelected
+                      ? 'bg-cute-cream/60 dark:bg-cute-cream-dark/60 border-rose-200 dark:border-rose-800/70'
+                      : 'bg-cute-cream/25 dark:bg-cute-cream-dark/30 border-cute-border-light/70 dark:border-cute-border-dark opacity-65'
+                  }`}
                 >
+                  {/* Checkbox chọn mua */}
+                  <div className="flex items-start pt-1">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => dispatch(toggleItemSelection(item.id))}
+                      aria-label={`Chọn mua ${item.product.name}`}
+                      className="w-4 h-4 rounded accent-rose-500 cursor-pointer"
+                    />
+                  </div>
+
                   {/* Thumbnail */}
                   <img
                     src={
@@ -216,7 +263,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                     </div>
                   </div>
                 </div>
-              ))
+                  );
+                })}
+              </>
             )}
           </div>
 
@@ -271,10 +320,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                 variant="primary"
                 size="md"
                 onClick={handleCheckoutClick}
-                className="w-full justify-center shadow-cute"
+                disabled={selectedItems.length === 0}
+                className="w-full justify-center shadow-cute disabled:opacity-50 disabled:cursor-not-allowed"
                 rightIcon={<ArrowRight className="w-4 h-4" />}
               >
-                Hoàn tất đơn yêu thương
+                {selectedItems.length > 0
+                  ? `Hoàn tất đơn yêu thương (${selectedItems.length} món)`
+                  : 'Chọn ít nhất 1 món để đặt hàng'}
               </Button>
             </div>
           )}
