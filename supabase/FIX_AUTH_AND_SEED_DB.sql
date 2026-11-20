@@ -531,8 +531,20 @@ USING (
   setting_key NOT IN ('workshop_expenses', 'manual_orders', 'financial_reports', 'admin_notes', 'sepay')
 );
 
-DROP FUNCTION IF EXISTS public.process_sepay_webhook(BIGINT, TEXT, TIMESTAMPTZ, TEXT, TEXT, TEXT, NUMERIC, TEXT, TEXT);
-DROP FUNCTION IF EXISTS public.process_sepay_webhook(BIGINT, TEXT, TEXT, TEXT, TEXT, TEXT, NUMERIC, TEXT, TEXT);
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN
+    SELECT format('public.%I(%s)', p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid)) AS fn_sig
+    FROM pg_catalog.pg_proc p
+    JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname IN ('process_sepay_webhook', 'get_order_payment_status')
+  LOOP
+    EXECUTE 'DROP FUNCTION IF EXISTS ' || r.fn_sig || ';';
+  END LOOP;
+END $$;
 
 CREATE OR REPLACE FUNCTION public.process_sepay_webhook(
   p_sepay_id BIGINT,
@@ -735,7 +747,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.process_sepay_webhook TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.process_sepay_webhook(BIGINT, TEXT, TEXT, TEXT, TEXT, TEXT, NUMERIC, TEXT, TEXT) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.get_order_payment_status(
   p_order_ref TEXT,
@@ -785,5 +797,5 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.get_order_payment_status TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.get_order_payment_status(TEXT, TEXT) TO anon, authenticated, service_role;
 
