@@ -19,6 +19,7 @@ import {
   Eye,
   Flame,
   Clock,
+  Ruler,
 } from 'lucide-react';
 import { Product, ProductVariant } from '../../types/product';
 import { PetCustomization } from '../../types/order';
@@ -35,6 +36,7 @@ import { addToCart } from '../../features/cart/cartSlice';
 import { CustomizationForm } from '../../components/products/CustomizationForm';
 import { BowlDemoPreviewModal } from '../../components/products/BowlDemoPreviewModal';
 import { ShopPolicyModal } from '../../components/common/ShopPolicyModal';
+import { Modal } from '../../components/common/Modal';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 
@@ -64,6 +66,7 @@ export const ProductDetailPage: React.FC = () => {
   const [actionError, setActionError] = useState<string | null>(null);
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
   const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
+  const [isSpecsModalOpen, setIsSpecsModalOpen] = useState(false);
 
   // States cho chế độ Xem Full Ảnh (Lightbox) & Lướt ảnh
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -491,11 +494,23 @@ export const ProductDetailPage: React.FC = () => {
           </p>
 
           {/* Variants Selector - CHỈ DÀNH CHO BÁT ĂN CÓ KÍCH THƯỚC */}
-          {isDogBowl && product.variants.length > 0 && (
+          {isDogBowl && product.variants.length > 0 ? (
             <div className="space-y-2 pt-2">
-              <label className="text-xs font-bold text-cute-brown dark:text-cute-cream block">
-                {product.variants[0].variant_name}:
-              </label>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className="text-xs font-bold text-cute-brown dark:text-cute-cream">
+                  {product.variants[0].variant_name}:
+                </label>
+                {product.specifications && Object.keys(product.specifications).length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setIsSpecsModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cute-cream hover:bg-cute-pink/40 dark:bg-cute-surface-dark border border-cute-border-light dark:border-cute-border-dark text-[11px] font-extrabold text-cute-brown dark:text-cute-cream hover:text-rose-600 transition-all shadow-xs"
+                  >
+                    <Ruler className="w-3.5 h-3.5 text-rose-500" />
+                    <span>Thông số kỹ thuật</span>
+                  </button>
+                )}
+              </div>
               <div className="flex flex-col gap-2">
                 {product.variants.map((v) => {
                   const isSelected = selectedVariant?.id === v.id;
@@ -538,6 +553,20 @@ export const ProductDetailPage: React.FC = () => {
                 })}
               </div>
             </div>
+          ) : (
+            product.specifications &&
+            Object.keys(product.specifications).length > 0 && (
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsSpecsModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-cute-cream hover:bg-cute-pink/40 dark:bg-cute-surface-dark border border-cute-border-light dark:border-cute-border-dark text-xs font-extrabold text-cute-brown dark:text-cute-cream hover:text-rose-600 transition-all shadow-xs"
+                >
+                  <Ruler className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Xem thông số kỹ thuật &amp; hướng dẫn</span>
+                </button>
+              </div>
+            )
           )}
 
           {/* Customization Form */}
@@ -711,26 +740,46 @@ export const ProductDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Product Specifications Table */}
+      {/* Modal Xem Thông Số Kỹ Thuật & Hướng Dẫn Sử Dụng */}
       {product.specifications && Object.keys(product.specifications).length > 0 && (
-        <div className="cute-card p-6 sm:p-8 space-y-4">
-          <h3 className="text-lg font-bold text-cute-brown dark:text-cute-cream flex items-center gap-2">
-            <span>🐾</span> Thông số kỹ thuật & Hướng dẫn sử dụng
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            {Object.entries(product.specifications).map(([key, val]) => (
-              <div
-                key={key}
-                className="p-3 rounded-2xl bg-cute-cream/50 dark:bg-cute-cream-dark/50 border border-cute-border-light dark:border-cute-border-dark flex justify-between gap-4"
-              >
-                <span className="font-semibold text-cute-brown dark:text-cute-cream capitalize">
-                  {key === 'material' ? 'Chất liệu' : key === 'origin' ? 'Xuất xứ' : key === 'washable' ? 'Vệ sinh' : key === 'weight' ? 'Trọng lượng' : key}:
-                </span>
-                <span className="text-cute-brown-light dark:text-cute-muted text-right font-medium">{val}</span>
-              </div>
-            ))}
+        <Modal
+          isOpen={isSpecsModalOpen}
+          onClose={() => setIsSpecsModalOpen(false)}
+          title="Thông số kỹ thuật & Hướng dẫn sử dụng"
+          maxWidth="lg"
+        >
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs max-h-[65vh] overflow-y-auto pr-1">
+              {Object.entries(product.specifications).map(([key, val]) => (
+                <div
+                  key={key}
+                  className="p-3 rounded-2xl bg-cute-cream/60 dark:bg-cute-cream-dark/50 border border-cute-border-light dark:border-cute-border-dark flex justify-between gap-4"
+                >
+                  <span className="font-semibold text-cute-brown dark:text-cute-cream capitalize">
+                    {key === 'material'
+                      ? 'Chất liệu'
+                      : key === 'origin'
+                        ? 'Xuất xứ'
+                        : key === 'washable'
+                          ? 'Vệ sinh'
+                          : key === 'weight'
+                            ? 'Trọng lượng'
+                            : key}
+                    :
+                  </span>
+                  <span className="text-cute-brown-light dark:text-cute-muted text-right font-medium">
+                    {val}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end pt-2 border-t border-cute-border-light dark:border-cute-border-dark">
+              <Button variant="primary" size="sm" onClick={() => setIsSpecsModalOpen(false)}>
+                Thu nhỏ / Đóng
+              </Button>
+            </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* =====================================================================
