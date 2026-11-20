@@ -24,7 +24,7 @@ export default async function handler(req: any, res: any) {
   if (req.method === 'GET') {
     return res.status(200).json({
       status: 'active',
-      service: 'BolwDog SePay Webhook Integration',
+      service: 'Ú òa Shop SePay Webhook Integration',
       endpoint: '/api/sepay-webhook',
       timestamp: new Date().toISOString(),
       usage: 'Configure this URL in SePay Webhook settings (Method: POST)',

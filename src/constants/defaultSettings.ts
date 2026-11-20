@@ -3,8 +3,8 @@ import { ShopSettings } from '../types/settings';
 // Giá trị cấu hình hiển thị mặc định (KHÔNG chứa bất kỳ API key hay secret nào — tất cả khóa bí mật nằm ở .env server)
 export const defaultShopSettings: ShopSettings = {
   general_info: {
-    shop_name: 'BÂU SHOP',
-    tagline: 'Bát ăn chống gù – chống kiến cho chó mèo | Bâu Shop',
+    shop_name: 'Ú òa Shop',
+    tagline: 'Thế giới đồ in 3D cá nhân hóa, quà tặng, phụ kiện đáng yêu & bát ăn thú cưng | Ú òa Shop',
     owner_name: 'Nguyễn Công Hậu',
     phone: '0345553913',
     email: 'conghaunguyen994@gmail.com.vn',

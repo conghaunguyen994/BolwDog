@@ -562,10 +562,10 @@ export const OrderTrackingPage: React.FC = () => {
                 <div className="text-xs sm:text-sm text-emerald-950 dark:text-emerald-200 space-y-1">
                   <p className="font-black text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
                     <Zap className="w-4 h-4 fill-emerald-600 text-emerald-600" />
-                    <span>BÂU SHOP ĐÃ NHẬN CHUYỂN KHOẢN ĐẶT CỌC THÀNH CÔNG!</span>
+                    <span>Ú ÒA SHOP ĐÃ NHẬN CHUYỂN KHOẢN ĐẶT CỌC THÀNH CÔNG!</span>
                   </p>
                   <p className="text-xs opacity-90 leading-relaxed">
-                    Hệ thống tự động đã ghi nhận khoản cọc <strong>{formatVND(order.deposit_amount)}</strong> cho đơn hàng <strong>{order.order_reference}</strong>. Xưởng BolwDog đang chuẩn bị dựng file 3D và sẽ gửi mẫu Demo cho ba mẹ duyệt nhé!
+                    Hệ thống tự động đã ghi nhận khoản cọc <strong>{formatVND(order.deposit_amount)}</strong> cho đơn hàng <strong>{order.order_reference}</strong>. Xưởng Ú òa Shop đang chuẩn bị dựng file 3D và sẽ gửi mẫu Demo cho bạn duyệt nhé!
                   </p>
                 </div>
               </div>
@@ -666,7 +666,7 @@ export const OrderTrackingPage: React.FC = () => {
                 {demoPreview.adminNote && (
                   <div className="p-3.5 rounded-2xl bg-white/90 dark:bg-cute-surface-dark border border-purple-200 text-xs space-y-1">
                     <span className="font-bold text-purple-800 dark:text-purple-300 block">
-                      💬 Lời nhắn từ Xưởng In 3D BolwDog:
+                      💬 Lời nhắn từ Xưởng In 3D Ú òa Shop:
                     </span>
                     <p className="text-cute-brown dark:text-cute-cream leading-relaxed">
                       &ldquo;{demoPreview.adminNote}&rdquo;

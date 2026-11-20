@@ -21,7 +21,7 @@ export const ShopPolicyModal: React.FC<ShopPolicyModalProps> = ({ isOpen, onClos
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Chính Sách & Cam Kết Chất Lượng – Bâu Shop (BolwDog)"
+      title="Chính Sách & Cam Kết Chất Lượng – Ú òa Shop"
       maxWidth="lg"
     >
       <div className="space-y-4 text-xs text-cute-brown dark:text-cute-cream max-h-[72vh] overflow-y-auto pr-1">

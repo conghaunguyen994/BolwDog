@@ -157,8 +157,8 @@ export async function sendDepositConfirmedEmailsServer(
         cc: adminBackupEmail,
         replyTo: customerEmail.includes('@') ? customerEmail : adminEmail,
         subject: isFullPaid
-          ? `[BolwDog] 🎉 ĐÃ THANH TOÁN ĐỦ 100% ${formatVndServer(paidAmount)} - Đơn #${orderRef} (${customerName})`
-          : `[BolwDog] 💰 ĐÃ NHẬN CỌC ${formatVndServer(paidAmount)} - Đơn #${orderRef} (${customerName})`,
+          ? `[Ú òa Shop] 🎉 ĐÃ THANH TOÁN ĐỦ 100% ${formatVndServer(paidAmount)} - Đơn #${orderRef} (${customerName})`
+          : `[Ú òa Shop] 💰 ĐÃ NHẬN CỌC ${formatVndServer(paidAmount)} - Đơn #${orderRef} (${customerName})`,
         textBody: [
           `Xin chào Admin Nguyễn Công Hậu,`,
           ``,
@@ -246,14 +246,14 @@ export async function sendDepositConfirmedEmailsServer(
         to: customerEmail,
         replyTo: adminEmail,
         subject: isFullPaid
-          ? `[BolwDog Studio] 🎉 Đã thanh toán đủ 100% (${formatVndServer(paidAmount)}) cho đơn #${orderRef} — Chỉ chờ nhận đơn!`
-          : `[BolwDog Studio] ✅ Đã nhận tiền cọc ${formatVndServer(paidAmount)} cho đơn #${orderRef}`,
+          ? `[Ú òa Shop] 🎉 Đã thanh toán đủ 100% (${formatVndServer(paidAmount)}) cho đơn #${orderRef} — Chỉ chờ nhận đơn!`
+          : `[Ú òa Shop] ✅ Đã nhận tiền cọc ${formatVndServer(paidAmount)} cho đơn #${orderRef}`,
         textBody: [
-          `Chào ba mẹ ${customerName},`,
+          `Chào bạn ${customerName},`,
           ``,
           isFullPaid
-            ? `BolwDog Studio xác nhận đã nhận thanh toán đủ 100% (${formatVndServer(paidAmount)}) qua ${gateway} cho đơn hàng #${orderRef}. Đơn hàng đã hoàn tất thanh toán toàn bộ — khi nhận hàng ba mẹ không cần thanh toán thêm (0 đ COD), chỉ chờ nhận đơn tại nhà!`
-            : `BolwDog Studio xác nhận đã nhận được khoản chuyển khoản tiền cọc ${formatVndServer(paidAmount)} qua ${gateway} cho đơn hàng #${orderRef}.`,
+            ? `Ú òa Shop xác nhận đã nhận thanh toán đủ 100% (${formatVndServer(paidAmount)}) qua ${gateway} cho đơn hàng #${orderRef}. Đơn hàng đã hoàn tất thanh toán toàn bộ — khi nhận hàng bạn không cần thanh toán thêm (0 đ COD), chỉ chờ nhận đơn tại nhà!`
+            : `Ú òa Shop xác nhận đã nhận được khoản chuyển khoản tiền cọc ${formatVndServer(paidAmount)} qua ${gateway} cho đơn hàng #${orderRef}.`,
           totalAmount > 0 ? `• Tổng giá trị đơn: ${formatVndServer(totalAmount)}` : '',
           `• Đã thanh toán: ${formatVndServer(paidAmount)}`,
           totalAmount > 0
@@ -262,12 +262,12 @@ export async function sendDepositConfirmedEmailsServer(
               : `• Số tiền còn lại (thanh toán khi nhận hàng): ${formatVndServer(remainingAmount)}`
             : '',
           ``,
-          `Xưởng đang bắt đầu thiết kế file 3D cá nhân hóa cho bé và sẽ gửi bản xem trước 3D để ba mẹ duyệt trước khi in.`,
+          `Xưởng đang bắt đầu thiết kế file 3D cá nhân hóa cho đơn hàng của bạn và sẽ gửi bản xem trước 3D để bạn duyệt trước khi in.`,
           ``,
           `👉 Theo dõi tiến độ đơn hàng trực tuyến tại: ${trackingUrl}`,
           ``,
           `Trân trọng,`,
-          `BolwDog Studio – Hotline/Zalo: 0345553913`,
+          `Ú òa Shop – Hotline/Zalo: 0345553913`,
         ]
           .filter(Boolean)
           .join('\n'),
@@ -282,7 +282,7 @@ export async function sendDepositConfirmedEmailsServer(
                     🐾
                   </div>
                   <h1 style="margin:0;font-size:22px;font-weight:900;color:#831843;">
-                    BolwDog <span style="color:#EC4899;">Studio</span>
+                    Ú òa <span style="color:#EC4899;">Shop</span>
                   </h1>
                   <p style="margin:4px 0 0;font-size:12px;color:#047857;font-weight:700;">
                     Xác nhận thanh toán cọc thành công
@@ -319,7 +319,7 @@ export async function sendDepositConfirmedEmailsServer(
                     </table>
                   </div>
                   <div style="background:#FDF2F8;border-left:4px solid #EC4899;border-radius:12px;padding:12px 14px;font-size:12.5px;line-height:1.55;color:#831843;">
-                    🎨 <strong>Bước tiếp theo:</strong> Nghệ nhân BolwDog đang dựng bản thiết kế 3D riêng cho bé và sẽ gửi mẫu demo 3D để ba mẹ kiểm tra & chốt trước khi bấm máy in nhé!
+                    🎨 <strong>Bước tiếp theo:</strong> Nghệ nhân Ú òa Shop đang dựng bản thiết kế 3D riêng cho đơn hàng của bạn và sẽ gửi mẫu demo 3D để bạn kiểm tra &amp; chốt trước khi bấm máy in nhé!
                   </div>
                   <div style="text-align:center;margin:26px 0 18px;">
                     <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:linear-gradient(135deg,#10B981 0%,#059669 100%);color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:900;padding:14px 30px;border-radius:99px;box-shadow:0 8px 20px rgba(16,185,129,0.3);">

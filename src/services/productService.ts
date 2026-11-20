@@ -51,12 +51,12 @@ export const DEFAULT_BOWL_PRODUCT: Product = {
     id: 'a1111111-1111-4111-8111-111111111111',
     name: 'Bát Ăn Cho Chó Mèo',
     slug: 'bat-an-cho-cho',
-    description: 'Bát ăn chống gù – chống kiến cho chó mèo | Bâu Shop',
+    description: 'Bát ăn chống gù – chống kiến cho chó mèo | Ú òa Shop',
     display_order: 1,
   },
-  name: 'BÁT ĂN CHỐNG GÙ – CHỐNG KIẾN CHO CHÓ MÈO | BÂU SHOP',
+  name: 'BÁT ĂN CHỐNG GÙ – CHỐNG KIẾN CHO CHÓ MÈO | Ú ÒA SHOP',
   slug: 'bat-an-chong-gu-chong-kien-cho-cho-meo',
-  description: `BÁT ĂN CHỐNG GÙ – CHỐNG KIẾN CHO CHÓ MÈO | BÂU SHOP
+  description: `BÁT ĂN CHỐNG GÙ
 🌸 Thiết kế nghiêng 15° chống gù ( size S | M | L)
 🌸 5 size S | M | L | XL | XXL
 🌸 Đế chống kiến với khoang chứa nước
@@ -144,16 +144,14 @@ export const productService = {
         .order('display_order', { ascending: true });
 
       if (error) throw error;
-      const cats = (data || []).filter((c: Category) =>
-        c.slug === 'bat-an-cho-cho' || c.name.toLowerCase().includes('bát')
-      );
+      const cats = (data || []) as Category[];
       if (cats.length > 0) return cats;
       return [
         {
           id: 'a1111111-1111-4111-8111-111111111111',
           name: 'Bát Ăn Cho Chó Mèo',
           slug: 'bat-an-cho-cho',
-          description: 'Bát ăn chống gù – chống kiến cho chó mèo | Bâu Shop',
+          description: 'Bát ăn chống gù – chống kiến cho chó mèo | Ú òa Shop',
           icon: 'UtensilsCrossed',
           display_order: 1,
         },
@@ -164,7 +162,7 @@ export const productService = {
           id: 'a1111111-1111-4111-8111-111111111111',
           name: 'Bát Ăn Cho Chó Mèo',
           slug: 'bat-an-cho-cho',
-          description: 'Bát ăn chống gù – chống kiến cho chó mèo | Bâu Shop',
+          description: 'Bát ăn chống gù – chống kiến cho chó mèo | Ú òa Shop',
           icon: 'UtensilsCrossed',
           display_order: 1,
         },
@@ -215,36 +213,27 @@ export const productService = {
       const { data, error } = await query;
       if (error) throw error;
 
-      let list = (data || []).map((p: any) => {
-        const isBowl =
-          p.slug?.includes('bat-an') ||
-          p.name?.toLowerCase().includes('bát') ||
-          p.category?.slug?.includes('bat-an');
-
+      const list = (data || []).map((p: any) => {
+        const isDefaultBowl = p.slug === 'bat-an-chong-gu-chong-kien-cho-cho-meo';
         const variants =
-          isBowl && (!p.variants || p.variants.length < 5)
+          isDefaultBowl && (!p.variants || p.variants.length < 5)
             ? BOWL_VARIANTS
             : deduplicateVariants(p.variants || []);
 
+        const normalizedName =
+          typeof p.name === 'string'
+            ? p.name.replace(/BÂU SHOP/g, 'Ú ÒA SHOP').replace(/Bâu Shop/gi, 'Ú òa Shop')
+            : p.name;
+
         return {
           ...p,
-          name: isBowl ? 'BÁT ĂN CHỐNG GÙ – CHỐNG KIẾN CHO CHÓ MÈO | BÂU SHOP' : p.name,
+          name: isDefaultBowl ? 'BÁT ĂN CHỐNG GÙ – CHỐNG KIẾN CHO CHÓ MÈO | Ú ÒA SHOP' : normalizedName,
           images: (p.images || []).sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0)),
           variants,
         };
       });
 
-      // Hiện tại cửa hàng chỉ bán bát cho chó mèo ăn
-      const bowlsOnly = list.filter((p: Product) =>
-        p.slug?.includes('bat-an') ||
-        p.name?.toLowerCase().includes('bát') ||
-        p.category?.slug?.includes('bat-an')
-      );
-
-      if (bowlsOnly.length > 0) {
-        return bowlsOnly;
-      }
-
+      // Ú òa Shop bán đa dạng nhiều mặt hàng (bát ăn thú cưng, quà tặng 3D, phụ kiện, decor...)
       return list.length > 0 ? list : [DEFAULT_BOWL_PRODUCT];
     } catch {
       return [DEFAULT_BOWL_PRODUCT];
@@ -273,19 +262,20 @@ export const productService = {
         return null;
       }
 
-      const isBowl =
-        data.slug?.includes('bat-an') ||
-        data.name?.toLowerCase().includes('bát') ||
-        data.category?.slug?.includes('bat-an');
-
+      const isDefaultBowl = data.slug === 'bat-an-chong-gu-chong-kien-cho-cho-meo';
       const variants =
-        isBowl && (!data.variants || data.variants.length < 5)
+        isDefaultBowl && (!data.variants || data.variants.length < 5)
           ? BOWL_VARIANTS
           : deduplicateVariants(data.variants || []);
 
+      const normalizedName =
+        typeof data.name === 'string'
+          ? data.name.replace(/BÂU SHOP/g, 'Ú ÒA SHOP').replace(/Bâu Shop/gi, 'Ú òa Shop')
+          : data.name;
+
       return {
         ...data,
-        name: isBowl ? 'BÁT ĂN CHỐNG GÙ – CHỐNG KIẾN CHO CHÓ MÈO | BÂU SHOP' : data.name,
+        name: isDefaultBowl ? 'BÁT ĂN CHỐNG GÙ – CHỐNG KIẾN CHO CHÓ MÈO | Ú ÒA SHOP' : normalizedName,
         images: (data.images || []).sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0)),
         variants,
       };

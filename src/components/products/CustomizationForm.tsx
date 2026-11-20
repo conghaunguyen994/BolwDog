@@ -368,18 +368,7 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
           </div>
 
           {/* Action button to open Fullscreen Demo Review Modal */}
-          {onOpenDemoModal && (
-            <div className="mt-3 flex justify-center">
-              <button
-                type="button"
-                onClick={onOpenDemoModal}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-xs font-black shadow-md hover:scale-[1.02] active:scale-95 transition-all"
-              >
-                <Eye className="w-4 h-4" />
-                <span>🔍 Xem Demo Chi Tiết / Phóng To / Tải Mẫu</span>
-              </button>
-            </div>
-          )}
+
 
           {/* Live Color Summary Badges */}
           <div className="flex flex-wrap items-center justify-center gap-2 mt-4 text-[11px]">
@@ -455,17 +444,16 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
                     style={
                       isSelected
                         ? {
-                            borderColor: dynamicAccentHex,
-                            backgroundColor: `${col.hex === '#FFFFFF' ? '#F8FAFC' : col.hex}25`,
-                            boxShadow: `0 0 0 2px ${dynamicAccentHex}40`,
-                          }
+                          borderColor: dynamicAccentHex,
+                          backgroundColor: `${col.hex === '#FFFFFF' ? '#F8FAFC' : col.hex}25`,
+                          boxShadow: `0 0 0 2px ${dynamicAccentHex}40`,
+                        }
                         : undefined
                     }
-                    className={`flex items-center justify-center gap-2 py-3 px-3 rounded-2xl text-xs font-bold border transition-all text-center ${
-                      isSelected
+                    className={`flex items-center justify-center gap-2 py-3 px-3 rounded-2xl text-xs font-bold border transition-all text-center ${isSelected
                         ? 'text-cute-brown dark:text-cute-cream font-black shadow-sm ring-1'
                         : 'bg-white dark:bg-cute-surface-dark border-cute-border-light text-cute-brown dark:text-cute-cream hover:bg-cute-cream'
-                    }`}
+                      }`}
                   >
                     <span
                       style={{ backgroundColor: col.hex, borderColor: col.border }}
@@ -509,17 +497,16 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
                     style={
                       isSelected
                         ? {
-                            borderColor: dynamicAccentHex,
-                            backgroundColor: `${col.hex === '#FFFFFF' ? '#F8FAFC' : col.hex}25`,
-                            boxShadow: `0 0 0 2px ${dynamicAccentHex}40`,
-                          }
+                          borderColor: dynamicAccentHex,
+                          backgroundColor: `${col.hex === '#FFFFFF' ? '#F8FAFC' : col.hex}25`,
+                          boxShadow: `0 0 0 2px ${dynamicAccentHex}40`,
+                        }
                         : undefined
                     }
-                    className={`flex items-center justify-center gap-2 py-3 px-3 rounded-2xl text-xs font-bold border transition-all text-center ${
-                      isSelected
+                    className={`flex items-center justify-center gap-2 py-3 px-3 rounded-2xl text-xs font-bold border transition-all text-center ${isSelected
                         ? 'text-cute-brown dark:text-cute-cream font-black shadow-sm ring-1'
                         : 'bg-white dark:bg-cute-surface-dark border-cute-border-light text-cute-brown dark:text-cute-cream hover:bg-cute-cream'
-                    }`}
+                      }`}
                   >
                     <span
                       style={{ backgroundColor: col.hex, borderColor: col.border }}
@@ -582,17 +569,16 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
                     style={
                       isSelected
                         ? {
-                            borderColor: dynamicAccentHex,
-                            backgroundColor: `${dynamicAccentHex}20`,
-                            boxShadow: `0 0 0 2px ${dynamicAccentHex}40`,
-                          }
+                          borderColor: dynamicAccentHex,
+                          backgroundColor: `${dynamicAccentHex}20`,
+                          boxShadow: `0 0 0 2px ${dynamicAccentHex}40`,
+                        }
                         : undefined
                     }
-                    className={`h-11 rounded-xl flex flex-col items-center justify-center text-lg transition-all border ${
-                      isSelected
+                    className={`h-11 rounded-xl flex flex-col items-center justify-center text-lg transition-all border ${isSelected
                         ? 'scale-105 font-bold'
                         : 'bg-white dark:bg-cute-surface-dark border-cute-border-light hover:bg-cute-cream opacity-85'
-                    }`}
+                      }`}
                   >
                     <span>{item.icon}</span>
                   </button>
@@ -744,11 +730,10 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
                     key={design.id}
                     type="button"
                     onClick={() => updateFields({ keychainDesign: design.id })}
-                    className={`p-3 rounded-2xl border-2 text-left text-xs transition-all ${
-                      isSelected
+                    className={`p-3 rounded-2xl border-2 text-left text-xs transition-all ${isSelected
                         ? 'border-rose-500 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 font-bold shadow-sm'
                         : 'border-cute-border-light dark:border-cute-border-dark bg-white dark:bg-cute-surface-dark text-cute-brown dark:text-cute-cream hover:bg-cute-cream'
-                    }`}
+                      }`}
                   >
                     <span className="block font-bold text-xs mb-0.5">{design.preview}</span>
                     <span className="block text-[11px] opacity-80">{design.name}</span>
@@ -771,11 +756,10 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
                     key={col.name}
                     type="button"
                     onClick={() => updateFields({ keychainColor: col.name })}
-                    className={`flex items-center gap-2 p-2.5 rounded-xl border-2 text-xs font-semibold transition-all ${
-                      isSelected
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border-2 text-xs font-semibold transition-all ${isSelected
                         ? 'border-rose-500 bg-rose-50/60 dark:bg-rose-950/20 text-rose-700 dark:text-rose-300 font-bold'
                         : 'border-cute-border-light dark:border-cute-border-dark bg-white dark:bg-cute-surface-dark text-cute-brown dark:text-cute-cream hover:bg-cute-cream'
-                    }`}
+                      }`}
                   >
                     <span
                       style={{ backgroundColor: col.hex }}
@@ -919,11 +903,10 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
                     key={shape.id}
                     type="button"
                     onClick={() => updateFields({ tagShape: shape.id })}
-                    className={`p-2.5 rounded-2xl border-2 text-center text-xs transition-all ${
-                      isSelected
+                    className={`p-2.5 rounded-2xl border-2 text-center text-xs transition-all ${isSelected
                         ? 'border-teal-600 bg-teal-50 dark:bg-teal-950/40 text-teal-800 dark:text-teal-200 font-bold shadow-sm'
                         : 'border-cute-border-light dark:border-cute-border-dark bg-white dark:bg-cute-surface-dark text-cute-brown dark:text-cute-cream hover:bg-cute-cream'
-                    }`}
+                      }`}
                   >
                     <span className="text-xl block mb-1">{shape.icon}</span>
                     <span className="text-[11px] block">{shape.name}</span>
@@ -946,11 +929,10 @@ export const CustomizationForm: React.FC<CustomizationFormProps> = ({
                     key={g.name}
                     type="button"
                     onClick={() => updateFields({ glowColor: g.name })}
-                    className={`flex items-center gap-2 p-2.5 rounded-xl border-2 text-xs font-semibold transition-all ${
-                      isSelected
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border-2 text-xs font-semibold transition-all ${isSelected
                         ? 'border-teal-600 bg-teal-50/70 dark:bg-teal-950/30 text-teal-800 dark:text-teal-200 font-bold'
                         : 'border-cute-border-light dark:border-cute-border-dark bg-white dark:bg-cute-surface-dark text-cute-brown dark:text-cute-cream hover:bg-cute-cream'
-                    }`}
+                      }`}
                   >
                     <span
                       style={{ backgroundColor: g.hex }}

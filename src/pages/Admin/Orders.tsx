@@ -304,19 +304,19 @@ export const AdminOrders: React.FC = () => {
       'bé cưng';
     const gmailUrl = buildGmailComposeUrl({
       to: customerEmailInput.trim() || selectedOrder.customer_email || '',
-      subject: `[BolwDog Studio] 🎨 Bản Demo 3D đơn #${selectedOrder.order_reference} (${petName}) – Mời ba mẹ xem & chốt in!`,
+      subject: `[Ú òa Shop] 🎨 Bản Demo 3D đơn #${selectedOrder.order_reference} (${petName}) – Mời bạn xem & chốt in!`,
       body: [
-        `Chào ba mẹ ${selectedOrder.customer_name},`,
+        `Chào bạn ${selectedOrder.customer_name},`,
         ``,
-        `Nghệ nhân của BolwDog Studio vừa hoàn thiện bản dựng file 3D cho đơn hàng #${selectedOrder.order_reference} (tên bé: "${petName}").`,
+        `Nghệ nhân của Ú òa Shop vừa hoàn thiện bản dựng file 3D cho đơn hàng #${selectedOrder.order_reference} (tên khắc: "${petName}").`,
         ``,
         `💬 Lời nhắn từ xưởng: "${demoAdminNote}"`,
         ``,
-        `👉 Ba mẹ bấm vào đường link dưới đây để xem hình mô phỏng 3D và bấm nút "✅ Xác Nhận Chốt In" (hoặc "✏️ Yêu Cầu Chỉnh Sửa Thêm"):`,
+        `👉 Bạn bấm vào đường link dưới đây để xem hình mô phỏng 3D và bấm nút "✅ Xác Nhận Chốt In" (hoặc "✏️ Yêu Cầu Chỉnh Sửa Thêm"):`,
         `${trackingUrl}`,
         ``,
         `Trân trọng,`,
-        `BolwDog Studio – Nguyễn Công Hậu (0345553913)`,
+        `Ú òa Shop – Nguyễn Công Hậu (0345553913)`,
       ].join('\n'),
     });
     window.open(gmailUrl, '_blank', 'noopener,noreferrer');
@@ -327,7 +327,7 @@ export const AdminOrders: React.FC = () => {
     const reviewUrl = `${window.location.origin}/track?ref=${encodeURIComponent(
       selectedOrder.order_reference
     )}&phone=${encodeURIComponent(selectedOrder.customer_phone)}`;
-    const messageToCopy = `🐾 [BolwDog Studio] Chào ${selectedOrder.customer_name}, xưởng đã thiết kế xong bản Demo 3D cho đơn ${selectedOrder.order_reference}. Ba mẹ bấm vào link sau để xem hình 3D và bấm "Chốt In" giúp xưởng nhé: ${reviewUrl}`;
+    const messageToCopy = `✨ [Ú òa Shop] Chào ${selectedOrder.customer_name}, xưởng đã thiết kế xong bản Demo 3D cho đơn ${selectedOrder.order_reference}. Bạn bấm vào link sau để xem hình 3D và bấm "Chốt In" giúp shop nhé: ${reviewUrl}`;
     navigator.clipboard.writeText(messageToCopy).catch(() => {});
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 3000);

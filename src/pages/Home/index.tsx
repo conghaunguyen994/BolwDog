@@ -65,13 +65,13 @@ export const HomePage: React.FC = () => {
             <div className="space-y-6 text-center lg:text-left">
               <Badge variant="pink" size="md">
                 <Sparkles className="w-3.5 h-3.5 text-rose-500" />
-                <span>BÂU SHOP | BÁT ĂN CHỐNG GÙ – CHỐNG KIẾN CHO CHÓ MÈO</span>
+                <span>Ú ÒA SHOP | THẾ GIỚI QUÀ TẶNG, PHỤ KIỆN &amp; ĐỒ IN 3D CÁ NHÂN HÓA</span>
               </Badge>
 
               <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-cute-brown dark:text-cute-cream tracking-tight leading-[1.15] font-sans">
-                Bát Ăn Chống Gù – Chống Kiến <br className="hidden sm:inline" />
+                Quà Tặng, Phụ Kiện &amp; Đồ In 3D <br className="hidden sm:inline" />
                 <span className="relative inline-block text-rose-500">
-                  Cá Nhân Hóa Riêng Cho Bé
+                  Cá Nhân Hóa Đáng Yêu
                   <svg className="absolute left-0 -bottom-2 w-full h-3 text-cute-pink-300 -z-10" viewBox="0 0 100 20" preserveAspectRatio="none">
                     <path d="M0,15 Q50,0 100,15" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
                   </svg>
@@ -79,26 +79,24 @@ export const HomePage: React.FC = () => {
               </h1>
 
               <div className="space-y-1.5 text-xs sm:text-sm text-cute-brown dark:text-cute-cream font-medium">
-                <p>🌸 <strong>Thiết kế nghiêng 15° chống gù</strong> bảo vệ cột sống (size S | M | L)</p>
-                <p>🌸 <strong>5 size chuẩn</strong>: S | M | L | XL | XXL phù hợp mọi dòng cún mèo</p>
-                <p>🌸 <strong>Đế chống kiến</strong> với khoang chứa nước ngăn 100% côn trùng</p>
-                <p>🌸 <strong>Lòng bát inox 304</strong> tháo rời, siêu bền, dễ vệ sinh sạch bóng</p>
+                <p>🌸 <strong>Đa dạng mặt hàng in 3D sáng tạo</strong>: Bát ăn thú cưng khắc tên, móc khóa 3D, thẻ tên, đồ decor &amp; quà tặng độc đáo</p>
+                <p>🌸 <strong>Bát ăn chống gù – chống kiến 5 size</strong>: S | M | L | XL | XXL kèm lòng inox 304 tháo rời tiện lợi</p>
                 <p>🌸 Sử dụng <strong>nhựa sinh học PLA an toàn tuyệt đối</strong> — in 3D tỉ mỉ, siêu nhẹ, chi tiết đáng yêu</p>
                 <p>🌸 <strong>Đổi mới 1:1 miễn phí trong 7 ngày</strong> nếu lỗi kỹ thuật hoặc vận chuyển</p>
                 <p className="text-rose-500 font-bold pt-1">
-                  🎨 Tùy chọn 2 màu sắc (màu thân trên & màu đế dưới) • Chữ viết tên cún • Tối đa 2 icon • Ngày sinh khi in lên bát
+                  🎨 Tự do phối màu pastel • Khắc tên riêng, icon dễ thương &amp; ngày kỷ niệm theo yêu cầu
                 </p>
               </div>
 
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
-                <Link to="/products/bat-an-chong-gu-chong-kien-cho-cho-meo">
+                <Link to="/products">
                   <Button variant="primary" size="lg" rightIcon={<ArrowRight className="w-4 h-4" />}>
-                    Thiết kế & Xem demo ngay
+                    Khám phá gian hàng Ú òa Shop
                   </Button>
                 </Link>
                 <Link to="/products/bat-an-chong-gu-chong-kien-cho-cho-meo">
                   <Button variant="secondary" size="lg">
-                    Xem 5 Size & Bảng giá 🐾
+                    Thiết kế bát ăn &amp; Xem demo ✨
                   </Button>
                 </Link>
               </div>
@@ -115,7 +113,7 @@ export const HomePage: React.FC = () => {
                 </div>
                 <div className="text-center lg:text-left">
                   <span className="block text-xl font-black text-cute-brown dark:text-cute-cream font-sans">5.0 ★</span>
-                  <span className="text-[11px] text-cute-brown-light dark:text-cute-muted">Bâu Shop uy tín</span>
+                  <span className="text-[11px] text-cute-brown-light dark:text-cute-muted">Ú òa Shop uy tín</span>
                 </div>
               </div>
             </div>
@@ -127,7 +125,7 @@ export const HomePage: React.FC = () => {
                 <div className="w-full h-full rounded-4xl overflow-hidden shadow-cute-lg dark:shadow-cute-dark border-4 border-white dark:border-cute-surface-dark bg-cute-pink/20">
                   <img
                     src="/images/bat-an-chong-gu-chong-kien.jpg"
-                    alt="Bát ăn chống gù chống kiến Bâu Shop"
+                    alt="Sản phẩm in 3D cá nhân hóa Ú òa Shop"
                     className="w-full h-full object-cover object-center transform hover:scale-105 transition-transform duration-700"
                   />
                 </div>
@@ -135,14 +133,14 @@ export const HomePage: React.FC = () => {
                 {/* Floating Decorative Badges */}
                 <div className="absolute -bottom-4 -left-4 sm:bottom-4 sm:-left-6 bg-white dark:bg-cute-surface-dark p-3.5 sm:p-4 rounded-3xl shadow-cute-lg border border-cute-border-light dark:border-cute-border-dark flex items-center gap-3 animate-float">
                   <div className="w-10 h-10 rounded-2xl bg-cute-pink flex items-center justify-center text-xl">
-                    🥣
+                    🎁
                   </div>
                   <div>
                     <span className="text-xs font-bold text-cute-brown dark:text-cute-cream block">
-                      Khắc Tên & Ngày Sinh Bé
+                      Quà Tặng &amp; Đồ In 3D Khắc Tên
                     </span>
                     <span className="text-[11px] text-cute-brown-light dark:text-cute-muted">
-                      Xem demo trước khi đặt hàng
+                      Xem demo 3D trước khi đặt in
                     </span>
                   </div>
                 </div>
@@ -150,7 +148,7 @@ export const HomePage: React.FC = () => {
                 <div className="absolute -top-4 -right-4 sm:top-4 sm:-right-4 bg-white dark:bg-cute-surface-dark px-4 py-2.5 rounded-full shadow-cute border border-cute-border-light dark:border-cute-border-dark flex items-center gap-2">
                   <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
                   <span className="text-xs font-bold text-cute-brown dark:text-cute-cream">
-                    Bâu Shop Chính Hãng
+                    Ú òa Shop Chính Hãng
                   </span>
                 </div>
               </div>
@@ -167,13 +165,13 @@ export const HomePage: React.FC = () => {
             <div className="space-y-1.5">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-600 text-white text-[11px] font-black tracking-wide shadow-xs">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>CAM KẾT CHẤT LƯỢNG ĐỘC QUYỀN TẠI BÂU SHOP</span>
+                <span>CAM KẾT CHẤT LƯỢNG ĐỘC QUYỀN TẠI Ú ÒA SHOP</span>
               </span>
               <h2 className="text-xl sm:text-2xl font-black text-cute-brown dark:text-cute-cream">
-                Nhựa Sinh Học PLA An Toàn Tuyệt Đối — Tỉ Mỉ, Siêu Nhẹ, Chi Tiết Đáng Yêu 🐾
+                Nhựa Sinh Học PLA An Toàn Tuyệt Đối — Tỉ Mỉ, Siêu Nhẹ, Chi Tiết Đáng Yêu ✨
               </h2>
               <p className="text-xs sm:text-sm text-cute-brown-light dark:text-cute-muted max-w-3xl leading-relaxed">
-                Mỗi sản phẩm đều được in 3D từ <strong>nhựa sinh học PLA an toàn tuyệt đối</strong> cho thú cưng, hoàn thiện <strong>tỉ mỉ từng đường nét, siêu nhẹ</strong> và nổi bật với các <strong>chi tiết đáng yêu</strong> thiết kế riêng cho bé cưng của bạn.
+                Mỗi sản phẩm tại Ú òa Shop đều được in 3D từ <strong>nhựa sinh học PLA an toàn tuyệt đối</strong>, hoàn thiện <strong>tỉ mỉ từng đường nét, siêu nhẹ</strong> và nổi bật với các <strong>chi tiết đáng yêu</strong> thiết kế riêng cho bạn &amp; thú cưng.
               </p>
             </div>
             <button
@@ -226,7 +224,7 @@ export const HomePage: React.FC = () => {
             <span>Bảng quy cách chuẩn</span>
           </Badge>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-cute-brown dark:text-cute-cream">
-            5 Kích Cỡ Bát Ăn Cho Chó Mèo (Bâu Shop)
+            5 Kích Cỡ Bát Ăn Cho Chó Mèo (Ú òa Shop)
           </h2>
           <p className="text-xs sm:text-sm text-cute-brown-light dark:text-cute-muted">
             Đầy đủ kích thước từ cún mi-ni, mèo con đến cún trưởng thành dáng lớn
@@ -367,7 +365,7 @@ export const HomePage: React.FC = () => {
               <span>Được yêu thích nhất</span>
             </Badge>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-cute-brown dark:text-cute-cream mt-1">
-              Sản phẩm nổi bật cho bé
+              Sản phẩm nổi bật tại Ú òa Shop
             </h2>
           </div>
           <Link to="/products">
@@ -401,10 +399,10 @@ export const HomePage: React.FC = () => {
               <span>Cam kết chất lượng</span>
             </Badge>
             <h2 className="text-2xl sm:text-3xl font-black text-cute-brown dark:text-cute-cream">
-              Tại sao ba mẹ tin chọn BolwDog?
+              Tại sao khách hàng tin chọn Ú òa Shop?
             </h2>
             <p className="text-xs sm:text-sm text-cute-brown-light dark:text-cute-muted">
-              Đem đến những trải nghiệm dùng bữa an toàn, thoải mái và trọn vẹn yêu thương
+              Đem đến những món quà, phụ kiện &amp; sản phẩm in 3D an toàn, tinh tế và trọn vẹn yêu thương
             </p>
           </div>
 
@@ -467,7 +465,7 @@ export const HomePage: React.FC = () => {
             <span>Quy trình 4 bước đơn giản</span>
           </Badge>
           <h2 className="text-2xl sm:text-3xl font-black text-cute-brown dark:text-cute-cream">
-            Cách rước bé bát xinh về nhà
+            Cách đặt sản phẩm xinh tại Ú òa Shop
           </h2>
         </div>
 
@@ -530,7 +528,7 @@ export const HomePage: React.FC = () => {
             <span>Phản hồi từ ba mẹ</span>
           </Badge>
           <h2 className="text-2xl sm:text-3xl font-black text-cute-brown dark:text-cute-cream">
-            Các bé mê tít bát mới!
+            Khách hàng mê tít sản phẩm nhà Ú òa!
           </h2>
         </div>
 
@@ -607,17 +605,17 @@ export const HomePage: React.FC = () => {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">
         <div className="rounded-4xl bg-gradient-to-r from-cute-pink via-cute-peach to-cute-lavender dark:from-cute-pink-dark/40 dark:to-cute-lavender-dark/40 p-8 sm:p-14 text-center relative overflow-hidden shadow-cute">
           <div className="max-w-xl mx-auto space-y-5 relative z-10">
-            <span className="text-3xl">🐾</span>
+            <span className="text-3xl">✨</span>
             <h2 className="text-2xl sm:text-4xl font-black text-cute-brown dark:text-cute-cream font-sans">
-              Tạo chiếc bát độc nhất cho bé yêu hôm nay
+              Đặt ngay món đồ in 3D độc nhất tại Ú òa Shop
             </h2>
             <p className="text-xs sm:text-sm text-cute-brown dark:text-cute-cream/90 leading-relaxed font-medium">
-              Chỉ mất 2 phút đặt hàng mà không cần đăng ký tài khoản. Khắc tên và chọn màu bé yêu thích ngay thôi!
+              Chỉ mất 2 phút đặt hàng mà không cần đăng ký tài khoản. Từ bát ăn thú cưng, móc khóa 3D đến quà tặng &amp; đồ decor cá nhân hóa — chọn mẫu ngay thôi!
             </p>
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link to="/products">
                 <Button variant="primary" size="lg" className="bg-white hover:bg-cute-cream text-cute-brown shadow-md">
-                  Đón bé về nhà 🐶
+                  Mua sắm tại Ú òa Shop 🎁
                 </Button>
               </Link>
               <a

@@ -102,13 +102,13 @@ export const ProductsPage: React.FC = () => {
         <div>
           <Badge variant="pink" size="sm">
             <Sparkles className="w-3.5 h-3.5 text-rose-500" />
-            <span>Bộ sưu tập thủ công</span>
+            <span>Gian hàng Ú òa Shop</span>
           </Badge>
           <h1 className="text-2xl sm:text-4xl font-black text-cute-brown dark:text-cute-cream mt-1 font-sans">
-            Tất cả sản phẩm yêu thương
+            Tất cả sản phẩm tại Ú òa Shop
           </h1>
           <p className="text-xs sm:text-sm text-cute-brown-light dark:text-cute-muted">
-            Lựa chọn những món đồ xinh xắn nhất được in 3D an toàn và cá nhân hóa riêng cho bé
+            Khám phá đa dạng quà tặng, phụ kiện, đồ decor &amp; bát ăn thú cưng in 3D cá nhân hóa an toàn tuyệt đối
           </p>
         </div>
 
@@ -122,7 +122,7 @@ export const ProductsPage: React.FC = () => {
                 : 'bg-white dark:bg-cute-surface-dark text-cute-brown-light dark:text-cute-muted hover:bg-cute-cream border border-cute-border-light dark:border-cute-border-dark'
             }`}
           >
-            🐾 Tất cả sản phẩm
+            ✨ Tất cả sản phẩm
           </button>
           {categories.map((cat) => (
             <button

@@ -31,7 +31,7 @@ export const Footer: React.FC = () => {
               </span>
             </div>
             <p className="text-sm text-cute-brown-light dark:text-cute-muted leading-relaxed">
-              {info.tagline}. Mỗi sản phẩm là một tác phẩm thủ công in 3D sinh học thân thiện với bé yêu và hành tinh xanh.
+              {info.tagline}. Mỗi sản phẩm đều được in 3D tỉ mỉ từ nhựa sinh học PLA an toàn tuyệt đối — siêu nhẹ, chi tiết đáng yêu.
             </p>
             <div className="flex items-center gap-2 text-xs text-cute-brown dark:text-cute-cream font-medium bg-cute-pink/40 dark:bg-cute-surface-dark px-3 py-2 rounded-xl inline-flex">
               <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
@@ -43,22 +43,27 @@ export const Footer: React.FC = () => {
           <div className="space-y-3">
             <h4 className="text-base font-bold text-cute-brown dark:text-cute-cream flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-cute-pink-400" />
-              <span>Góc Khám Phá</span>
+              <span>Danh Mục Ú òa Shop</span>
             </h4>
             <ul className="space-y-2 text-sm text-cute-brown-light dark:text-cute-muted">
               <li>
+                <Link to="/products" className="hover:text-cute-pink-400 transition-colors">
+                  🎁 Tất cả sản phẩm &amp; Quà tặng 3D
+                </Link>
+              </li>
+              <li>
                 <Link to="/products?category=bat-an-cho-cho" className="hover:text-cute-pink-400 transition-colors">
-                  🥣 Bát ăn in 3D khắc tên cún
+                  🥣 Bát ăn in 3D khắc tên thú cưng
                 </Link>
               </li>
               <li>
                 <Link to="/products?category=moc-khoa-3d" className="hover:text-cute-pink-400 transition-colors">
-                  🔑 Móc khóa 3D giống cún cưng
+                  🔑 Móc khóa 3D &amp; Phụ kiện đáng yêu
                 </Link>
               </li>
               <li>
                 <Link to="/products?category=phu-kien-ca-nhan-hoa" className="hover:text-cute-pink-400 transition-colors">
-                  ✨ Bảng tên dạ quang chống lạc
+                  ✨ Thẻ tên, Decor &amp; Đồ cá nhân hóa
                 </Link>
               </li>
               <li>
@@ -74,7 +79,7 @@ export const Footer: React.FC = () => {
           <div className="space-y-3">
             <h4 className="text-base font-bold text-cute-brown dark:text-cute-cream flex items-center gap-2">
               <Clock className="w-4 h-4 text-cute-pink-400" />
-              <span>Chăm Sóc Ba Mẹ Bé</span>
+              <span>Chăm Sóc Khách Hàng</span>
             </h4>
             <div className="space-y-2.5 text-xs text-cute-brown-light dark:text-cute-muted">
               {/* Box Hotline & Zalo Nổi Bật Trong Footer */}

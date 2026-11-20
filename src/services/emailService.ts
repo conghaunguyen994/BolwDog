@@ -186,7 +186,7 @@ export async function dispatchEmail(
       _subject: payload.subject,
       _template: 'box',
       _captcha: 'false',
-      Ma_Don_Hang: payload.orderReference || 'BolwDog',
+      Ma_Don_Hang: payload.orderReference || 'UOaShop',
       Su_Kien: payload.eventType,
       Noi_Dung_Chi_Tiet: payload.textBody,
     };
@@ -245,7 +245,7 @@ export const emailService = {
       })
       .join('\n');
 
-    const adminSubject = `[BolwDog] 🛒 Đơn hàng mới #${order.order_reference} - ${order.customer_name} (${order.customer_phone})`;
+    const adminSubject = `[Ú òa Shop] 🛒 Đơn hàng mới #${order.order_reference} - ${order.customer_name} (${order.customer_phone})`;
     const adminText = [
       `Xin chào Admin Nguyễn Công Hậu,`,
       `Tiệm vừa nhận được đơn đặt hàng in 3D mới!`,
@@ -297,10 +297,10 @@ export const emailService = {
 
     // Nếu khách hàng có nhập Email -> Gửi email xác nhận đơn hàng cho khách
     if (order.customer_email && order.customer_email.includes('@')) {
-      const custSubject = `[BolwDog Studio] 🐾 Xác nhận đơn hàng #${order.order_reference} của bé`;
+      const custSubject = `[Ú òa Shop] 🐾 Xác nhận đơn hàng #${order.order_reference} của bé`;
       const custText = [
         `Chào ba mẹ ${order.customer_name},`,
-        `Cảm ơn ba mẹ đã đặt sản phẩm in 3D cá nhân hóa tại BolwDog Studio!`,
+        `Cảm ơn ba mẹ đã đặt sản phẩm in 3D cá nhân hóa tại Ú òa Shop!`,
         ``,
         `• Mã đơn hàng: ${order.order_reference}`,
         `• Tổng tiền: ${formatVND(order.total_amount)} (Số tiền đặt cọc ${depositPct}%: ${formatVND(order.deposit_amount)})`,
@@ -315,7 +315,7 @@ export const emailService = {
 
       const custHtml = `
         <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #f9a8d4;border-radius:16px;background:#fffaf7;color:#3b251b;">
-          <h2 style="color:#db2777;margin-top:0;">🐾 Cảm ơn ba mẹ đã đặt hàng tại BolwDog Studio!</h2>
+          <h2 style="color:#db2777;margin-top:0;">🐾 Cảm ơn ba mẹ đã đặt hàng tại Ú òa Shop!</h2>
           <p>Xin chào <strong>${order.customer_name}</strong>,</p>
           <p>Đơn hàng <strong>#${order.order_reference}</strong> của bé đã được ghi nhận trên hệ thống.</p>
           <pre style="background:#ffffff;padding:12px;border-radius:10px;border:1px solid #f3d6dc;white-space:pre-wrap;">${itemsSummary}</pre>
@@ -358,11 +358,11 @@ export const emailService = {
       order.items[0]?.customization_data?.customText ||
       'bé cưng';
 
-    const subject = `[BolwDog Studio] 🎨 Bản Demo 3D đơn #${order.order_reference} (${petName}) đã sẵn sàng – Mời ba mẹ duyệt chốt in!`;
+    const subject = `[Ú òa Shop] 🎨 Bản Demo 3D đơn #${order.order_reference} (${petName}) đã sẵn sàng – Mời ba mẹ duyệt chốt in!`;
     const textBody = [
       `Chào ba mẹ ${order.customer_name},`,
       ``,
-      `Nghệ nhân của BolwDog Studio vừa hoàn thiện bản dựng file 3D cho đơn hàng #${order.order_reference} (tên in trên bát: "${petName}").`,
+      `Nghệ nhân của Ú òa Shop vừa hoàn thiện bản dựng file 3D cho đơn hàng #${order.order_reference} (tên in trên bát: "${petName}").`,
       ``,
       `💬 Lời nhắn từ xưởng: "${demo.adminNote || 'Ba mẹ kiểm tra tên, icon và màu sắc trên bản dựng 3D rồi bấm Chốt In giúp xưởng nhé!'}"`,
       ``,
@@ -370,7 +370,7 @@ export const emailService = {
       `${trackingUrl}`,
       ``,
       `Trân trọng,`,
-      `BolwDog Studio – Nguyễn Công Hậu (Hotline/Zalo: 0345553913)`,
+      `Ú òa Shop – Nguyễn Công Hậu (Hotline/Zalo: 0345553913)`,
     ].join('\n');
 
     const htmlBody = `
@@ -389,7 +389,7 @@ export const emailService = {
               🐾
             </div>
             <h1 style="margin:0;font-size:22px;font-weight:900;color:#831843;letter-spacing:-0.5px;">
-              BolwDog <span style="color:#EC4899;">Studio</span>
+              Ú òa <span style="color:#EC4899;">Shop</span>
             </h1>
             <p style="margin:4px 0 0;font-size:12px;color:#9D174D;font-weight:600;">
               Xưởng in 3D sinh học cá nhân hóa cho thú cưng
@@ -446,7 +446,7 @@ export const emailService = {
           <!-- Footer Info -->
           <div style="background:#FDF2F8;padding:18px 24px;border-top:1px solid #FBCFE8;text-align:center;font-size:11px;color:#831843;">
             <p style="margin:0 0 4px;font-weight:800;">
-              🐾 BolwDog Boutique – Nguyễn Công Hậu
+              🐾 Ú òa Shop – Nguyễn Công Hậu
             </p>
             <p style="margin:0;color:#9D174D;">
               Hotline / Zalo hỗ trợ 24/7: <strong>0345.553.913</strong> • Địa chỉ xưởng: Quy Nhơn, Gia Lai
@@ -507,15 +507,15 @@ export const emailService = {
     let statusColor = '#16a34a';
 
     if (action.type === 'demo_revision_requested') {
-      subject = `[BolwDog] ✏️ KHÁCH YÊU CẦU CHỈNH SỬA FILE 3D - Đơn #${order.order_reference} (${order.customer_name})`;
+      subject = `[Ú òa Shop] ✏️ KHÁCH YÊU CẦU CHỈNH SỬA FILE 3D - Đơn #${order.order_reference} (${order.customer_name})`;
       actionHeading = `✏️ Khách hàng yêu cầu chỉnh sửa lại file 3D trên đơn #${order.order_reference}`;
       statusColor = '#e11d48';
     } else if (action.type === 'demo_approved') {
-      subject = `[BolwDog] ✅ KHÁCH ĐÃ CHỐT IN FILE 3D - Đơn #${order.order_reference} (${order.customer_name})`;
+      subject = `[Ú òa Shop] ✅ KHÁCH ĐÃ CHỐT IN FILE 3D - Đơn #${order.order_reference} (${order.customer_name})`;
       actionHeading = `✅ Khách hàng đã XÁC NHẬN CHỐT IN bản Demo 3D đơn #${order.order_reference}!`;
       statusColor = '#16a34a';
     } else {
-      subject = `[BolwDog] 💸 Khách vừa gửi xác nhận chuyển khoản cọc - Đơn #${order.order_reference}`;
+      subject = `[Ú òa Shop] 💸 Khách vừa gửi xác nhận chuyển khoản cọc - Đơn #${order.order_reference}`;
       actionHeading = `💸 Khách hàng vừa báo đã chuyển cọc cho đơn #${order.order_reference}`;
       statusColor = '#d97706';
     }
@@ -628,8 +628,8 @@ export const emailService = {
     if (order.customer_email && order.customer_email.includes('@')) {
       const custAckSubject =
         action.type === 'demo_approved'
-          ? `[BolwDog Studio] ✅ Đã nhận xác nhận CHỐT IN 3D cho đơn #${order.order_reference}`
-          : `[BolwDog Studio] ✍️ Đã tiếp nhận yêu cầu chỉnh sửa file 3D đơn #${order.order_reference}`;
+          ? `[Ú òa Shop] ✅ Đã nhận xác nhận CHỐT IN 3D cho đơn #${order.order_reference}`
+          : `[Ú òa Shop] ✍️ Đã tiếp nhận yêu cầu chỉnh sửa file 3D đơn #${order.order_reference}`;
 
       const custAckText =
         action.type === 'demo_approved'
@@ -722,7 +722,7 @@ export const emailService = {
           to: config.admin_email.trim(),
           cc: config.admin_backup_email?.trim() || undefined,
           replyTo: hasCustomerEmail ? order.customer_email!.trim() : config.admin_email.trim(),
-          subject: `[BolwDog] 💰 ĐÃ NHẬN CỌC ${formatVND(paidAmount)} - Đơn #${order.order_reference} (${order.customer_name})`,
+          subject: `[Ú òa Shop] 💰 ĐÃ NHẬN CỌC ${formatVND(paidAmount)} - Đơn #${order.order_reference} (${order.customer_name})`,
           textBody: [
             `Xin chào Admin Nguyễn Công Hậu,`,
             ``,
@@ -814,11 +814,11 @@ export const emailService = {
         {
           to: order.customer_email!.trim(),
           replyTo: config.admin_email.trim(),
-          subject: `[BolwDog Studio] ✅ Đã nhận tiền cọc ${formatVND(paidAmount)} cho đơn #${order.order_reference}`,
+          subject: `[Ú òa Shop] ✅ Đã nhận tiền cọc ${formatVND(paidAmount)} cho đơn #${order.order_reference}`,
           textBody: [
             `Chào ba mẹ ${order.customer_name},`,
             ``,
-            `BolwDog Studio xác nhận đã nhận được khoản chuyển khoản tiền cọc ${formatVND(paidAmount)} qua ${gateway} cho đơn hàng #${order.order_reference}.`,
+            `Ú òa Shop xác nhận đã nhận được khoản chuyển khoản tiền cọc ${formatVND(paidAmount)} qua ${gateway} cho đơn hàng #${order.order_reference}.`,
             totalAmount > 0 ? `• Tổng giá trị đơn: ${formatVND(totalAmount)}` : '',
             `• Đã thanh toán cọc: ${formatVND(paidAmount)}`,
             totalAmount > 0
@@ -830,7 +830,7 @@ export const emailService = {
             `👉 Theo dõi tiến độ đơn hàng trực tuyến tại: ${trackingUrl}`,
             ``,
             `Trân trọng,`,
-            `BolwDog Studio – Hotline/Zalo: 0345553913`,
+            `Ú òa Shop – Hotline/Zalo: 0345553913`,
           ]
             .filter(Boolean)
             .join('\n'),
@@ -845,7 +845,7 @@ export const emailService = {
                       🐾
                     </div>
                     <h1 style="margin:0;font-size:22px;font-weight:900;color:#831843;">
-                      BolwDog <span style="color:#EC4899;">Studio</span>
+                      Ú òa <span style="color:#EC4899;">Shop</span>
                     </h1>
                     <p style="margin:4px 0 0;font-size:12px;color:#047857;font-weight:700;">
                       Xác nhận thanh toán cọc thành công
@@ -882,7 +882,7 @@ export const emailService = {
                       </table>
                     </div>
                     <div style="background:#FDF2F8;border-left:4px solid #EC4899;border-radius:12px;padding:12px 14px;font-size:12.5px;line-height:1.55;color:#831843;">
-                      🎨 <strong>Bước tiếp theo:</strong> Nghệ nhân BolwDog đang dựng bản thiết kế 3D riêng cho bé và sẽ gửi mẫu demo 3D để ba mẹ kiểm tra & chốt trước khi bấm máy in nhé!
+                      🎨 <strong>Bước tiếp theo:</strong> Nghệ nhân Ú òa Shop đang dựng bản thiết kế 3D riêng cho bé và sẽ gửi mẫu demo 3D để ba mẹ kiểm tra & chốt trước khi bấm máy in nhé!
                     </div>
                     <div style="text-align:center;margin:26px 0 18px;">
                       <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:linear-gradient(135deg,#10B981 0%,#059669 100%);color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:900;padding:14px 30px;border-radius:99px;box-shadow:0 8px 20px rgba(16,185,129,0.3);">
@@ -924,7 +924,7 @@ export const emailService = {
 
     const statusLabel = getOrderStatusLabel(newStatus);
     const trackingUrl = buildOrderTrackingUrl(order);
-    const subject = `[BolwDog Studio] 📦 Đơn hàng #${order.order_reference} vừa chuyển sang: ${statusLabel}`;
+    const subject = `[Ú òa Shop] 📦 Đơn hàng #${order.order_reference} vừa chuyển sang: ${statusLabel}`;
     const textBody = [
       `Chào ba mẹ ${order.customer_name},`,
       `Đơn hàng #${order.order_reference} của bé vừa được cập nhật trạng thái mới: "${statusLabel}".`,
@@ -958,12 +958,12 @@ export const emailService = {
       {
         to: config.admin_email || 'conghaunguyen994@gmail.com.vn',
         cc: config.admin_backup_email || undefined,
-        subject: '[BolwDog Studio] ✅ Kiểm tra kết nối thông báo Email 2 chiều thành công!',
+        subject: '[Ú òa Shop] ✅ Kiểm tra kết nối thông báo Email 2 chiều thành công!',
         textBody:
-          'Xin chào Nguyễn Công Hậu! Hệ thống thông báo Email tự động 2 chiều (Khách hàng ⇄ Admin) của BolwDog Studio đang hoạt động tốt.',
+          'Xin chào Nguyễn Công Hậu! Hệ thống thông báo Email tự động 2 chiều (Khách hàng ⇄ Admin) của Ú òa Shop đang hoạt động tốt.',
         htmlBody: `
           <div style="font-family:sans-serif;padding:20px;border:2px solid #ec4899;border-radius:16px;background:#fffaf7;">
-            <h2 style="color:#db2777;margin-top:0;">🐾 Kết nối Email BolwDog Studio Thành Công!</h2>
+            <h2 style="color:#db2777;margin-top:0;">🐾 Kết nối Email Ú òa Shop Thành Công!</h2>
             <p>Hệ thống gửi thông báo tự động khi khách đặt đơn, khi Admin gửi bản Demo 3D và khi khách phản hồi / yêu cầu chỉnh sửa file 3D đã sẵn sàng hoạt động.</p>
           </div>
         `,

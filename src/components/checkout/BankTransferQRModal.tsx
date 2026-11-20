@@ -375,7 +375,7 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
 
           <div className="p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 text-xs text-purple-900 dark:text-purple-200 text-left space-y-1">
             <p className="font-bold flex items-center gap-1.5">
-              <span>🎨 Bước tiếp theo của xưởng BolwDog:</span>
+              <span>🎨 Bước tiếp theo của xưởng Ú òa Shop:</span>
             </p>
             <p className="text-[11px] opacity-90 leading-relaxed">
               Nghệ nhân xưởng đang dựng file 3D cho bé. Ngay khi dựng xong, xưởng sẽ gửi ảnh Demo 3D vào trang Tra Cứu và Email để ba mẹ duyệt và bấm <strong>&ldquo;Chốt In&rdquo;</strong> rồi giao thẳng về nhà cho bé nhé!

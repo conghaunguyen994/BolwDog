@@ -82,7 +82,7 @@ export const AdminLayout: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-base font-extrabold text-cute-brown dark:text-cute-cream block">
-                    Admin BolwDog
+                    Admin Ú òa Shop
                   </span>
                   <span className="text-[10px] text-purple-600 dark:text-purple-300 font-bold uppercase tracking-wider flex items-center gap-1">
                     <ShieldCheck className="w-3 h-3" /> Cổng quản trị

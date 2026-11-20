@@ -166,7 +166,7 @@ export const LoginPage: React.FC = () => {
                 ) : (
                   <>
                     <User className="w-3.5 h-3.5" />
-                    <span>Thành viên BolwDog</span>
+                    <span>Thành viên Ú òa Shop</span>
                   </>
                 )}
               </span>
@@ -227,7 +227,7 @@ export const LoginPage: React.FC = () => {
           </h1>
           <p className="text-xs text-cute-brown-light dark:text-cute-muted">
             {isRegister
-              ? 'Tạo tài khoản mới trên hệ thống bảo mật BolwDog'
+              ? 'Tạo tài khoản mới trên hệ thống bảo mật Ú òa Shop'
               : ''}
           </p>
         </div>

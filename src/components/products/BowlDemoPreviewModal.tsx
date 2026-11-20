@@ -102,7 +102,7 @@ export const BowlDemoPreviewModal: React.FC<BowlDemoPreviewModalProps> = ({
     ctx.fillStyle = '#E11D48';
     ctx.font = 'bold 32px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('BÂU SHOP - BÁT ĂN CHỐNG GÙ & CHỐNG KIẾN', 500, 90);
+    ctx.fillText('Ú ÒA SHOP - BÁT ĂN CHỐNG GÙ & CHỐNG KIẾN', 500, 90);
 
     ctx.fillStyle = '#64748B';
     ctx.font = '18px sans-serif';
@@ -227,7 +227,7 @@ export const BowlDemoPreviewModal: React.FC<BowlDemoPreviewModalProps> = ({
       const dataUrl = canvas.toDataURL('image/png');
       const a = document.createElement('a');
       a.href = dataUrl;
-      a.download = `bau-shop-demo-${petName || 'bat-an'}.png`;
+      a.download = `u-oa-shop-demo-${petName || 'bat-an'}.png`;
       a.click();
       setExportSuccess(true);
       setTimeout(() => setExportSuccess(false), 3000);
@@ -249,7 +249,7 @@ export const BowlDemoPreviewModal: React.FC<BowlDemoPreviewModalProps> = ({
             </div>
             <div>
               <h3 className="text-base sm:text-lg font-black text-cute-brown dark:text-cute-cream font-sans">
-                Review Mẫu Demo Bát Ăn 3D - Bâu Shop
+                Review Mẫu Demo Bát Ăn 3D - Ú òa Shop
               </h3>
               <p className="text-[11px] text-cute-brown-light dark:text-cute-muted">
                 Xem trực quan mẫu bát đã phối màu, chữ viết tên cún, icon và ngày sinh trước khi chốt đơn
@@ -393,7 +393,7 @@ export const BowlDemoPreviewModal: React.FC<BowlDemoPreviewModalProps> = ({
                     className="text-[11px] font-black tracking-wider uppercase flex items-center gap-1.5"
                   >
                     <span>💧</span>
-                    <span>KHOANG CHỨA NƯỚC CHỐNG KIẾN BÂU SHOP</span>
+                    <span>KHOANG CHỨA NƯỚC CHỐNG KIẾN Ú ÒA SHOP</span>
                     <span>💧</span>
                   </span>
                 </div>

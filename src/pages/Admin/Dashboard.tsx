@@ -71,7 +71,7 @@ export const AdminDashboard: React.FC = () => {
             <span>Khu vực Quản trị viên</span>
           </Badge>
           <h1 className="text-2xl sm:text-3xl font-black text-cute-brown dark:text-cute-cream font-sans mt-1">
-            Bảng Điều Khiển Xưởng In 3D BolwDog
+            Bảng Điều Khiển Xưởng In 3D Ú òa Shop
           </h1>
           <p className="text-xs text-cute-brown-light dark:text-cute-muted">
             Theo dõi dòng tiền cọc, số lượng đơn hàng và tình trạng tồn kho nguyên liệu in 3D

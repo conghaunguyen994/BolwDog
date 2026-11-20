@@ -44,7 +44,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
         <div className="flex items-center gap-1.5 truncate">
           <Heart className="w-3.5 h-3.5 text-cute-pink-400 fill-cute-pink-400 animate-pulse-gentle flex-shrink-0" />
           <span className="truncate">
-            Tiệm in 3D sinh học thân thiện với bé yêu & miễn phí khắc tên theo yêu cầu!
+            Ú òa Shop — Đồ in 3D nhựa PLA an toàn tuyệt đối, đa dạng quà tặng & phụ kiện cá nhân hóa!
           </span>
           <span className="hidden sm:inline-block">🐾</span>
         </div>
@@ -72,14 +72,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCart }) => {
             <div>
               <div className="flex items-center gap-1 sm:gap-1.5">
                 <span className="text-lg sm:text-2xl font-black tracking-tight text-cute-brown dark:text-cute-cream font-sans">
-                  Ú Òa 3D <span className="text-rose-500">SHOP</span>
+                  Ú òa <span className="text-rose-500">Shop</span>
                 </span>
                 <span className="hidden xs:inline-block text-[10px] sm:text-xs bg-cute-peach/70 dark:bg-cute-peach-dark px-1.5 py-0.5 rounded-full font-bold text-cute-brown dark:text-cute-cream">
-                  Bát Ăn 3D
+                  In 3D Đáng Yêu
                 </span>
               </div>
               <p className="hidden sm:block text-[11px] text-cute-brown-light dark:text-cute-muted font-medium tracking-wide">
-                Bát ăn chống gù & chống kiến cho chó mèo
+                Quà tặng, phụ kiện & đồ in 3D cá nhân hóa
               </p>
             </div>
           </Link>

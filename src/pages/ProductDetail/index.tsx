@@ -252,14 +252,14 @@ export const ProductDetailPage: React.FC = () => {
 
   const isDogBowl = Boolean(
     product &&
-      ((product.category?.slug || '').toLowerCase() === 'bat-an-cho-cho' ||
-        (product.category?.slug || '').toLowerCase().includes('bat-an') ||
-        (product.category_id || '').toLowerCase() === 'cat-bowls' ||
-        (product.category_id || '').toLowerCase() === 'a1111111-1111-4111-8111-111111111111' ||
-        (product.category_id || '').toLowerCase() === 'c1111111-1111-1111-1111-111111111111' ||
-        (product.name || '').toLowerCase().includes('bát') ||
-        (product.name || '').toLowerCase().includes('chén') ||
-        (product.name || '').toLowerCase().includes('bowl'))
+    ((product.category?.slug || '').toLowerCase() === 'bat-an-cho-cho' ||
+      (product.category?.slug || '').toLowerCase().includes('bat-an') ||
+      (product.category_id || '').toLowerCase() === 'cat-bowls' ||
+      (product.category_id || '').toLowerCase() === 'a1111111-1111-4111-8111-111111111111' ||
+      (product.category_id || '').toLowerCase() === 'c1111111-1111-1111-1111-111111111111' ||
+      (product.name || '').toLowerCase().includes('bát') ||
+      (product.name || '').toLowerCase().includes('chén') ||
+      (product.name || '').toLowerCase().includes('bowl'))
   );
 
   // Chỉ bát ăn mới áp dụng phụ phí kích thước biến thể
@@ -555,16 +555,7 @@ export const ProductDetailPage: React.FC = () => {
           {/* Quantity & Buy Buttons */}
           <div className="space-y-4 pt-2">
             {/* Dedicated Review Demo Button */}
-            {isDogBowl && (
-              <button
-                type="button"
-                onClick={() => setIsDemoModalOpen(true)}
-                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl border-2 border-rose-400 bg-gradient-to-r from-rose-50 via-pink-50 to-rose-50 dark:from-rose-950/40 dark:to-pink-950/30 text-rose-600 dark:text-rose-300 font-black text-xs sm:text-sm hover:from-rose-100 hover:to-pink-100 shadow-cute hover:scale-[1.01] active:scale-95 transition-all"
-              >
-                <Eye className="w-4 h-4 text-rose-500" />
-                <span>🔍 XEM DEMO REVIEW BÁT IN TÊN & NGÀY SINH (TRƯỚC KHI ĐẶT HÀNG)</span>
-              </button>
-            )}
+
 
             <div className="flex items-center gap-4">
               <span className="text-xs font-bold text-cute-brown dark:text-cute-cream">Số lượng:</span>

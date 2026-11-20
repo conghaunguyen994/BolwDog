@@ -53,7 +53,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
             Cảm ơn ba mẹ <span className="text-rose-500 font-extrabold">{order.customer_name}</span>!
           </h4>
           <p className="text-xs text-cute-brown-light dark:text-cute-muted mt-1">
-            Đơn hàng đã được lưu trên hệ thống của tiệm BolwDog.
+            Đơn hàng đã được lưu trên hệ thống của Ú òa Shop.
           </p>
         </div>
 
