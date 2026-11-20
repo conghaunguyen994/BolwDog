@@ -1,9 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
-import { Copy, Check, UploadCloud, ShieldCheck, ArrowRight, Zap, RefreshCw, CheckCircle2 } from 'lucide-react';
+import {
+  Copy,
+  Check,
+  UploadCloud,
+  ShieldCheck,
+  ArrowRight,
+  Zap,
+  RefreshCw,
+  CheckCircle2,
+  Sparkles,
+  QrCode,
+} from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
-import { Order } from '../../types/order';
+import { Order, PaymentStatus } from '../../types/order';
 import { ShopSettings } from '../../types/settings';
 import { formatVND } from '../../utils/currency';
 import { generateVietQrUrl } from '../../utils/qrGenerator';
@@ -17,7 +28,8 @@ interface BankTransferQRModalProps {
   onClose: () => void;
   order: Order;
   settings: ShopSettings;
-  onProofUploaded?: () => void;
+  initialPaymentMode?: 'deposit' | 'full';
+  onProofUploaded?: (confirmedPaymentStatus?: PaymentStatus, paidAmount?: number) => void;
 }
 
 export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
@@ -25,16 +37,26 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
   onClose,
   order,
   settings,
+  initialPaymentMode = 'deposit',
   onProofUploaded,
 }) => {
   const [copiedAccount, setCopiedAccount] = useState(false);
   const [copiedNote, setCopiedNote] = useState(false);
+  const [copiedAmount, setCopiedAmount] = useState(false);
   const [isSubmittingProof, setIsSubmittingProof] = useState(false);
   const [proofUploaded, setProofUploaded] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [isAutoPaid, setIsAutoPaid] = useState(
-    order.payment_status === 'partially_paid' || order.payment_status === 'paid'
+  const [paymentMode, setPaymentMode] = useState<'deposit' | 'full'>(initialPaymentMode);
+
+  // Nếu đơn đã thanh toán đủ 100% từ trước thì hiển thị ngay màn hình thành công.
+  // Nếu đơn mới đặt cọc (partially_paid) nhưng khách chủ động bấm mở QR để thanh toán nốt phần còn lại,
+  // cho phép hiển thị mã QR phần còn lại và chờ chuyển sang 'paid'.
+  const [isAutoPaid, setIsAutoPaid] = useState(order.payment_status === 'paid');
+  const [confirmedStatus, setConfirmedStatus] = useState<PaymentStatus>(order.payment_status);
+  const [confirmedAmount, setConfirmedAmount] = useState<number>(
+    order.payment_status === 'paid' ? order.total_amount : order.deposit_amount
   );
+
   const notifiedRef = useRef(false);
   const checkingRef = useRef(false);
 
@@ -44,26 +66,57 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
     order.total_amount > 0
       ? Math.round((order.deposit_amount / order.total_amount) * 100)
       : bank.deposit_percentage ?? 50;
+
+  const isPayingRemainingAfterDeposit = order.payment_status === 'partially_paid';
+  const remainingAfterDeposit = Math.max(0, order.total_amount - order.deposit_amount);
+
+  const qrAmount = isPayingRemainingAfterDeposit
+    ? remainingAfterDeposit || order.total_amount
+    : paymentMode === 'full'
+      ? order.total_amount
+      : order.deposit_amount;
+
   const qrUrl = generateVietQrUrl({
     bankConfig: bank,
-    amount: order.deposit_amount,
+    amount: qrAmount,
     orderReference: order.order_reference,
   });
 
   const transferNote = `${bank.transfer_note_prefix || 'BD'} ${order.order_reference}`;
 
-  // Đồng bộ trạng thái khi order prop thay đổi
   useEffect(() => {
-    const alreadyPaid = order.payment_status === 'partially_paid' || order.payment_status === 'paid';
-    setIsAutoPaid(alreadyPaid);
-    notifiedRef.current = alreadyPaid;
-  }, [order.id, order.payment_status]);
+    setPaymentMode(isPayingRemainingAfterDeposit ? 'full' : initialPaymentMode);
+  }, [initialPaymentMode, isPayingRemainingAfterDeposit, isOpen]);
 
-  // Lắng nghe biến động số dư Realtime & Tự động quét SePay mỗi 3 giây (không cần bấm nút)
+  // Đồng bộ trạng thái khi order prop hoặc modal mở lại
+  useEffect(() => {
+    if (!isOpen) return;
+    const alreadyFullyPaid = order.payment_status === 'paid';
+    setIsAutoPaid(alreadyFullyPaid);
+    setConfirmedStatus(order.payment_status);
+    setConfirmedAmount(
+      alreadyFullyPaid ? order.total_amount : qrAmount
+    );
+    notifiedRef.current = alreadyFullyPaid;
+  }, [order.id, order.payment_status, isOpen]);
+
+  // Lắng nghe biến động số dư Realtime & Tự động quét SePay mỗi 3 giây
   useEffect(() => {
     if (!isOpen || isAutoPaid || !order.id) return;
 
+    const shouldAcceptStatus = (newStatus?: string, amount?: number): boolean => {
+      if (isPayingRemainingAfterDeposit) {
+        // Khi khách đang cọc rồi và mở QR để chuyển nốt 100%, chỉ báo thành công khi lên 'paid'
+        return newStatus === 'paid' || Number(amount || 0) >= remainingAfterDeposit * 0.95;
+      }
+      if (paymentMode === 'full') {
+        return newStatus === 'paid' || newStatus === 'partially_paid';
+      }
+      return newStatus === 'partially_paid' || newStatus === 'paid';
+    };
+
     const markPaidSuccess = (paidInfo?: {
+      status?: PaymentStatus;
       amount?: number;
       viaServerDb?: boolean;
       emailSent?: boolean;
@@ -71,22 +124,36 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
     }) => {
       if (notifiedRef.current) return;
       notifiedRef.current = true;
+
+      const resolvedAmount =
+        paidInfo?.amount ||
+        (paidInfo?.status === 'paid' || paymentMode === 'full'
+          ? order.total_amount
+          : order.deposit_amount);
+      const resolvedStatus: PaymentStatus =
+        paidInfo?.status === 'paid' || resolvedAmount >= order.total_amount * 0.98
+          ? 'paid'
+          : 'partially_paid';
+
+      setConfirmedStatus(resolvedStatus);
+      setConfirmedAmount(resolvedStatus === 'paid' ? order.total_amount : resolvedAmount);
       setIsAutoPaid(true);
       playPaymentSuccessChime();
-      confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+      confetti({ particleCount: 130, spread: 85, origin: { y: 0.6 } });
+
       if (!paidInfo?.emailSent) {
         emailService
           .notifyDepositConfirmed(
-            { ...order, payment_status: 'partially_paid' },
+            { ...order, payment_status: resolvedStatus },
             {
-              paidAmount: paidInfo?.amount || order.deposit_amount,
+              paidAmount: resolvedStatus === 'paid' ? order.total_amount : resolvedAmount,
               gateway: paidInfo?.gateway || 'MB Bank / SePay',
               skipIfServerWebhookConfigured: Boolean(paidInfo?.viaServerDb),
             }
           )
           .catch(() => {});
       }
-      onProofUploaded?.();
+      onProofUploaded?.(resolvedStatus, resolvedAmount);
     };
 
     const channel = supabase
@@ -96,9 +163,14 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
             'postgres_changes',
             { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${order.id}` },
             (payload: any) => {
-              const newPaymentStatus = payload.new?.payment_status;
-              if (newPaymentStatus === 'partially_paid' || newPaymentStatus === 'paid') {
-                markPaidSuccess({ viaServerDb: true });
+              const newPaymentStatus = payload.new?.payment_status as PaymentStatus | undefined;
+              if (shouldAcceptStatus(newPaymentStatus)) {
+                markPaidSuccess({
+                  status: newPaymentStatus,
+                  amount:
+                    newPaymentStatus === 'paid' ? order.total_amount : order.deposit_amount,
+                  viaServerDb: true,
+                });
               }
             }
           )
@@ -111,17 +183,17 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
       checkingRef.current = true;
       tickCount += 1;
       try {
-        // Kiểm tra DB nhanh qua SECURITY DEFINER RPC
         const snapshot = await sepayService.getOrderPaymentStatus(
           order.order_reference,
           order.customer_phone
         );
-        if (
-          snapshot.found &&
-          (snapshot.payment_status === 'partially_paid' || snapshot.payment_status === 'paid')
-        ) {
+        if (snapshot.found && shouldAcceptStatus(snapshot.payment_status, snapshot.paid_amount)) {
           markPaidSuccess({
-            amount: snapshot.deposit_amount,
+            status: snapshot.payment_status,
+            amount:
+              snapshot.payment_status === 'paid'
+                ? snapshot.total_amount || order.total_amount
+                : snapshot.paid_amount || snapshot.deposit_amount || order.deposit_amount,
             viaServerDb: true,
           });
           return;
@@ -130,8 +202,9 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
         // Mỗi 6 giây (tick chẵn) chủ động quét SePay API dự phòng qua /api/check-sepay
         if (tickCount % 2 === 0 && isSepayActive) {
           const sepayRes = await sepayService.checkTransactionForOrder(order);
-          if (sepayRes.found) {
+          if (sepayRes.found && shouldAcceptStatus(sepayRes.payment_status, sepayRes.amount)) {
             markPaidSuccess({
+              status: sepayRes.payment_status,
               amount: sepayRes.amount,
               emailSent: sepayRes.emailSent,
               viaServerDb: sepayRes.fromDatabase,
@@ -146,7 +219,6 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
       }
     };
 
-    // Chạy kiểm tra lần đầu sau 2.5s và lặp lại mỗi 3 giây
     const firstTimeout = setTimeout(runAutoCheck, 2500);
     const interval = setInterval(runAutoCheck, 3000);
 
@@ -162,19 +234,25 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
     isOpen,
     isAutoPaid,
     isSepayActive,
+    isPayingRemainingAfterDeposit,
+    remainingAfterDeposit,
+    paymentMode,
     order,
     settings.sepay,
     onProofUploaded,
   ]);
 
-  const copyToClipboard = (text: string, type: 'account' | 'note') => {
+  const copyToClipboard = (text: string, type: 'account' | 'note' | 'amount') => {
     navigator.clipboard.writeText(text);
     if (type === 'account') {
       setCopiedAccount(true);
       setTimeout(() => setCopiedAccount(false), 2000);
-    } else {
+    } else if (type === 'note') {
       setCopiedNote(true);
       setTimeout(() => setCopiedNote(false), 2000);
+    } else {
+      setCopiedAmount(true);
+      setTimeout(() => setCopiedAmount(false), 2000);
     }
   };
 
@@ -190,9 +268,13 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
     if (!previewImage) return;
     setIsSubmittingProof(true);
     try {
-      await orderService.submitPaymentProof(order.id, previewImage, order.deposit_amount);
+      await orderService.submitPaymentProof(order.id, previewImage, qrAmount);
       setProofUploaded(true);
-      onProofUploaded?.();
+      const nextStatus: PaymentStatus =
+        qrAmount >= order.total_amount * 0.98 || isPayingRemainingAfterDeposit
+          ? 'paid'
+          : 'partially_paid';
+      onProofUploaded?.(nextStatus, qrAmount);
     } catch (e) {
       console.error('Failed to submit proof', e);
     } finally {
@@ -200,10 +282,21 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
     }
   };
 
+  const isFullyPaidConfirmed = confirmedStatus === 'paid';
+
   // Nếu SePay đã xác nhận tự động thành công -> Hiển thị màn hình chúc mừng
   if (isAutoPaid) {
     return (
-      <Modal isOpen={isOpen} onClose={onClose} title="Thanh Toán Cọc Thành Công!" maxWidth="md">
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title={
+          isFullyPaidConfirmed
+            ? '🎉 Thanh Toán Toàn Bộ 100% Đơn Hàng Thành Công!'
+            : 'Thanh Toán Đặt Cọc Thành Công!'
+        }
+        maxWidth="md"
+      >
         <div className="text-center space-y-4 py-4">
           <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 flex items-center justify-center mx-auto text-3xl animate-bounce">
             <CheckCircle2 className="w-10 h-10 text-emerald-600" />
@@ -212,14 +305,28 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
           <div>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-xs mb-2">
               <Zap className="w-3.5 h-3.5 fill-emerald-600" />
-              Đã Nhận Chuyển Khoản Tự Động Qua SePay
+              {isFullyPaidConfirmed
+                ? 'ĐÃ THANH TOÁN ĐỦ 100% — CHỈ CHỜ NHẬN ĐƠN (0đ COD)'
+                : 'Đã Nhận Chuyển Khoản Tự Động Qua SePay'}
             </span>
             <h4 className="text-lg font-black text-cute-brown dark:text-cute-cream">
               Cảm ơn ba mẹ <span className="text-rose-500 font-extrabold">{order.customer_name}</span>!
             </h4>
-            <p className="text-xs text-cute-brown-light dark:text-cute-muted mt-1 leading-relaxed">
-              Hệ thống SePay đã tự động xác nhận số tiền cọc <strong>{formatVND(order.deposit_amount)}</strong> cho đơn hàng <strong>{order.order_reference}</strong>.
-            </p>
+            {isFullyPaidConfirmed ? (
+              <p className="text-xs text-cute-brown-light dark:text-cute-muted mt-1 leading-relaxed">
+                Hệ thống SePay đã tự động xác nhận thanh toán đủ 100% (
+                <strong className="text-emerald-700">{formatVND(order.total_amount)}</strong>) cho đơn hàng{' '}
+                <strong>{order.order_reference}</strong>. Đơn hàng của ba mẹ đã hoàn tất thanh toán toàn bộ — khi giao tới nơi ba mẹ{' '}
+                <strong className="text-rose-500">không cần thanh toán thêm (0 ₫ COD)</strong>, chỉ chờ nhận đơn tại nhà!
+              </p>
+            ) : (
+              <p className="text-xs text-cute-brown-light dark:text-cute-muted mt-1 leading-relaxed">
+                Hệ thống SePay đã tự động xác nhận số tiền cọc{' '}
+                <strong>{formatVND(confirmedAmount || order.deposit_amount)}</strong> cho đơn hàng{' '}
+                <strong>{order.order_reference}</strong>. Số tiền còn lại khi nhận hàng (COD):{' '}
+                <strong>{formatVND(Math.max(0, order.total_amount - (confirmedAmount || order.deposit_amount)))}</strong>.
+              </p>
+            )}
           </div>
 
           <div className="p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 text-xs text-purple-900 dark:text-purple-200 text-left space-y-1">
@@ -227,7 +334,7 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
               <span>🎨 Bước tiếp theo của xưởng BolwDog:</span>
             </p>
             <p className="text-[11px] opacity-90 leading-relaxed">
-              Nghệ nhân xưởng đang dựng file 3D cho bé. Ngay khi dựng xong, xưởng sẽ gửi ảnh Demo 3D vào trang Tra Cứu và Email để ba mẹ duyệt và bấm <strong>&ldquo;Chốt In&rdquo;</strong> nhé!
+              Nghệ nhân xưởng đang dựng file 3D cho bé. Ngay khi dựng xong, xưởng sẽ gửi ảnh Demo 3D vào trang Tra Cứu và Email để ba mẹ duyệt và bấm <strong>&ldquo;Chốt In&rdquo;</strong> rồi giao thẳng về nhà cho bé nhé!
             </p>
           </div>
 
@@ -248,9 +355,70 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Chuyển Khoản Đặt Cọc Yêu Thương" maxWidth="lg">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={
+        isPayingRemainingAfterDeposit
+          ? 'Chuyển Khoản Thanh Toán Nốt 100% Đơn Hàng'
+          : paymentMode === 'full'
+            ? 'Chuyển Khoản Đủ 100% Toàn Bộ Đơn (Không Thu COD)'
+            : 'Chuyển Khoản Đặt Cọc Yêu Thương'
+      }
+      maxWidth="lg"
+    >
       <div className="space-y-4">
-        
+        {/* Bộ chọn chế độ chuyển khoản: Đặt cọc vs Thanh toán 100% toàn bộ */}
+        {!isPayingRemainingAfterDeposit && order.deposit_amount < order.total_amount && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-1.5 rounded-2xl bg-cute-cream dark:bg-cute-cream-dark border border-cute-border-light dark:border-cute-border-dark">
+            <button
+              type="button"
+              onClick={() => setPaymentMode('deposit')}
+              className={`p-3 rounded-xl text-left transition-all border flex items-center justify-between ${
+                paymentMode === 'deposit'
+                  ? 'bg-white dark:bg-cute-surface-dark border-rose-400 shadow-sm ring-1 ring-rose-300'
+                  : 'border-transparent opacity-75 hover:opacity-100'
+              }`}
+            >
+              <div>
+                <span className="text-xs font-black text-cute-brown dark:text-cute-cream flex items-center gap-1.5">
+                  <QrCode className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Đặt cọc làm mẫu ({depositPercentage}%)</span>
+                </span>
+                <span className="text-[10px] text-cute-brown-light dark:text-cute-muted block mt-0.5">
+                  Còn lại {formatVND(Math.max(0, order.total_amount - order.deposit_amount))} trả COD
+                </span>
+              </div>
+              <span className="text-sm font-black text-rose-500">
+                {formatVND(order.deposit_amount)}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPaymentMode('full')}
+              className={`p-3 rounded-xl text-left transition-all border flex items-center justify-between ${
+                paymentMode === 'full'
+                  ? 'bg-emerald-50/90 dark:bg-emerald-950/50 border-emerald-500 shadow-sm ring-1 ring-emerald-400'
+                  : 'border-transparent opacity-80 hover:opacity-100'
+              }`}
+            >
+              <div>
+                <span className="text-xs font-black text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Chuyển đủ 100% toàn bộ</span>
+                </span>
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold block mt-0.5">
+                  Thanh toán xong chỉ chờ nhận đơn (0đ COD)
+                </span>
+              </div>
+              <span className="text-sm font-black text-emerald-700 dark:text-emerald-300">
+                {formatVND(order.total_amount)}
+              </span>
+            </button>
+          </div>
+        )}
+
         {/* Banner Tự Động Nhận Diện SePay (Không cần bấm nút) */}
         {isSepayActive && (
           <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-sky-50 dark:from-emerald-950/30 dark:to-sky-950/30 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
@@ -263,7 +431,9 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
                   Cổng Thanh Toán Tự Động SePay 24/7 Đang Trực
                 </span>
                 <p className="text-[11px] text-emerald-700 dark:text-emerald-300 opacity-90">
-                  Quét mã QR và giữ nguyên nội dung chuyển khoản. Sau khi chuyển xong, hệ thống <strong>tự động kiểm tra và báo thành công ngay</strong> (không cần bấm nút hay chụp ảnh)!
+                  Quét mã QR bên dưới (đã điền sẵn số tiền{' '}
+                  <strong>{formatVND(qrAmount)}</strong> và nội dung). Sau khi chuyển xong, hệ thống{' '}
+                  <strong>tự động xác nhận ngay lập tức</strong>!
                 </p>
               </div>
             </div>
@@ -294,18 +464,20 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
 
           {/* Bank Text Information */}
           <div className="flex-1 w-full space-y-2.5 text-xs">
-            <div>
-              <span className="text-cute-brown-light dark:text-cute-muted block">Ngân hàng thụ hưởng:</span>
-              <span className="font-bold text-cute-brown dark:text-cute-cream text-sm">
-                {bank.bank_name}
-              </span>
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <span className="text-cute-brown-light dark:text-cute-muted block">Ngân hàng thụ hưởng:</span>
+                <span className="font-bold text-cute-brown dark:text-cute-cream text-xs sm:text-sm">
+                  {bank.bank_name}
+                </span>
+              </div>
 
-            <div>
-              <span className="text-cute-brown-light dark:text-cute-muted block">Chủ tài khoản:</span>
-              <span className="font-bold text-cute-brown dark:text-cute-cream text-sm uppercase">
-                {bank.account_holder}
-              </span>
+              <div>
+                <span className="text-cute-brown-light dark:text-cute-muted block">Chủ tài khoản:</span>
+                <span className="font-bold text-cute-brown dark:text-cute-cream text-xs sm:text-sm uppercase">
+                  {bank.account_holder}
+                </span>
+              </div>
             </div>
 
             <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-cute-surface-dark border border-cute-border-light dark:border-cute-border-dark">
@@ -340,11 +512,32 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
               </button>
             </div>
 
-            <div className="pt-1">
-              <span className="text-cute-brown-light dark:text-cute-muted block">Số tiền cọc làm mẫu ({depositPercentage}%):</span>
-              <span className="text-lg font-black text-rose-500 font-sans">
-                {formatVND(order.deposit_amount)}
-              </span>
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-cute-surface-dark border-2 border-rose-200 dark:border-rose-800">
+              <div>
+                <span className="text-[10px] text-cute-brown-light dark:text-cute-muted block">
+                  {isPayingRemainingAfterDeposit
+                    ? 'Số tiền còn lại để hoàn tất 100% đơn:'
+                    : paymentMode === 'full'
+                      ? 'Số tiền thanh toán đủ 100% toàn bộ đơn (0đ COD):'
+                      : `Số tiền đặt cọc làm mẫu (${depositPercentage}%):`}
+                </span>
+                <span
+                  className={`text-lg font-black font-sans ${
+                    paymentMode === 'full' || isPayingRemainingAfterDeposit
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-rose-500'
+                  }`}
+                >
+                  {formatVND(qrAmount)}
+                </span>
+              </div>
+              <button
+                onClick={() => copyToClipboard(String(qrAmount), 'amount')}
+                className="flex items-center gap-1 text-[11px] font-semibold text-cute-pink-500 bg-cute-pink/20 hover:bg-cute-pink/40 px-2.5 py-1.5 rounded-lg transition-colors"
+              >
+                {copiedAmount ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedAmount ? 'Đã chép' : 'Chép số tiền'}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -415,4 +608,3 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
     </Modal>
   );
 };
-

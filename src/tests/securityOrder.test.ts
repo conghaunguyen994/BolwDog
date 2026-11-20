@@ -279,7 +279,7 @@ describe('Security & Privacy: Database Order Creation, Guest Isolation & Admin L
   it('should translate all order and payment status codes into pure Vietnamese', () => {
     expect(getPaymentStatusLabel('deposit_pending')).toBe('Chờ chuyển cọc');
     expect(getPaymentStatusLabel('partially_paid')).toBe('Đã đặt cọc');
-    expect(getPaymentStatusLabel('paid')).toBe('Đã thanh toán đủ');
+    expect(getPaymentStatusLabel('paid')).toBe('Đã thanh toán toàn bộ 100% (Chỉ chờ nhận đơn)');
     expect(getOrderStatusLabel('pending')).toBe('Chờ xác nhận');
     expect(getOrderStatusLabel('processing')).toBe('Đang in 3D');
     expect(getOrderStatusLabel('completed')).toBe('Đã hoàn thành');

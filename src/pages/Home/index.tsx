@@ -21,11 +21,13 @@ import { useAppSelector } from '../../app/hooks';
 import { ProductCard } from '../../components/products/ProductCard';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
+import { ShopPolicyModal } from '../../components/common/ShopPolicyModal';
 
 export const HomePage: React.FC = () => {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
   const saleCampaign = useAppSelector((state) => state.cart.saleCampaign);
   const saleActive = isSaleActive(saleCampaign) && saleCampaign?.apply_scope !== 'selected_products';
   const salePct = saleActive ? normalizeDiscountPercentage(saleCampaign?.discount_percentage) : 0;
@@ -81,7 +83,8 @@ export const HomePage: React.FC = () => {
                 <p>🌸 <strong>5 size chuẩn</strong>: S | M | L | XL | XXL phù hợp mọi dòng cún mèo</p>
                 <p>🌸 <strong>Đế chống kiến</strong> với khoang chứa nước ngăn 100% côn trùng</p>
                 <p>🌸 <strong>Lòng bát inox 304</strong> tháo rời, siêu bền, dễ vệ sinh sạch bóng</p>
-                <p>🌸 Được làm từ chất liệu <strong>nhựa sinh học PETG</strong> an toàn thực phẩm (Food-safe)</p>
+                <p>🌸 Sử dụng <strong>nhựa sinh học PLA an toàn tuyệt đối</strong> — in 3D tỉ mỉ, siêu nhẹ, chi tiết đáng yêu</p>
+                <p>🌸 <strong>Đổi mới 1:1 miễn phí trong 7 ngày</strong> nếu lỗi kỹ thuật hoặc vận chuyển</p>
                 <p className="text-rose-500 font-bold pt-1">
                   🎨 Tùy chọn 2 màu sắc (màu thân trên & màu đế dưới) • Chữ viết tên cún • Tối đa 2 icon • Ngày sinh khi in lên bát
                 </p>
@@ -103,12 +106,12 @@ export const HomePage: React.FC = () => {
               {/* Highlights Micro-stats */}
               <div className="pt-4 grid grid-cols-3 gap-3 max-w-md mx-auto lg:mx-0 border-t border-cute-border-light dark:border-cute-border-dark">
                 <div className="text-center lg:text-left">
-                  <span className="block text-xl font-black text-cute-brown dark:text-cute-cream font-sans">5 Size</span>
-                  <span className="text-[11px] text-cute-brown-light dark:text-cute-muted">S, M, L, XL, XXL</span>
+                  <span className="block text-xl font-black text-cute-brown dark:text-cute-cream font-sans">100% PLA</span>
+                  <span className="text-[11px] text-cute-brown-light dark:text-cute-muted">An toàn tuyệt đối</span>
                 </div>
                 <div className="text-center lg:text-left">
-                  <span className="block text-xl font-black text-cute-brown dark:text-cute-cream font-sans">100%</span>
-                  <span className="text-[11px] text-cute-brown-light dark:text-cute-muted">Food-Safe PETG</span>
+                  <span className="block text-xl font-black text-rose-500 font-sans">Đổi 1:1</span>
+                  <span className="text-[11px] text-cute-brown-light dark:text-cute-muted">Miễn phí 7 ngày</span>
                 </div>
                 <div className="text-center lg:text-left">
                   <span className="block text-xl font-black text-cute-brown dark:text-cute-cream font-sans">5.0 ★</span>
@@ -156,6 +159,65 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {/* 1.5 Quảng cáo nổi bật: Nhựa PLA an toàn tuyệt đối & Bảo hành Đổi mới 1:1 trong 7 ngày */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="rounded-4xl p-6 sm:p-8 bg-gradient-to-r from-emerald-50 via-cute-pink/35 to-amber-50 dark:from-emerald-950/40 dark:via-cute-surface-dark dark:to-amber-950/30 border-2 border-emerald-200/80 dark:border-emerald-800 shadow-cute space-y-5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1.5">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-600 text-white text-[11px] font-black tracking-wide shadow-xs">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>CAM KẾT CHẤT LƯỢNG ĐỘC QUYỀN TẠI BÂU SHOP</span>
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black text-cute-brown dark:text-cute-cream">
+                Nhựa Sinh Học PLA An Toàn Tuyệt Đối — Tỉ Mỉ, Siêu Nhẹ, Chi Tiết Đáng Yêu 🐾
+              </h2>
+              <p className="text-xs sm:text-sm text-cute-brown-light dark:text-cute-muted max-w-3xl leading-relaxed">
+                Mỗi sản phẩm đều được in 3D từ <strong>nhựa sinh học PLA an toàn tuyệt đối</strong> cho thú cưng, hoàn thiện <strong>tỉ mỉ từng đường nét, siêu nhẹ</strong> và nổi bật với các <strong>chi tiết đáng yêu</strong> thiết kế riêng cho bé cưng của bạn.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsPolicyModalOpen(true)}
+              className="self-start md:self-center px-4 py-2.5 rounded-2xl bg-white dark:bg-cute-surface-dark border-2 border-rose-300 text-rose-600 dark:text-rose-300 hover:bg-rose-50 text-xs font-black shadow-sm whitespace-nowrap transition-all"
+            >
+              📜 Xem Chính Sách Của Shop →
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-xs">
+            <div className="p-4 rounded-2xl bg-white/90 dark:bg-cute-surface-dark border border-emerald-200/70 space-y-1">
+              <span className="font-black text-emerald-700 dark:text-emerald-300 block">
+                🌱 Nhựa PLA An Toàn Tuyệt Đối
+              </span>
+              <p className="text-[11px] text-cute-brown-light dark:text-cute-muted leading-relaxed">
+                Nhựa sinh học thân thiện thực phẩm, không mùi độc hại, an toàn tuyệt đối cho chó mèo sử dụng hằng ngày.
+              </p>
+            </div>
+            <div className="p-4 rounded-2xl bg-white/90 dark:bg-cute-surface-dark border border-cute-pink/70 space-y-1">
+              <span className="font-black text-rose-600 dark:text-rose-300 block">
+                ✨ Tỉ Mỉ • Siêu Nhẹ • Chi Tiết Đáng Yêu
+              </span>
+              <p className="text-[11px] text-cute-brown-light dark:text-cute-muted leading-relaxed">
+                Công nghệ in 3D sắc nét, trọng lượng siêu nhẹ dễ di chuyển, khắc nổi tên bé &amp; icon xinh xắn độc quyền.
+              </p>
+            </div>
+            <div className="p-4 rounded-2xl bg-white/90 dark:bg-cute-surface-dark border border-amber-300/80 space-y-1">
+              <span className="font-black text-amber-800 dark:text-amber-300 block">
+                🔄 Đổi Mới 1:1 Miễn Phí Trong 7 Ngày
+              </span>
+              <p className="text-[11px] text-cute-brown-light dark:text-cute-muted leading-relaxed">
+                Bảo hành đổi mới 1:1 hoàn toàn miễn phí trong 7 ngày nếu phát sinh lỗi kỹ thuật hoặc hư hỏng do vận chuyển.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <ShopPolicyModal
+        isOpen={isPolicyModalOpen}
+        onClose={() => setIsPolicyModalOpen(false)}
+      />
 
       {/* 2. 5 Sizes Showcase */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

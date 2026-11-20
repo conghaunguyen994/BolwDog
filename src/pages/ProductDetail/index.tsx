@@ -34,6 +34,7 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { addToCart } from '../../features/cart/cartSlice';
 import { CustomizationForm } from '../../components/products/CustomizationForm';
 import { BowlDemoPreviewModal } from '../../components/products/BowlDemoPreviewModal';
+import { ShopPolicyModal } from '../../components/common/ShopPolicyModal';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 
@@ -62,6 +63,7 @@ export const ProductDetailPage: React.FC = () => {
   const [addedToast, setAddedToast] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+  const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
 
   // States cho chế độ Xem Full Ảnh (Lightbox) & Lướt ảnh
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -648,6 +650,35 @@ export const ProductDetailPage: React.FC = () => {
                 </Link>
               </div>
             )}
+
+            {/* Cam kết Nhựa PLA An Toàn Tuyệt Đối & Đổi Mới 1:1 Trong 7 Ngày */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50/70 to-amber-50/60 dark:from-emerald-950/40 dark:to-amber-950/30 border border-emerald-200 dark:border-emerald-800 space-y-2 text-xs">
+              <div className="flex items-start gap-2.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-bold text-emerald-900 dark:text-emerald-200">
+                    🌱 Shop sử dụng nhựa sinh học PLA an toàn tuyệt đối — in 3D tỉ mỉ, siêu nhẹ, chi tiết đáng yêu.
+                  </p>
+                  <p className="font-extrabold text-rose-600 dark:text-rose-300">
+                    🔄 Đổi mới 1:1 miễn phí trong 7 ngày nếu lỗi kỹ thuật hoặc vận chuyển.
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end pt-1 border-t border-emerald-200/70 dark:border-emerald-800/70">
+                <button
+                  type="button"
+                  onClick={() => setIsPolicyModalOpen(true)}
+                  className="text-[11px] font-extrabold text-rose-600 dark:text-rose-300 underline hover:text-rose-700"
+                >
+                  Xem chi tiết Chính sách của Shop →
+                </button>
+              </div>
+            </div>
+
+            <ShopPolicyModal
+              isOpen={isPolicyModalOpen}
+              onClose={() => setIsPolicyModalOpen(false)}
+            />
 
             {/* Banner Zalo Hỗ Trợ Riêng Cho Từng Sản Phẩm */}
             <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-50 to-sky-50 dark:from-cute-surface-dark dark:to-cute-cream-dark/40 border border-blue-200 dark:border-blue-800 flex items-center justify-between gap-3 text-xs">

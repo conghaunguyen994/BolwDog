@@ -1,17 +1,17 @@
 import React, { useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import { CheckCircle2, QrCode, Copy, ArrowRight, PackageCheck } from 'lucide-react';
+import { QrCode, Copy, PackageCheck, Sparkles } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { Order } from '../../types/order';
 import { formatVND } from '../../utils/currency';
-import { useNavigate } from 'react-router-dom';
 
 interface OrderSuccessModalProps {
   isOpen: boolean;
   onClose: () => void;
   order: Order;
-  onOpenQR: () => void;
+  onOpenQR: (mode?: 'deposit' | 'full') => void;
+  initialPaymentMode?: 'deposit' | 'full';
 }
 
 export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
@@ -19,9 +19,8 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
   onClose,
   order,
   onOpenQR,
+  initialPaymentMode = 'deposit',
 }) => {
-  const navigate = useNavigate();
-
   useEffect(() => {
     if (isOpen) {
       confetti({
@@ -44,7 +43,6 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Đơn Hàng Yêu Thương Đã Được Gửi!" maxWidth="md">
       <div className="text-center space-y-4 py-2">
-        
         {/* Animated Celebration Icon */}
         <div className="w-16 h-16 rounded-full bg-cute-pink/50 dark:bg-cute-pink-dark/30 flex items-center justify-center mx-auto text-3xl animate-bounce-gentle">
           🐶
@@ -79,28 +77,64 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
         </div>
 
         {/* Financial Summary */}
-        <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-xs text-amber-900 dark:text-amber-200 text-left space-y-1 border border-amber-200/60">
+        <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-xs text-amber-900 dark:text-amber-200 text-left space-y-1.5 border border-amber-200/60">
           <div className="flex justify-between">
-            <span>Tổng giá trị đơn:</span>
-            <span className="font-bold">{formatVND(order.total_amount)}</span>
+            <span>Tổng giá trị đơn (100%):</span>
+            <span className="font-black text-emerald-700 dark:text-emerald-300">
+              {formatVND(order.total_amount)}
+            </span>
           </div>
           <div className="flex justify-between font-bold text-rose-600 dark:text-rose-300">
-            <span>Cần cọc trước ({depositPercentage}%):</span>
+            <span>Hoặc cọc trước làm mẫu ({depositPercentage}%):</span>
             <span>{formatVND(order.deposit_amount)}</span>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="space-y-2 pt-2">
-          <Button
-            variant="primary"
-            size="md"
-            onClick={onOpenQR}
-            className="w-full justify-center"
-            leftIcon={<QrCode className="w-4 h-4" />}
-          >
-            Xem mã QR chuyển khoản đặt cọc
-          </Button>
+        <div className="space-y-2.5 pt-2">
+          {initialPaymentMode === 'full' ? (
+            <>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => onOpenQR('full')}
+                className="w-full justify-center"
+                leftIcon={<Sparkles className="w-4 h-4" />}
+              >
+                Mở QR Thanh Toán Đủ 100% ({formatVND(order.total_amount)})
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => onOpenQR('deposit')}
+                className="w-full justify-center"
+                leftIcon={<QrCode className="w-4 h-4" />}
+              >
+                Hoặc chỉ chuyển cọc {depositPercentage}% ({formatVND(order.deposit_amount)})
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => onOpenQR('deposit')}
+                className="w-full justify-center"
+                leftIcon={<QrCode className="w-4 h-4" />}
+              >
+                Mở QR Chuyển Khoản Cọc {depositPercentage}% ({formatVND(order.deposit_amount)})
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => onOpenQR('full')}
+                className="w-full justify-center border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+                leftIcon={<Sparkles className="w-4 h-4 text-emerald-600" />}
+              >
+                Hoặc Chuyển Khoản Đủ 100% ({formatVND(order.total_amount)}) — Không thu COD
+              </Button>
+            </>
+          )}
 
           <Button
             variant="soft"
@@ -116,4 +150,3 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
     </Modal>
   );
 };
-

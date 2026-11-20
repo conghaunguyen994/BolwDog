@@ -31,6 +31,7 @@ import { Badge } from '../../components/common/Badge';
 import { BankTransferQRModal } from '../../components/checkout/BankTransferQRModal';
 import { OrderSuccessModal } from '../../components/checkout/OrderSuccessModal';
 import { FreeshipVoucherBox } from '../../components/cart/FreeshipVoucherBox';
+import { ShopPolicyModal } from '../../components/common/ShopPolicyModal';
 
 export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
@@ -53,6 +54,8 @@ export const CheckoutPage: React.FC = () => {
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
+  const [paymentOption, setPaymentOption] = useState<'deposit' | 'full'>('deposit');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [honeypot, setHoneypot] = useState('');
@@ -461,18 +464,84 @@ export const CheckoutPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Deposit Box */}
-            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-cute-pink/40 to-cute-peach/40 dark:from-cute-surface-dark dark:to-cute-cream-dark border border-cute-pink/50 space-y-1 text-xs">
-              <div className="flex items-center justify-between font-bold text-cute-brown dark:text-cute-cream">
-                <span className="flex items-center gap-1">
-                  <QrCode className="w-3.5 h-3.5 text-rose-500" />
-                  <span>Cọc trước ({effectiveDepositPercentage}%) qua VietQR:</span>
+            {/* Chọn hình thức chuyển khoản: Đặt cọc hoặc Thanh toán 100% toàn bộ */}
+            <div className="space-y-2 text-xs">
+              <span className="font-bold text-cute-brown dark:text-cute-cream block">
+                Chọn mức chuyển khoản VietQR:
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setPaymentOption('deposit')}
+                className={`w-full p-3 rounded-2xl border text-left transition-all flex items-center justify-between gap-2 ${
+                  paymentOption === 'deposit'
+                    ? 'bg-gradient-to-r from-cute-pink/40 to-cute-peach/40 border-rose-400 ring-1 ring-rose-300 shadow-xs'
+                    : 'bg-white dark:bg-cute-surface-dark border-cute-border-light opacity-80 hover:opacity-100'
+                }`}
+              >
+                <div className="space-y-0.5">
+                  <span className="font-bold text-cute-brown dark:text-cute-cream flex items-center gap-1.5">
+                    <QrCode className="w-3.5 h-3.5 text-rose-500" />
+                    <span>Đặt cọc làm mẫu ({effectiveDepositPercentage}%)</span>
+                  </span>
+                  <span className="text-[10px] text-cute-brown-light dark:text-cute-muted block">
+                    Phần còn lại {formatVND(Math.max(0, total - effectiveDepositAmount))} thanh toán khi nhận hàng (COD)
+                  </span>
+                </div>
+                <span className="text-rose-600 dark:text-rose-300 font-extrabold text-sm whitespace-nowrap">
+                  {formatVND(effectiveDepositAmount)}
                 </span>
-                <span className="text-rose-600 dark:text-rose-300 font-extrabold text-sm">{formatVND(effectiveDepositAmount)}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentOption('full')}
+                className={`w-full p-3 rounded-2xl border text-left transition-all flex items-center justify-between gap-2 ${
+                  paymentOption === 'full'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-500 ring-1 ring-emerald-400 shadow-xs'
+                    : 'bg-white dark:bg-cute-surface-dark border-cute-border-light opacity-85 hover:opacity-100'
+                }`}
+              >
+                <div className="space-y-0.5">
+                  <span className="font-black text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Chuyển khoản đủ 100% toàn bộ</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold block">
+                    Hoàn tất thanh toán toàn bộ — chỉ chờ nhận đơn (0 ₫ COD)
+                  </span>
+                </div>
+                <span className="text-emerald-700 dark:text-emerald-300 font-black text-sm whitespace-nowrap">
+                  {formatVND(total)}
+                </span>
+              </button>
+            </div>
+
+            {/* Cam kết bảo hành Đổi mới 1:1 & Link xem Chính sách của shop */}
+            <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 space-y-2 text-[11px]">
+              <div className="flex items-start gap-2 text-emerald-900 dark:text-emerald-200">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-bold">
+                    ✨ Nhựa sinh học PLA an toàn tuyệt đối — tỉ mỉ, siêu nhẹ, chi tiết đáng yêu.
+                  </p>
+                  <p className="font-extrabold text-rose-600 dark:text-rose-300">
+                    🔄 Đổi mới 1:1 miễn phí trong 7 ngày nếu lỗi kỹ thuật hoặc vận chuyển.
+                  </p>
+                </div>
               </div>
-              <p className="text-[10px] text-cute-brown-light dark:text-cute-muted">
-                Sau khi gửi đơn, mã QR chuyển khoản và thông tin tài khoản ngân hàng sẽ hiện lên để ba mẹ quét thanh toán.
-              </p>
+              <div className="pt-1.5 border-t border-emerald-200/70 dark:border-emerald-800/70 flex items-center justify-between gap-2">
+                <span className="text-cute-brown-light dark:text-cute-muted">
+                  Bằng việc đặt hàng, bạn đồng ý với chính sách của tiệm.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsPolicyModalOpen(true)}
+                  className="text-rose-600 dark:text-rose-300 font-extrabold underline hover:text-rose-700 whitespace-nowrap"
+                >
+                  Xem chi tiết Chính sách →
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -480,13 +549,20 @@ export const CheckoutPage: React.FC = () => {
       </div>
 
       {/* Modals */}
+      <ShopPolicyModal
+        isOpen={isPolicyModalOpen}
+        onClose={() => setIsPolicyModalOpen(false)}
+      />
+
       {createdOrder && (
         <>
           <OrderSuccessModal
             isOpen={isSuccessModalOpen}
             onClose={handleCloseSuccessModal}
             order={createdOrder}
-            onOpenQR={() => {
+            initialPaymentMode={paymentOption}
+            onOpenQR={(mode) => {
+              if (mode) setPaymentOption(mode);
               setIsSuccessModalOpen(false);
               setIsQRModalOpen(true);
             }}
@@ -497,13 +573,15 @@ export const CheckoutPage: React.FC = () => {
             onClose={handleCloseQRModal}
             order={createdOrder}
             settings={settings}
-            onProofUploaded={() => {
+            initialPaymentMode={paymentOption}
+            onProofUploaded={(confirmedPaymentStatus) => {
               setCreatedOrder((prev) =>
                 prev
                   ? {
                       ...prev,
                       payment_status:
-                        prev.payment_status === 'paid' ? 'paid' : 'partially_paid',
+                        confirmedPaymentStatus ||
+                        (prev.payment_status === 'paid' ? 'paid' : 'partially_paid'),
                       order_status:
                         prev.order_status === 'pending' ? 'confirmed' : prev.order_status,
                     }

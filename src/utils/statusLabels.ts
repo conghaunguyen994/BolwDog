@@ -13,7 +13,7 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   unpaid: 'Chưa thanh toán',
   deposit_pending: 'Chờ chuyển cọc',
   partially_paid: 'Đã đặt cọc',
-  paid: 'Đã thanh toán đủ',
+  paid: 'Đã thanh toán toàn bộ 100% (Chỉ chờ nhận đơn)',
   refunded: 'Đã hoàn tiền',
 };
 

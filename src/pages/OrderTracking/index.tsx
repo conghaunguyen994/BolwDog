@@ -55,6 +55,7 @@ export const OrderTrackingPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState<ShopSettings>(initialSettings);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  const [qrPaymentMode, setQrPaymentMode] = useState<'deposit' | 'full'>('deposit');
 
   // States cho tính năng Khách xem Demo 3D & Chốt In
   const [showRevisionForm, setShowRevisionForm] = useState(false);
@@ -488,9 +489,30 @@ export const OrderTrackingPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Banner Thông báo ngay khi hệ thống SePay tự động xác nhận nhận cọc */}
-          {justConfirmedDeposit &&
-            (order.payment_status === 'partially_paid' || order.payment_status === 'paid') && (
+          {/* Banner Thông báo khi đã thanh toán đủ 100% hoặc vừa xác nhận cọc */}
+          {order.payment_status === 'paid' ? (
+            <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 dark:from-emerald-950/50 dark:to-teal-950/40 border-2 border-emerald-400 flex items-start gap-3.5 shadow-sm animate-in fade-in duration-300">
+              <div className="p-2 rounded-2xl bg-emerald-500 text-white flex-shrink-0">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <div className="text-xs sm:text-sm text-emerald-950 dark:text-emerald-200 space-y-1">
+                <p className="font-black text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 fill-emerald-600 text-emerald-600" />
+                  <span>🎉 THANH TOÁN TOÀN BỘ 100% THÀNH CÔNG — CHỈ CHỜ NHẬN ĐƠN!</span>
+                </p>
+                <p className="text-xs opacity-90 leading-relaxed">
+                  Đơn hàng <strong>{order.order_reference}</strong> đã thanh toán đủ 100% (
+                  <strong className="text-emerald-700 dark:text-emerald-300">
+                    {formatVND(order.total_amount)}
+                  </strong>
+                  ). Số tiền cần thanh toán khi giao hàng (COD):{' '}
+                  <strong className="text-rose-600 dark:text-rose-300">0 ₫</strong> — ba mẹ chỉ cần duyệt mẫu Demo 3D (nếu có) và chờ nhận đơn tại nhà!
+                </p>
+              </div>
+            </div>
+          ) : (
+            justConfirmedDeposit &&
+            order.payment_status === 'partially_paid' && (
               <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 dark:from-emerald-950/50 dark:to-teal-950/40 border-2 border-emerald-400 flex items-start gap-3.5 shadow-sm animate-in fade-in duration-300">
                 <div className="p-2 rounded-2xl bg-emerald-500 text-white flex-shrink-0">
                   <CheckCircle2 className="w-6 h-6" />
@@ -505,7 +527,8 @@ export const OrderTrackingPage: React.FC = () => {
                   </p>
                 </div>
               </div>
-            )}
+            )
+          )}
 
           {/* Progress Timeline */}
           {order.order_status !== 'cancelled' ? (
@@ -796,17 +819,26 @@ export const OrderTrackingPage: React.FC = () => {
             )}
           </div>
 
-          {/* Payment QR notice if unpaid or pending */}
-          {order.payment_status === 'deposit_pending' && (
+          {/* Payment QR notice if unpaid, pending, or partially_paid (allow paying remaining 100%) */}
+          {(order.payment_status === 'deposit_pending' || order.payment_status === 'unpaid') && (
             <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-50 via-teal-50/20 to-emerald-50/40 dark:from-amber-950/40 dark:to-emerald-950/40 border-2 border-amber-300 dark:border-amber-700 space-y-3">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="text-xs text-amber-900 dark:text-amber-200 space-y-1">
                   <span className="font-bold flex items-center gap-1.5 text-sm">
                     <Clock className="w-4 h-4 text-amber-600" />
-                    Bé đang đợi xác nhận chuyển khoản đặt cọc
+                    Bé đang đợi xác nhận chuyển khoản
                   </span>
                   <p className="opacity-90">
-                    Số tiền cần chuyển cọc: <strong className="text-rose-600 text-sm font-extrabold">{formatVND(order.deposit_amount)}</strong>. Sau khi chuyển khoản đúng cú pháp, trang sẽ <strong>tự động xác nhận và thông báo ngay</strong>.
+                    Ba mẹ có thể chuyển khoản đặt cọc{' '}
+                    <strong className="text-rose-600 text-sm font-extrabold">
+                      {formatVND(order.deposit_amount)}
+                    </strong>{' '}
+                    hoặc chuyển đủ 100%{' '}
+                    <strong className="text-emerald-700 text-sm font-extrabold">
+                      {formatVND(order.total_amount)}
+                    </strong>{' '}
+                    để hoàn tất toàn bộ (0đ COD). Sau khi chuyển xong, trang sẽ{' '}
+                    <strong>tự động xác nhận và thông báo ngay</strong>.
                   </p>
                   <p className="text-[11px] text-emerald-800 dark:text-emerald-300 font-bold flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />
@@ -819,15 +851,61 @@ export const OrderTrackingPage: React.FC = () => {
                   <Button
                     variant="primary"
                     size="sm"
-                    onClick={() => setIsQRModalOpen(true)}
+                    onClick={() => {
+                      setQrPaymentMode('deposit');
+                      setIsQRModalOpen(true);
+                    }}
                     leftIcon={<QrCode className="w-4 h-4" />}
                   >
-                    Mở mã QR Chuyển Khoản
+                    QR Cọc ({formatVND(order.deposit_amount)})
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setQrPaymentMode('full');
+                      setIsQRModalOpen(true);
+                    }}
+                    leftIcon={<Sparkles className="w-4 h-4 text-emerald-600" />}
+                  >
+                    QR Đủ 100% ({formatVND(order.total_amount)})
                   </Button>
                 </div>
               </div>
             </div>
           )}
+
+          {order.payment_status === 'partially_paid' &&
+            order.total_amount > order.deposit_amount &&
+            order.order_status !== 'cancelled' && (
+              <div className="p-4 rounded-3xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                <div className="space-y-0.5 text-emerald-950 dark:text-emerald-200">
+                  <span className="font-black text-emerald-800 dark:text-emerald-300 block">
+                    💳 Muốn thanh toán trước 100% để không cần trả COD khi nhận hàng?
+                  </span>
+                  <p className="text-[11px] opacity-90">
+                    Ba mẹ đã đặt cọc <strong>{formatVND(order.deposit_amount)}</strong>. Còn lại{' '}
+                    <strong className="text-rose-600">
+                      {formatVND(Math.max(0, order.total_amount - order.deposit_amount))}
+                    </strong>{' '}
+                    — ba mẹ có thể chuyển khoản nốt ngay bây giờ để chuyển sang trạng thái{' '}
+                    <strong>Đã thanh toán toàn bộ 100% (Chỉ chờ nhận đơn)</strong>!
+                  </p>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setQrPaymentMode('full');
+                    setIsQRModalOpen(true);
+                  }}
+                  leftIcon={<QrCode className="w-4 h-4 text-emerald-600" />}
+                  className="flex-shrink-0 border-emerald-400 text-emerald-800"
+                >
+                  Thanh toán nốt {formatVND(Math.max(0, order.total_amount - order.deposit_amount))}
+                </Button>
+              </div>
+            )}
 
           {/* Customer & Delivery Details */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -885,9 +963,27 @@ export const OrderTrackingPage: React.FC = () => {
               ))}
             </div>
 
-            <div className="flex justify-between pt-3 text-sm font-black text-rose-500 border-t border-cute-border-light dark:border-cute-border-dark">
-              <span>Tổng thanh toán:</span>
-              <span>{formatVND(order.total_amount)}</span>
+            <div className="pt-3 border-t border-cute-border-light dark:border-cute-border-dark space-y-1.5 text-xs">
+              <div className="flex justify-between text-sm font-black text-rose-500">
+                <span>Tổng giá trị đơn hàng:</span>
+                <span>{formatVND(order.total_amount)}</span>
+              </div>
+              {order.payment_status === 'paid' ? (
+                <div className="flex justify-between text-emerald-700 dark:text-emerald-300 font-extrabold">
+                  <span>Còn lại thanh toán khi nhận hàng (COD):</span>
+                  <span>0 ₫ (Đã thanh toán đủ 100% — Chỉ chờ nhận đơn)</span>
+                </div>
+              ) : order.payment_status === 'partially_paid' ? (
+                <div className="flex justify-between text-cute-brown-light dark:text-cute-muted font-bold">
+                  <span>Đã đặt cọc / Còn lại thanh toán COD:</span>
+                  <span>
+                    Đã cọc {formatVND(order.deposit_amount)} • COD:{' '}
+                    <strong className="text-rose-500">
+                      {formatVND(Math.max(0, order.total_amount - order.deposit_amount))}
+                    </strong>
+                  </span>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -900,7 +996,8 @@ export const OrderTrackingPage: React.FC = () => {
           onClose={() => setIsQRModalOpen(false)}
           order={order}
           settings={settings}
-          onProofUploaded={() => {
+          initialPaymentMode={qrPaymentMode}
+          onProofUploaded={(confirmedPaymentStatus) => {
             setJustConfirmedDeposit(true);
             setShowToastNotification(true);
             setOrder((prev) =>
@@ -908,7 +1005,8 @@ export const OrderTrackingPage: React.FC = () => {
                 ? {
                     ...prev,
                     payment_status:
-                      prev.payment_status === 'paid' ? 'paid' : 'partially_paid',
+                      confirmedPaymentStatus ||
+                      (prev.payment_status === 'paid' ? 'paid' : 'partially_paid'),
                     order_status: prev.order_status === 'pending' ? 'confirmed' : prev.order_status,
                   }
                 : prev

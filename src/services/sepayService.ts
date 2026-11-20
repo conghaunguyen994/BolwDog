@@ -6,6 +6,7 @@ export interface SePayCheckResult {
   found: boolean;
   message: string;
   amount?: number;
+  payment_status?: PaymentStatus;
   emailSent?: boolean;
   fromDatabase?: boolean;
   serverEmailConfigured?: boolean;
@@ -21,6 +22,7 @@ export interface OrderPaymentStatusSnapshot {
   order_status?: OrderStatus;
   deposit_amount?: number;
   total_amount?: number;
+  paid_amount?: number;
 }
 
 /**
@@ -151,11 +153,19 @@ export const sepayService = {
       dbStatus.found &&
       (dbStatus.payment_status === 'partially_paid' || dbStatus.payment_status === 'paid')
     ) {
+      const effectiveAmount =
+        dbStatus.payment_status === 'paid'
+          ? dbStatus.paid_amount || dbStatus.total_amount || order.total_amount
+          : dbStatus.paid_amount || dbStatus.deposit_amount || order.deposit_amount;
       return {
         found: true,
         fromDatabase: true,
-        amount: dbStatus.deposit_amount || order.deposit_amount,
-        message: `Hệ thống SePay đã xác nhận nhận cọc cho đơn ${order.order_reference}!`,
+        payment_status: dbStatus.payment_status,
+        amount: effectiveAmount,
+        message:
+          dbStatus.payment_status === 'paid'
+            ? `Hệ thống SePay đã xác nhận thanh toán đủ 100% cho đơn ${order.order_reference}!`
+            : `Hệ thống SePay đã xác nhận nhận cọc cho đơn ${order.order_reference}!`,
       };
     }
 
@@ -183,12 +193,17 @@ export const sepayService = {
       if (apiRes.ok && contentType.includes('application/json')) {
         const apiJson = await apiRes.json();
         if (apiJson?.found) {
+          const detectedStatus: PaymentStatus =
+            apiJson.payment_status ||
+            apiJson.result?.payment_status ||
+            (Number(apiJson.amount || 0) >= order.total_amount * 0.98 ? 'paid' : 'partially_paid');
+          apiJson.payment_status = detectedStatus;
           if (apiJson.emailSent) {
             markDepositEmailDispatched(order.id || order.order_reference);
           } else if (!apiJson.fromDatabase) {
             const mailRes = await emailService
               .notifyDepositConfirmed(
-                { ...order, payment_status: 'partially_paid' },
+                { ...order, payment_status: detectedStatus },
                 {
                   paidAmount: apiJson.amount || order.deposit_amount,
                   gateway: apiJson.gateway || 'MB Bank / SePay',

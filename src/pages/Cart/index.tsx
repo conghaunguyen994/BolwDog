@@ -1,16 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Trash2, Plus, Minus, ArrowRight, Sparkles, ShoppingBag } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowRight, Sparkles, ShieldCheck } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { removeFromCart, updateQuantity, clearCart } from '../../features/cart/cartSlice';
 import { formatVND } from '../../utils/currency';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { FreeshipVoucherBox } from '../../components/cart/FreeshipVoucherBox';
+import { ShopPolicyModal } from '../../components/common/ShopPolicyModal';
 
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
   const {
     items,
     originalSubtotal,
@@ -235,15 +237,30 @@ export const CartPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Deposit Notification */}
+            {/* Deposit / Full Payment Notification */}
             <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 space-y-1">
               <div className="flex justify-between font-bold">
                 <span>Cọc làm mẫu ({depositPercentage}%):</span>
                 <span className="text-rose-600 dark:text-rose-300 font-extrabold">{formatVND(depositAmount)}</span>
               </div>
-              <p className="text-[11px] opacity-80">
-                Thanh toán chuyển khoản sau khi hoàn tất đặt hàng. Phần còn lại thanh toán khi nhận hàng (COD).
+              <p className="text-[11px] opacity-85">
+                Ba mẹ có thể chọn <strong>đặt cọc {depositPercentage}%</strong> (trả COD phần còn lại) hoặc <strong>chuyển khoản đủ 100%</strong> ({formatVND(total)}) để chỉ chờ nhận đơn tại nhà!
               </p>
+            </div>
+
+            {/* Bảo hành & Chính sách shop */}
+            <div className="p-3 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-[11px] space-y-1.5">
+              <p className="font-bold text-emerald-900 dark:text-emerald-200 flex items-start gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <span>Đổi mới 1:1 miễn phí trong 7 ngày nếu lỗi kỹ thuật hoặc vận chuyển.</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsPolicyModalOpen(true)}
+                className="text-rose-600 dark:text-rose-300 font-extrabold underline hover:text-rose-700"
+              >
+                Xem chi tiết Chính sách của Shop →
+              </button>
             </div>
 
             <Button
@@ -258,6 +275,11 @@ export const CartPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <ShopPolicyModal
+        isOpen={isPolicyModalOpen}
+        onClose={() => setIsPolicyModalOpen(false)}
+      />
     </div>
   );
 };

@@ -125,7 +125,13 @@ export async function sendDepositConfirmedEmailsServer(
       }
     }
 
-    const remainingAmount = totalAmount > 0 ? Math.max(0, totalAmount - paidAmount) : 0;
+    const isFullPaid =
+      info.paymentStatus === 'paid' || (totalAmount > 0 && paidAmount >= totalAmount * 0.98);
+    const remainingAmount = isFullPaid
+      ? 0
+      : totalAmount > 0
+        ? Math.max(0, totalAmount - paidAmount)
+        : 0;
     const baseUrl = resolveSiteUrl(cfg, info.siteUrlHint);
     const trackingUrl = `${baseUrl}/track?ref=${encodeURIComponent(orderRef)}&phone=${encodeURIComponent(
       customerPhone
@@ -150,16 +156,22 @@ export async function sendDepositConfirmedEmailsServer(
         to: adminEmail,
         cc: adminBackupEmail,
         replyTo: customerEmail.includes('@') ? customerEmail : adminEmail,
-        subject: `[BolwDog] 💰 ĐÃ NHẬN CỌC ${formatVndServer(paidAmount)} - Đơn #${orderRef} (${customerName})`,
+        subject: isFullPaid
+          ? `[BolwDog] 🎉 ĐÃ THANH TOÁN ĐỦ 100% ${formatVndServer(paidAmount)} - Đơn #${orderRef} (${customerName})`
+          : `[BolwDog] 💰 ĐÃ NHẬN CỌC ${formatVndServer(paidAmount)} - Đơn #${orderRef} (${customerName})`,
         textBody: [
           `Xin chào Admin Nguyễn Công Hậu,`,
           ``,
-          `Hệ thống vừa ghi nhận thanh toán cọc thành công cho đơn #${orderRef}.`,
+          isFullPaid
+            ? `Hệ thống vừa ghi nhận THANH TOÁN ĐỦ 100% TOÀN BỘ ĐƠN thành công cho đơn #${orderRef} (0 đ COD — chỉ chờ giao đơn).`
+            : `Hệ thống vừa ghi nhận thanh toán cọc thành công cho đơn #${orderRef}.`,
           `• Khách hàng: ${customerName} (${customerPhone || 'N/A'})`,
           customerEmail ? `• Email khách: ${customerEmail}` : '',
-          `• Số tiền cọc đã nhận: ${formatVndServer(paidAmount)}`,
+          `• Số tiền đã nhận: ${formatVndServer(paidAmount)}`,
           totalAmount > 0
-            ? `• Tổng giá trị đơn: ${formatVndServer(totalAmount)} (Còn lại COD: ${formatVndServer(remainingAmount)})`
+            ? isFullPaid
+              ? `• Tổng giá trị đơn: ${formatVndServer(totalAmount)} (Còn lại COD: 0 đ — Đã thanh toán đủ 100%)`
+              : `• Tổng giá trị đơn: ${formatVndServer(totalAmount)} (Còn lại COD: ${formatVndServer(remainingAmount)})`
             : '',
           `• Kênh thanh toán: ${gateway}`,
           `• Thời gian ghi nhận: ${nowFormatted}`,
@@ -177,10 +189,10 @@ export async function sendDepositConfirmedEmailsServer(
               <div style="max-width:580px;margin:0 auto;background:#FFFFFF;border-radius:24px;border:2px solid #A7F3D0;overflow:hidden;box-shadow:0 10px 25px rgba(16,185,129,0.12);">
                 <div style="background:linear-gradient(135deg,#ECFDF5 0%,#F0FDF4 100%);padding:24px;text-align:center;border-bottom:1px solid #A7F3D0;">
                   <div style="display:inline-block;background:#D1FAE5;color:#047857;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:800;text-transform:uppercase;margin-bottom:8px;">
-                    💸 Thanh toán tự động
+                    ${isFullPaid ? '🎉 Thanh toán đủ 100% (0đ COD)' : '💸 Thanh toán tự động'}
                   </div>
                   <h1 style="margin:0;font-size:20px;font-weight:900;color:#065F46;">
-                    Đã Nhận Tiền Cọc Đơn #${safeRef}
+                    ${isFullPaid ? `Đã Thanh Toán Đủ 100% Đơn #${safeRef}` : `Đã Nhận Tiền Cọc Đơn #${safeRef}`}
                   </h1>
                   <p style="margin:6px 0 0;font-size:18px;font-weight:900;color:#059669;">
                     +${formatVndServer(paidAmount)}
@@ -201,7 +213,7 @@ export async function sendDepositConfirmedEmailsServer(
                       <td style="padding:7px 0;font-weight:700;">${safeGateway}</td>
                     </tr>
                     ${totalAmount > 0
-            ? `<tr><td style="padding:7px 0;color:#8C6239;">Tổng đơn / COD:</td><td style="padding:7px 0;"><strong>${formatVndServer(totalAmount)}</strong> (Còn thu COD: <strong style="color:#DB2777;">${formatVndServer(remainingAmount)}</strong>)</td></tr>`
+            ? `<tr><td style="padding:7px 0;color:#8C6239;">Tổng đơn / COD:</td><td style="padding:7px 0;"><strong>${formatVndServer(totalAmount)}</strong> (${isFullPaid ? '<strong style="color:#059669;">Đã thanh toán đủ 100% — COD 0 đ</strong>' : `Còn thu COD: <strong style="color:#DB2777;">${formatVndServer(remainingAmount)}</strong>`})</td></tr>`
             : ''
           }
                     <tr>
@@ -233,15 +245,21 @@ export async function sendDepositConfirmedEmailsServer(
       ? dispatchServerEmail({
         to: customerEmail,
         replyTo: adminEmail,
-        subject: `[BolwDog Studio] ✅ Đã nhận tiền cọc ${formatVndServer(paidAmount)} cho đơn #${orderRef}`,
+        subject: isFullPaid
+          ? `[BolwDog Studio] 🎉 Đã thanh toán đủ 100% (${formatVndServer(paidAmount)}) cho đơn #${orderRef} — Chỉ chờ nhận đơn!`
+          : `[BolwDog Studio] ✅ Đã nhận tiền cọc ${formatVndServer(paidAmount)} cho đơn #${orderRef}`,
         textBody: [
           `Chào ba mẹ ${customerName},`,
           ``,
-          `BolwDog Studio xác nhận đã nhận được khoản chuyển khoản tiền cọc ${formatVndServer(paidAmount)} qua ${gateway} cho đơn hàng #${orderRef}.`,
+          isFullPaid
+            ? `BolwDog Studio xác nhận đã nhận thanh toán đủ 100% (${formatVndServer(paidAmount)}) qua ${gateway} cho đơn hàng #${orderRef}. Đơn hàng đã hoàn tất thanh toán toàn bộ — khi nhận hàng ba mẹ không cần thanh toán thêm (0 đ COD), chỉ chờ nhận đơn tại nhà!`
+            : `BolwDog Studio xác nhận đã nhận được khoản chuyển khoản tiền cọc ${formatVndServer(paidAmount)} qua ${gateway} cho đơn hàng #${orderRef}.`,
           totalAmount > 0 ? `• Tổng giá trị đơn: ${formatVndServer(totalAmount)}` : '',
-          `• Đã thanh toán cọc: ${formatVndServer(paidAmount)}`,
+          `• Đã thanh toán: ${formatVndServer(paidAmount)}`,
           totalAmount > 0
-            ? `• Số tiền còn lại (thanh toán khi nhận hàng): ${formatVndServer(remainingAmount)}`
+            ? isFullPaid
+              ? `• Số tiền còn lại khi nhận hàng (COD): 0 đ (Đã thanh toán đủ 100% — Chỉ chờ nhận đơn)`
+              : `• Số tiền còn lại (thanh toán khi nhận hàng): ${formatVndServer(remainingAmount)}`
             : '',
           ``,
           `Xưởng đang bắt đầu thiết kế file 3D cá nhân hóa cho bé và sẽ gửi bản xem trước 3D để ba mẹ duyệt trước khi in.`,
