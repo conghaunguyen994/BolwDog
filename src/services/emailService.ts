@@ -53,9 +53,23 @@ export function markDepositEmailDispatched(orderKey?: string): void {
   }
 }
 
+function normalizeProductionUrl(raw?: string | null): string {
+  if (!raw) return '';
+  return raw
+    .trim()
+    .replace(/^https:\/([^/])/i, 'https://$1')
+    .replace(/^http:\/([^/])/i, 'http://$1')
+    .replace(/\.vercel\.appp+\b/i, '.vercel.app')
+    .replace(/\/+$/, '');
+}
+
 function getBaseSiteUrl(customConfig?: EmailNotificationConfig): string {
-  const configured = customConfig?.production_site_url?.trim().replace(/\/+$/, '');
-  if (configured && !/^https?:\/\/bolwdog\.vercel\.app$/i.test(configured)) {
+  const configured = normalizeProductionUrl(customConfig?.production_site_url);
+  if (
+    configured &&
+    configured.startsWith('http') &&
+    !/^https?:\/\/bolwdog\.vercel\.app$/i.test(configured)
+  ) {
     return configured;
   }
   if (typeof window !== 'undefined' && window.location?.origin) {

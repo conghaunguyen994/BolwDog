@@ -40,15 +40,29 @@ function formatVndServer(amount?: number | null): string {
   return `${safeAmount.toLocaleString('vi-VN')} đ`;
 }
 
+function normalizeProductionUrl(raw?: string | null): string {
+  if (!raw) return '';
+  return raw
+    .trim()
+    .replace(/^https:\/([^/])/i, 'https://$1')
+    .replace(/^http:\/([^/])/i, 'http://$1')
+    .replace(/\.vercel\.appp+\b/i, '.vercel.app')
+    .replace(/\/+$/, '');
+}
+
 function resolveSiteUrl(
   cfg?: StoredEmailPreferences | null,
   siteUrlHint?: string | null
 ): string {
-  const configured = cfg?.production_site_url?.trim().replace(/\/+$/, '');
-  if (configured && !/^https?:\/\/bolwdog\.vercel\.app$/i.test(configured)) {
+  const configured = normalizeProductionUrl(cfg?.production_site_url);
+  if (
+    configured &&
+    configured.startsWith('http') &&
+    !/^https?:\/\/bolwdog\.vercel\.app$/i.test(configured)
+  ) {
     return configured;
   }
-  const hinted = siteUrlHint?.trim().replace(/\/+$/, '');
+  const hinted = normalizeProductionUrl(siteUrlHint);
   if (
     hinted &&
     !hinted.includes('localhost') &&

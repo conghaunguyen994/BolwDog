@@ -23,24 +23,21 @@ WHERE setting_key = 'general'
   AND jsonb_typeof(setting_value->'sepay') = 'object'
   AND (setting_value->'sepay') ? 'api_key';
 
--- 2. Xóa sạch Webhook URL & EmailJS keys khỏi setting 'email_notifications'
+-- 2. Xóa sạch Webhook URL & EmailJS keys khỏi setting 'email_notifications' (và chuẩn hóa production_site_url nếu bị gõ nhầm)
 UPDATE public.shop_settings
 SET
-  setting_value = setting_value
-    - 'webhook_url'
-    - 'emailjs_service_id'
-    - 'emailjs_template_id'
-    - 'emailjs_public_key'
-    - 'emailjs_private_key',
+  setting_value = jsonb_set(
+    setting_value
+      - 'webhook_url'
+      - 'emailjs_service_id'
+      - 'emailjs_template_id'
+      - 'emailjs_public_key'
+      - 'emailjs_private_key',
+    '{production_site_url}',
+    '"https://bowlshop.vercel.app"'::jsonb
+  ),
   updated_at = NOW()
-WHERE setting_key = 'email_notifications'
-  AND (
-    setting_value ? 'webhook_url'
-    OR setting_value ? 'emailjs_service_id'
-    OR setting_value ? 'emailjs_template_id'
-    OR setting_value ? 'emailjs_public_key'
-    OR setting_value ? 'emailjs_private_key'
-  );
+WHERE setting_key = 'email_notifications';
 
 -- 3. Cập nhật hàm process_sepay_webhook để KHÔNG đọc bất kỳ API key nào từ Database nữa;
 -- chỉ cho phép Backend Server (SUPABASE_SERVICE_ROLE_KEY trong .env) hoặc Admin thực thi.
