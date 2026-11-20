@@ -14,9 +14,16 @@ interface CartDrawerProps {
 export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { items, subtotal, shippingFee, total, depositAmount, depositPercentage } = useAppSelector(
-    (state) => state.cart
-  );
+  const {
+    items,
+    originalSubtotal,
+    discountAmount,
+    subtotal,
+    shippingFee,
+    total,
+    depositAmount,
+    depositPercentage,
+  } = useAppSelector((state) => state.cart);
 
   if (!isOpen) return null;
 
@@ -187,9 +194,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                         </button>
                       </div>
 
-                      <span className="text-xs font-bold text-cute-brown dark:text-cute-cream">
-                        {formatVND(item.unitPrice * item.quantity)}
-                      </span>
+                      <div className="text-right">
+                        {item.discountPercentage && item.originalUnitPrice && item.originalUnitPrice > item.unitPrice ? (
+                          <div className="flex flex-col items-end">
+                            <span className="text-[10px] text-cute-brown-light/70 line-through">
+                              {formatVND(item.originalUnitPrice * item.quantity)}
+                            </span>
+                            <span className="text-xs font-bold text-rose-500">
+                              {formatVND(item.unitPrice * item.quantity)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs font-bold text-cute-brown dark:text-cute-cream">
+                            {formatVND(item.unitPrice * item.quantity)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -201,6 +221,18 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
           {items.length > 0 && (
             <div className="p-5 sm:p-6 border-t border-cute-border-light dark:border-cute-border-dark bg-cute-cream/30 dark:bg-cute-cream-dark/30 space-y-3">
               <div className="space-y-1.5 text-xs text-cute-brown-light dark:text-cute-muted">
+                {discountAmount && discountAmount > 0 ? (
+                  <>
+                    <div className="flex justify-between">
+                      <span>Tạm tính (Giá gốc):</span>
+                      <span className="line-through">{formatVND(originalSubtotal || subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                      <span>Khuyến mãi Sale:</span>
+                      <span>-{formatVND(discountAmount)}</span>
+                    </div>
+                  </>
+                ) : null}
                 <div className="flex justify-between">
                   <span>Tiền hàng:</span>
                   <span className="font-semibold text-cute-brown dark:text-cute-cream">{formatVND(subtotal)}</span>

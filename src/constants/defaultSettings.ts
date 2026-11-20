@@ -42,4 +42,14 @@ export const defaultShopSettings: ShopSettings = {
     pattern_prefix: 'BD',
     auto_confirm_order: true,
   },
+  sale_campaign: {
+    enabled: false,
+    title: '🔥 FLASH SALE YÊU THƯƠNG',
+    discount_percentage: 15,
+    start_at: new Date().toISOString(),
+    end_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+    banner_message: 'Ưu đãi đặc biệt dành cho các bé cưng — Đặt ngay kẻo lỡ!',
+    apply_scope: 'all',
+    product_ids: [],
+  },
 };

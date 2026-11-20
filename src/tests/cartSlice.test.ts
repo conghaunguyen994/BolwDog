@@ -4,6 +4,7 @@ import cartReducer, {
   removeFromCart,
   updateQuantity,
   setDepositPercentage,
+  setSaleCampaign,
   clearCart,
 } from '../features/cart/cartSlice';
 import { Product } from '../types/product';
@@ -157,6 +158,60 @@ describe('Redux Cart Slice: Precision Math & Customization Composite Keys', () =
     state = cartReducer(state, updateQuantity({ id: itemId, quantity: 0 }));
     expect(state.items.length).toBe(0);
     expect(state.total).toBe(0);
+  });
+
+  it('should apply active sale campaign discount % and revert when expired or disabled', () => {
+    let state = cartReducer(undefined, { type: 'unknown' });
+    state = cartReducer(
+      state,
+      addToCart({
+        product: mockProduct, // 250,000 VND
+        quantity: 2,
+        customization: { petName: 'Bé Bắp' },
+      })
+    );
+
+    expect(state.subtotal).toBe(500000);
+    expect(state.discountAmount).toBe(0);
+
+    // Activate 20% sale valid now
+    const now = Date.now();
+    state = cartReducer(
+      state,
+      setSaleCampaign({
+        enabled: true,
+        title: 'Flash Sale 20%',
+        discount_percentage: 20,
+        start_at: new Date(now - 3600 * 1000).toISOString(),
+        end_at: new Date(now + 3600 * 1000).toISOString(),
+        apply_scope: 'all',
+      })
+    );
+
+    expect(state.items[0].originalUnitPrice).toBe(250000);
+    expect(state.items[0].discountPercentage).toBe(20);
+    expect(state.items[0].unitPrice).toBe(200000);
+    expect(state.originalSubtotal).toBe(500000);
+    expect(state.discountAmount).toBe(100000);
+    expect(state.subtotal).toBe(400000);
+
+    // If sale end_at is in the past (expired), price should revert to original 250,000 VND
+    state = cartReducer(
+      state,
+      setSaleCampaign({
+        enabled: true,
+        title: 'Expired Sale',
+        discount_percentage: 20,
+        start_at: new Date(now - 7200 * 1000).toISOString(),
+        end_at: new Date(now - 1000).toISOString(),
+        apply_scope: 'all',
+      })
+    );
+
+    expect(state.items[0].discountPercentage).toBe(0);
+    expect(state.items[0].unitPrice).toBe(250000);
+    expect(state.discountAmount).toBe(0);
+    expect(state.subtotal).toBe(500000);
   });
 });
 

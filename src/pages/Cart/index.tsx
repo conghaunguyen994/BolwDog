@@ -10,9 +10,16 @@ import { Badge } from '../../components/common/Badge';
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { items, subtotal, shippingFee, total, depositAmount, depositPercentage } = useAppSelector(
-    (state) => state.cart
-  );
+  const {
+    items,
+    originalSubtotal,
+    discountAmount,
+    subtotal,
+    shippingFee,
+    total,
+    depositAmount,
+    depositPercentage,
+  } = useAppSelector((state) => state.cart);
 
   if (items.length === 0) {
     return (
@@ -117,9 +124,21 @@ export const CartPage: React.FC = () => {
                       )}
                     </div>
                   )}
-                  <p className="text-xs font-bold text-rose-500">
-                    Đơn giá: {formatVND(item.unitPrice)}
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-xs font-bold text-rose-500">
+                      Đơn giá: {formatVND(item.unitPrice)}
+                    </p>
+                    {item.discountPercentage && item.originalUnitPrice && item.originalUnitPrice > item.unitPrice ? (
+                      <>
+                        <span className="text-[11px] text-cute-brown-light/70 line-through">
+                          {formatVND(item.originalUnitPrice)}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black">
+                          -{item.discountPercentage}%
+                        </span>
+                      </>
+                    ) : null}
+                  </div>
                 </div>
               </div>
 
@@ -174,6 +193,18 @@ export const CartPage: React.FC = () => {
             </h3>
 
             <div className="space-y-2 text-xs text-cute-brown-light dark:text-cute-muted">
+              {discountAmount && discountAmount > 0 ? (
+                <>
+                  <div className="flex justify-between">
+                    <span>Tạm tính (Giá gốc):</span>
+                    <span className="line-through">{formatVND(originalSubtotal || subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                    <span>Khuyến mãi Sale:</span>
+                    <span>-{formatVND(discountAmount)}</span>
+                  </div>
+                </>
+              ) : null}
               <div className="flex justify-between">
                 <span>Tiền hàng:</span>
                 <span className="font-semibold text-cute-brown dark:text-cute-cream">{formatVND(subtotal)}</span>

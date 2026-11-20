@@ -263,7 +263,14 @@ DECLARE
   v_prod_name TEXT;
   v_prod_stock INT;
   v_var_price NUMERIC := 0;
+  v_unit_price NUMERIC := 0;
   v_deposit_setting JSONB;
+  v_sale_setting JSONB;
+  v_sale_active BOOLEAN := FALSE;
+  v_sale_pct NUMERIC := 0;
+  v_sale_scope TEXT := 'all';
+  v_sale_product_ids JSONB := '[]'::jsonb;
+  v_item_eligible BOOLEAN := FALSE;
   v_phone_digits TEXT := right(regexp_replace(coalesce(p_customer_phone, ''), '\D', '', 'g'), 9);
   v_recent_phone_count INT := 0;
   v_pending_phone_count INT := 0;
@@ -332,6 +339,37 @@ BEGIN
     v_deposit_percent := GREATEST(0, LEAST(100, (v_deposit_setting->>'deposit_percentage')::NUMERIC)) / 100.0;
   END IF;
 
+  -- Kiểm tra cấu hình chương trình Sale giảm giá theo khung giờ (sale_campaign)
+  SELECT setting_value INTO v_sale_setting FROM public.shop_settings WHERE setting_key = 'sale_campaign' LIMIT 1;
+  IF v_sale_setting IS NOT NULL AND coalesce((v_sale_setting->>'enabled')::boolean, false) = true THEN
+    v_sale_pct := GREATEST(0, LEAST(90, coalesce(nullif(trim(v_sale_setting->>'discount_percentage'), '')::numeric, 0)));
+    IF v_sale_pct > 0 THEN
+      v_sale_active := TRUE;
+      IF nullif(trim(coalesce(v_sale_setting->>'start_at', '')), '') IS NOT NULL THEN
+        BEGIN
+          IF NOW() < (v_sale_setting->>'start_at')::timestamptz THEN
+            v_sale_active := FALSE;
+          END IF;
+        EXCEPTION WHEN OTHERS THEN
+          NULL;
+        END;
+      END IF;
+      IF v_sale_active AND nullif(trim(coalesce(v_sale_setting->>'end_at', '')), '') IS NOT NULL THEN
+        BEGIN
+          IF NOW() > (v_sale_setting->>'end_at')::timestamptz THEN
+            v_sale_active := FALSE;
+          END IF;
+        EXCEPTION WHEN OTHERS THEN
+          NULL;
+        END;
+      END IF;
+      v_sale_scope := coalesce(v_sale_setting->>'apply_scope', 'all');
+      IF jsonb_typeof(v_sale_setting->'product_ids') = 'array' THEN
+        v_sale_product_ids := v_sale_setting->'product_ids';
+      END IF;
+    END IF;
+  END IF;
+
   v_order_ref := 'BD-' || to_char(NOW(), 'YYYYMMDD') || '-' || upper(substring(md5(random()::text || clock_timestamp()::text) from 1 for 5));
 
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
@@ -359,7 +397,18 @@ BEGIN
       END;
     END IF;
 
-    v_subtotal := v_subtotal + ((v_prod_price + COALESCE(v_var_price, 0)) * (v_item->>'quantity')::INT);
+    v_unit_price := v_prod_price + COALESCE(v_var_price, 0);
+    IF v_sale_active THEN
+      v_item_eligible := TRUE;
+      IF v_sale_scope = 'selected_products' THEN
+        v_item_eligible := v_sale_product_ids @> to_jsonb((v_item->>'product_id')::text);
+      END IF;
+      IF v_item_eligible THEN
+        v_unit_price := ROUND((v_unit_price * (100 - v_sale_pct)) / 100.0);
+      END IF;
+    END IF;
+
+    v_subtotal := v_subtotal + (v_unit_price * (v_item->>'quantity')::INT);
   END LOOP;
 
   IF v_subtotal >= 500000 THEN
@@ -397,11 +446,22 @@ BEGIN
       END;
     END IF;
 
+    v_unit_price := v_prod_price + COALESCE(v_var_price, 0);
+    IF v_sale_active THEN
+      v_item_eligible := TRUE;
+      IF v_sale_scope = 'selected_products' THEN
+        v_item_eligible := v_sale_product_ids @> to_jsonb((v_item->>'product_id')::text);
+      END IF;
+      IF v_item_eligible THEN
+        v_unit_price := ROUND((v_unit_price * (100 - v_sale_pct)) / 100.0);
+      END IF;
+    END IF;
+
     INSERT INTO public.order_items (
       order_id, product_id, product_name, unit_price, quantity, customization_data
     ) VALUES (
       v_order_id, (v_item->>'product_id')::UUID, v_prod_name,
-      v_prod_price + COALESCE(v_var_price, 0),
+      v_unit_price,
       (v_item->>'quantity')::INT, COALESCE(v_item->'customization_data', '{}'::jsonb)
     );
 

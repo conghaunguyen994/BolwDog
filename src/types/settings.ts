@@ -56,6 +56,25 @@ export interface SePayConfig {
   auto_confirm_order: boolean;
 }
 
+export interface SaleCampaignConfig {
+  /** Bật hoặc tắt chương trình Sale */
+  enabled: boolean;
+  /** Tên chương trình khuyến mãi (ví dụ: "🔥 FLASH SALE YÊU THƯƠNG") */
+  title: string;
+  /** Phần trăm giảm giá (1 - 90) */
+  discount_percentage: number;
+  /** Thời điểm bắt đầu chương trình (ISO 8601 string) */
+  start_at: string;
+  /** Thời điểm kết thúc chương trình (ISO 8601 string) */
+  end_at: string;
+  /** Thông điệp hiển thị trên thanh Banner đầu trang */
+  banner_message?: string;
+  /** Phạm vi áp dụng: toàn bộ sản phẩm ('all') hoặc chỉ các sản phẩm được chọn ('selected_products') */
+  apply_scope?: 'all' | 'selected_products';
+  /** Danh sách product_id áp dụng khi apply_scope = 'selected_products' */
+  product_ids?: string[];
+}
+
 export interface ShopSettings {
   general_info: GeneralShopInfo;
   social_links: SocialLinks;
@@ -63,4 +82,5 @@ export interface ShopSettings {
   email_notifications?: EmailNotificationConfig;
   blocked_rules?: BlockedClientRule[];
   sepay?: SePayConfig;
+  sale_campaign?: SaleCampaignConfig;
 }

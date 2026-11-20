@@ -17,13 +17,20 @@ import {
   Maximize2,
   X,
   Eye,
+  Flame,
+  Clock,
 } from 'lucide-react';
 import { Product, ProductVariant } from '../../types/product';
 import { PetCustomization } from '../../types/order';
 import { productService } from '../../services/productService';
 import { formatVND } from '../../utils/currency';
+import {
+  calculateDiscountedPrice,
+  formatSaleDateTimeVN,
+  getProductDiscountPercentage,
+} from '../../utils/sale';
 import { enforceRateLimit, sanitizeObject } from '../../utils/securityGuard';
-import { useAppDispatch } from '../../app/hooks';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { addToCart } from '../../features/cart/cartSlice';
 import { CustomizationForm } from '../../components/products/CustomizationForm';
 import { BowlDemoPreviewModal } from '../../components/products/BowlDemoPreviewModal';
@@ -34,6 +41,7 @@ export const ProductDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const saleCampaign = useAppSelector((state) => state.cart.saleCampaign);
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -253,8 +261,11 @@ export const ProductDetailPage: React.FC = () => {
   );
 
   // Chỉ bát ăn mới áp dụng phụ phí kích thước biến thể
-  const unitPrice =
+  const originalUnitPrice =
     product.price + (isDogBowl && selectedVariant ? selectedVariant.additional_price : 0);
+  const discountPct = getProductDiscountPercentage(product.id, saleCampaign);
+  const unitPrice = calculateDiscountedPrice(originalUnitPrice, discountPct);
+  const hasSale = discountPct > 0 && unitPrice < originalUnitPrice;
   const totalPrice = unitPrice * quantity;
   const isOutOfStock = product.stock_quantity <= 0;
 
@@ -434,14 +445,43 @@ export const ProductDetailPage: React.FC = () => {
               {product.name}
             </h1>
 
-            <div className="flex items-baseline gap-3 pt-1">
+            <div className="flex flex-wrap items-baseline gap-3 pt-1">
               <span className="text-2xl sm:text-3xl font-black text-rose-500 font-sans">
                 {formatVND(unitPrice)}
               </span>
+              {hasSale && (
+                <>
+                  <span className="text-sm sm:text-base text-cute-brown-light/70 dark:text-cute-muted line-through font-semibold">
+                    {formatVND(originalUnitPrice)}
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-rose-600 to-amber-500 text-white text-xs font-black shadow-sm">
+                    <Flame className="w-3.5 h-3.5 fill-amber-200 text-amber-200" />
+                    <span>-{discountPct}%</span>
+                  </span>
+                </>
+              )}
               <span className="text-xs text-cute-brown-light dark:text-cute-muted font-medium">
                 {isOutOfStock ? '(Bé đang tạm hết hàng)' : `(Còn ${product.stock_quantity} bé trong xưởng)`}
               </span>
             </div>
+
+            {hasSale && saleCampaign && (
+              <div className="mt-2 p-3 rounded-2xl bg-gradient-to-r from-rose-50 via-pink-50 to-amber-50 dark:from-rose-950/50 dark:to-amber-950/30 border border-rose-200 dark:border-rose-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-rose-700 dark:text-rose-300">
+                  <Flame className="w-4 h-4 text-rose-500 fill-rose-500" />
+                  <span>{saleCampaign.title || 'Chương trình Sale'}:</span>
+                  <span className="text-emerald-700 dark:text-emerald-300 font-extrabold">
+                    Tiết kiệm {formatVND(originalUnitPrice - unitPrice)} / sản phẩm
+                  </span>
+                </div>
+                {saleCampaign.end_at && (
+                  <div className="flex items-center gap-1 text-[11px] text-rose-600 dark:text-rose-300 font-semibold">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Đến: {formatSaleDateTimeVN(saleCampaign.end_at)}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <p className="text-xs sm:text-sm text-cute-brown-light dark:text-cute-muted leading-relaxed">
@@ -457,7 +497,8 @@ export const ProductDetailPage: React.FC = () => {
               <div className="flex flex-col gap-2">
                 {product.variants.map((v) => {
                   const isSelected = selectedVariant?.id === v.id;
-                  const finalSizePrice = product.price + v.additional_price;
+                  const origSizePrice = product.price + v.additional_price;
+                  const finalSizePrice = calculateDiscountedPrice(origSizePrice, discountPct);
                   return (
                     <button
                       key={v.id}
@@ -477,11 +518,18 @@ export const ProductDetailPage: React.FC = () => {
                         }`}
                     >
                       <span className="truncate pr-2">{v.variant_value}</span>
-                      <span
-                        style={isSelected ? { color: activeAccentHex } : undefined}
-                        className="text-rose-500 font-extrabold text-xs whitespace-nowrap transition-colors"
-                      >
-                        {formatVND(finalSizePrice)}
+                      <span className="flex items-center gap-2 whitespace-nowrap">
+                        {hasSale && (
+                          <span className="text-[11px] text-cute-brown-light/70 dark:text-cute-muted line-through font-normal">
+                            {formatVND(origSizePrice)}
+                          </span>
+                        )}
+                        <span
+                          style={isSelected ? { color: activeAccentHex } : undefined}
+                          className="text-rose-500 font-extrabold text-xs transition-colors"
+                        >
+                          {formatVND(finalSizePrice)}
+                        </span>
                       </span>
                     </button>
                   );

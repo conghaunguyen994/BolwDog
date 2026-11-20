@@ -1,12 +1,41 @@
 import React, { useEffect, useState } from 'react';
-import { Save, Check, Building2, Store, Share2, Mail, Send, Copy, Zap, ExternalLink, RefreshCw, ShieldCheck } from 'lucide-react';
+import {
+  Save,
+  Check,
+  Building2,
+  Store,
+  Share2,
+  Mail,
+  Send,
+  Copy,
+  Zap,
+  ExternalLink,
+  RefreshCw,
+  ShieldCheck,
+  Flame,
+  Clock,
+  Tag,
+  Calendar,
+} from 'lucide-react';
 import { settingsService } from '../../services/settingsService';
+import { productService } from '../../services/productService';
 import { emailService } from '../../services/emailService';
 import { sepayService } from '../../services/sepayService';
-import { EmailNotificationConfig, ShopSettings } from '../../types/settings';
+import { EmailNotificationConfig, SaleCampaignConfig, ShopSettings } from '../../types/settings';
+import { Product } from '../../types/product';
 import { defaultShopSettings } from '../../constants/defaultSettings';
+import { formatVND } from '../../utils/currency';
+import {
+  calculateDiscountedPrice,
+  formatSaleDateTimeVN,
+  fromDatetimeLocalInput,
+  getSaleCountdown,
+  getSaleStatus,
+  normalizeDiscountPercentage,
+  toDatetimeLocalInput,
+} from '../../utils/sale';
 import { useAppDispatch } from '../../app/hooks';
-import { setDepositPercentage } from '../../features/cart/cartSlice';
+import { setDepositPercentage, setSaleCampaign } from '../../features/cart/cartSlice';
 import { Button } from '../../components/common/Button';
 
 const GOOGLE_APPS_SCRIPT_SNIPPET = `function doPost(e) {
@@ -35,8 +64,42 @@ export const AdminSettings: React.FC = () => {
   const [sepayTestStatus, setSepayTestStatus] = useState<string | null>(null);
   const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false);
   const [dbCleanedNotice, setDbCleanedNotice] = useState<string | null>(null);
+  const [shopProducts, setShopProducts] = useState<Product[]>([]);
+  const [now, setNow] = useState<Date>(() => new Date());
 
   const sepayConfig = settings.sepay || defaultShopSettings.sepay!;
+  const saleConfig: SaleCampaignConfig = {
+    ...defaultShopSettings.sale_campaign!,
+    ...(settings.sale_campaign || {}),
+  };
+
+  const updateSaleConfig = (patch: Partial<SaleCampaignConfig>) => {
+    setSettings({
+      ...settings,
+      sale_campaign: {
+        ...saleConfig,
+        ...patch,
+      },
+    });
+  };
+
+  const applyQuickSaleDuration = (hours: number) => {
+    const start = new Date();
+    const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
+    updateSaleConfig({
+      enabled: true,
+      start_at: start.toISOString(),
+      end_at: end.toISOString(),
+    });
+  };
+
+  const toggleSaleProductId = (prodId: string) => {
+    const currentIds = Array.isArray(saleConfig.product_ids) ? saleConfig.product_ids : [];
+    const nextIds = currentIds.includes(prodId)
+      ? currentIds.filter((id) => id !== prodId)
+      : [...currentIds, prodId];
+    updateSaleConfig({ product_ids: nextIds });
+  };
 
   const siteOrigin =
     typeof window !== 'undefined' &&
@@ -113,14 +176,46 @@ export const AdminSettings: React.FC = () => {
         );
       }
     });
-    settingsService.getSettings().then((s) => {
+    Promise.all([
+      settingsService.getSettings(),
+      productService.getProducts({ activeOnly: false }).catch(() => [] as Product[]),
+    ]).then(([s, prods]) => {
       setSettings(s);
+      setShopProducts(prods);
       setLoading(false);
     });
   }, []);
 
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saleConfig.enabled) {
+      const pct = normalizeDiscountPercentage(saleConfig.discount_percentage);
+      if (pct < 1 || pct > 90) {
+        alert('Phần trăm giảm giá Sale phải nằm trong khoảng từ 1% đến 90%.');
+        return;
+      }
+      if (saleConfig.start_at && saleConfig.end_at) {
+        const startMs = new Date(saleConfig.start_at).getTime();
+        const endMs = new Date(saleConfig.end_at).getTime();
+        if (Number.isFinite(startMs) && Number.isFinite(endMs) && endMs <= startMs) {
+          alert('Thời gian kết thúc Sale phải sau thời gian bắt đầu!');
+          return;
+        }
+      }
+      if (
+        saleConfig.apply_scope === 'selected_products' &&
+        (!Array.isArray(saleConfig.product_ids) || saleConfig.product_ids.length === 0)
+      ) {
+        alert('Vui lòng tích chọn ít nhất 1 sản phẩm khi chọn phạm vi "Chọn riêng từng sản phẩm".');
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const updated = await settingsService.updateSettings(settings);
@@ -128,6 +223,7 @@ export const AdminSettings: React.FC = () => {
       if (updated.bank_transfer && typeof updated.bank_transfer.deposit_percentage === 'number') {
         dispatch(setDepositPercentage(updated.bank_transfer.deposit_percentage));
       }
+      dispatch(setSaleCampaign(updated.sale_campaign || null));
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err: any) {
@@ -136,6 +232,15 @@ export const AdminSettings: React.FC = () => {
       setSaving(false);
     }
   };
+
+  const saleStatus = getSaleStatus(saleConfig, now);
+  const saleCountdown =
+    saleStatus === 'active'
+      ? getSaleCountdown(saleConfig.end_at, now)
+      : saleStatus === 'upcoming'
+        ? getSaleCountdown(saleConfig.start_at, now)
+        : null;
+  const previewDiscountPct = normalizeDiscountPercentage(saleConfig.discount_percentage);
 
   if (loading) {
     return <div className="p-8 text-center text-xs">Đang tải cấu hình shop...</div>;
@@ -146,10 +251,10 @@ export const AdminSettings: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-cute-brown dark:text-cute-cream font-sans">
-            Cài Đặt Tiệm & Cấu Hình Ngân Hàng
+            Cài Đặt Tiệm, Chương Trình Sale & Ngân Hàng
           </h1>
           <p className="text-xs text-cute-brown-light dark:text-cute-muted">
-            Tất cả thông tin hiển thị ở footer, chi tiết liên hệ và tài khoản nhận cọc VietQR
+            Quản lý chiến dịch giảm giá theo khung giờ, thông tin tiệm và tài khoản nhận cọc VietQR
           </p>
         </div>
 
@@ -169,7 +274,339 @@ export const AdminSettings: React.FC = () => {
       )}
 
       <form onSubmit={handleSave} className="space-y-6">
-        
+        {/* Section 0: Flash Sale / Discount Campaign by Date & Time */}
+        <div className="cute-card p-6 space-y-5 border-2 border-rose-300 bg-gradient-to-br from-white via-rose-50/30 to-amber-50/30 dark:from-cute-surface-dark dark:to-cute-surface-dark">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-rose-200">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-rose-500 to-amber-500 text-white flex items-center justify-center shadow-sm">
+                <Flame className="w-5 h-5 fill-amber-200" />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-cute-brown dark:text-cute-cream flex items-center gap-2">
+                  <span>Chương Trình Sale Giảm Giá Theo Ngày Giờ (Flash Sale)</span>
+                </h2>
+                <p className="text-[11px] text-cute-brown-light dark:text-cute-muted">
+                  Tự động kích hoạt giảm giá đúng ngày giờ bắt đầu và tự động tắt khi hết giờ
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Live Status Badge */}
+              {saleStatus === 'active' && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-extrabold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  <span>
+                    ĐANG SALE -{previewDiscountPct}%
+                    {saleCountdown?.shortLabel ? ` (Còn ${saleCountdown.shortLabel})` : ''}
+                  </span>
+                </span>
+              )}
+              {saleStatus === 'upcoming' && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-xs font-extrabold">
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  <span>
+                    SẮP DIỄN RA
+                    {saleCountdown?.shortLabel ? ` (Sau ${saleCountdown.shortLabel})` : ''}
+                  </span>
+                </span>
+              )}
+              {saleStatus === 'expired' && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 border border-rose-300 text-rose-700 text-xs font-extrabold">
+                  <span>ĐÃ KẾT THÚC KHUNG GIỜ SALE</span>
+                </span>
+              )}
+              {saleStatus === 'disabled' && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 border border-gray-300 text-gray-600 text-xs font-bold">
+                  <span>Đang tắt Sale</span>
+                </span>
+              )}
+
+              <label className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-xs font-extrabold cursor-pointer shadow-sm transition-colors">
+                <input
+                  type="checkbox"
+                  checked={saleConfig.enabled}
+                  onChange={(e) => updateSaleConfig({ enabled: e.target.checked })}
+                  className="rounded text-rose-700 focus:ring-white"
+                />
+                <span>Bật chương trình Sale</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Tên chương trình */}
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-cute-brown mb-1">
+                Tên chương trình khuyến mãi (hiển thị trên Banner & Trang sản phẩm) *
+              </label>
+              <input
+                type="text"
+                value={saleConfig.title}
+                onChange={(e) => updateSaleConfig({ title: e.target.value })}
+                placeholder="Ví dụ: 🔥 FLASH SALE YÊU THƯƠNG"
+                className="w-full px-3.5 py-2 rounded-xl border border-cute-border-light text-xs bg-white focus:outline-none font-bold"
+              />
+            </div>
+
+            {/* Phần trăm giảm giá */}
+            <div>
+              <label className="block text-xs font-bold text-rose-600 mb-1">
+                Mức giảm giá (% từ 1% đến 90%) *
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min={1}
+                  max={90}
+                  value={saleConfig.discount_percentage}
+                  onChange={(e) =>
+                    updateSaleConfig({
+                      discount_percentage: Math.min(90, Math.max(0, Number(e.target.value) || 0)),
+                    })
+                  }
+                  className="w-full px-3.5 py-2 pr-10 rounded-xl border-2 border-rose-300 text-sm bg-white focus:outline-none font-black text-rose-600"
+                />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-black text-rose-500">
+                  %
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {[10, 15, 20, 25, 30, 50].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => updateSaleConfig({ discount_percentage: pct })}
+                    className={`px-2 py-0.5 rounded-lg text-[11px] font-extrabold border transition-all ${
+                      saleConfig.discount_percentage === pct
+                        ? 'bg-rose-500 text-white border-rose-600 shadow-sm'
+                        : 'bg-white text-cute-brown border-cute-border-light hover:border-rose-300'
+                    }`}
+                  >
+                    -{pct}%
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Thời gian Bắt đầu & Kết thúc */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-white/80 dark:bg-cute-cream-dark/40 border border-rose-200">
+            <div>
+              <label className="block text-xs font-bold text-cute-brown mb-1 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-rose-500" />
+                <span>Bắt đầu Sale từ (Ngày & Giờ) *</span>
+              </label>
+              <input
+                type="datetime-local"
+                value={toDatetimeLocalInput(saleConfig.start_at)}
+                onChange={(e) =>
+                  updateSaleConfig({ start_at: fromDatetimeLocalInput(e.target.value) })
+                }
+                className="w-full px-3.5 py-2 rounded-xl border border-cute-border-light text-xs bg-white focus:outline-none font-semibold"
+              />
+              <span className="text-[10px] text-cute-brown-light mt-1 block">
+                Đang chọn: <strong>{formatSaleDateTimeVN(saleConfig.start_at)}</strong>
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-cute-brown mb-1 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-rose-500" />
+                <span>Kết thúc Sale lúc (Ngày & Giờ) *</span>
+              </label>
+              <input
+                type="datetime-local"
+                value={toDatetimeLocalInput(saleConfig.end_at)}
+                onChange={(e) =>
+                  updateSaleConfig({ end_at: fromDatetimeLocalInput(e.target.value) })
+                }
+                className="w-full px-3.5 py-2 rounded-xl border border-cute-border-light text-xs bg-white focus:outline-none font-semibold"
+              />
+              <span className="text-[10px] text-cute-brown-light mt-1 block">
+                Đang chọn: <strong>{formatSaleDateTimeVN(saleConfig.end_at)}</strong>
+              </span>
+            </div>
+
+            {/* Nút chọn nhanh khung giờ */}
+            <div className="sm:col-span-2 flex flex-wrap items-center gap-2 pt-1 border-t border-cute-border-light/60">
+              <span className="text-[11px] font-bold text-cute-brown-light">Cài nhanh khung giờ từ bây giờ:</span>
+              <button
+                type="button"
+                onClick={() => applyQuickSaleDuration(6)}
+                className="px-2.5 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[11px] font-bold transition-colors"
+              >
+                ⚡ Flash Sale 6 giờ
+              </button>
+              <button
+                type="button"
+                onClick={() => applyQuickSaleDuration(24)}
+                className="px-2.5 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[11px] font-bold transition-colors"
+              >
+                🔥 Sale 24 giờ (1 ngày)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyQuickSaleDuration(72)}
+                className="px-2.5 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[11px] font-bold transition-colors"
+              >
+                🎉 Sale 3 ngày
+              </button>
+              <button
+                type="button"
+                onClick={() => applyQuickSaleDuration(168)}
+                className="px-2.5 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[11px] font-bold transition-colors"
+              >
+                🌟 Sale 7 ngày (1 tuần)
+              </button>
+            </div>
+          </div>
+
+          {/* Thông điệp Banner & Phạm vi áp dụng */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-cute-brown mb-1">
+                Lời nhắn trên thanh Banner đếm ngược đầu trang
+              </label>
+              <input
+                type="text"
+                value={saleConfig.banner_message || ''}
+                onChange={(e) => updateSaleConfig({ banner_message: e.target.value })}
+                placeholder="Ví dụ: Ưu đãi đặc biệt cho các bé cưng — Đặt ngay kẻo lỡ!"
+                className="w-full px-3.5 py-2 rounded-xl border border-cute-border-light text-xs bg-white focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-cute-brown mb-1">
+                Phạm vi sản phẩm áp dụng giảm giá
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => updateSaleConfig({ apply_scope: 'all' })}
+                  className={`flex-1 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+                    (saleConfig.apply_scope || 'all') === 'all'
+                      ? 'bg-rose-500 text-white border-rose-600 shadow-sm'
+                      : 'bg-white text-cute-brown border-cute-border-light'
+                  }`}
+                >
+                  🐾 Toàn bộ sản phẩm của shop
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateSaleConfig({ apply_scope: 'selected_products' })}
+                  className={`flex-1 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+                    saleConfig.apply_scope === 'selected_products'
+                      ? 'bg-rose-500 text-white border-rose-600 shadow-sm'
+                      : 'bg-white text-cute-brown border-cute-border-light'
+                  }`}
+                >
+                  🎯 Chọn riêng từng sản phẩm
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Danh sách chọn sản phẩm khi apply_scope === 'selected_products' */}
+          {saleConfig.apply_scope === 'selected_products' && (
+            <div className="p-4 rounded-2xl bg-white border border-rose-200 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-cute-brown flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-rose-500" />
+                  <span>
+                    Tích chọn các sản phẩm được giảm giá ({saleConfig.product_ids?.length || 0} đã chọn):
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateSaleConfig({
+                      product_ids:
+                        (saleConfig.product_ids?.length || 0) === shopProducts.length
+                          ? []
+                          : shopProducts.map((p) => p.id),
+                    })
+                  }
+                  className="text-[11px] font-bold text-rose-600 hover:underline"
+                >
+                  {(saleConfig.product_ids?.length || 0) === shopProducts.length
+                    ? 'Bỏ chọn tất cả'
+                    : 'Chọn tất cả'}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                {shopProducts.map((prod) => {
+                  const checked = Boolean(saleConfig.product_ids?.includes(prod.id));
+                  return (
+                    <label
+                      key={prod.id}
+                      className={`flex items-center justify-between gap-2 p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                        checked
+                          ? 'bg-rose-50 border-rose-300 font-bold text-cute-brown'
+                          : 'bg-cute-cream/30 border-cute-border-light text-cute-brown-light'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleSaleProductId(prod.id)}
+                          className="rounded text-rose-500"
+                        />
+                        <span className="truncate">{prod.name}</span>
+                      </div>
+                      <span className="text-rose-500 font-extrabold whitespace-nowrap">
+                        {formatVND(calculateDiscountedPrice(prod.price, previewDiscountPct))}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Bảng xem trước giá giảm trực tiếp */}
+          <div className="p-4 rounded-2xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-rose-900 dark:text-rose-200">
+                👀 Xem trước bảng giá Bát Ăn 5 Size sau khi giảm {previewDiscountPct}%:
+              </span>
+              <span className="text-[11px] text-rose-700 dark:text-rose-300 font-semibold">
+                Tự động đồng bộ từ Trang chủ, Chi tiết, Giỏ hàng đến Thanh toán & Database
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
+              {[
+                { label: 'Size S', price: 199000 },
+                { label: 'Size M', price: 229000 },
+                { label: 'Size L', price: 259000 },
+                { label: 'Size XL', price: 300000 },
+                { label: 'Size XXL', price: 350000 },
+              ].map((sz) => {
+                const afterSale = calculateDiscountedPrice(sz.price, previewDiscountPct);
+                return (
+                  <div
+                    key={sz.label}
+                    className="p-2 rounded-xl bg-white dark:bg-cute-surface-dark border border-rose-200/80 shadow-xs"
+                  >
+                    <span className="text-[11px] font-extrabold text-cute-brown block">
+                      {sz.label}
+                    </span>
+                    <span className="text-[10px] text-cute-brown-light line-through block">
+                      {formatVND(sz.price)}
+                    </span>
+                    <span className="text-xs font-black text-rose-600 block">
+                      {formatVND(afterSale)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
         {/* Section 1: General Shop Information */}
         <div className="cute-card p-6 space-y-4">
           <h2 className="text-base font-bold text-cute-brown dark:text-cute-cream flex items-center gap-2 pb-3 border-b border-cute-border-light">

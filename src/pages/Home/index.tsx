@@ -15,6 +15,9 @@ import {
 } from 'lucide-react';
 import { Product, Category } from '../../types/product';
 import { productService } from '../../services/productService';
+import { formatVND } from '../../utils/currency';
+import { calculateDiscountedPrice, isSaleActive, normalizeDiscountPercentage } from '../../utils/sale';
+import { useAppSelector } from '../../app/hooks';
 import { ProductCard } from '../../components/products/ProductCard';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
@@ -23,6 +26,9 @@ export const HomePage: React.FC = () => {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const saleCampaign = useAppSelector((state) => state.cart.saleCampaign);
+  const saleActive = isSaleActive(saleCampaign) && saleCampaign?.apply_scope !== 'selected_products';
+  const salePct = saleActive ? normalizeDiscountPercentage(saleCampaign?.discount_percentage) : 0;
 
   useEffect(() => {
     async function loadData() {
@@ -175,6 +181,7 @@ export const HomePage: React.FC = () => {
               inox: 'Ø 14 cm',
               tilt: 'Nghiêng 15°',
               price: '199K',
+              rawPrice: 199000,
               target: 'Bé nhỏ (< 4kg)',
             },
             {
@@ -185,6 +192,7 @@ export const HomePage: React.FC = () => {
               inox: 'Ø 14 cm',
               tilt: 'Nghiêng 15°',
               price: '229K',
+              rawPrice: 229000,
               target: 'Bé vừa (4 - 8kg)',
             },
             {
@@ -195,6 +203,7 @@ export const HomePage: React.FC = () => {
               inox: 'Ø 14 cm',
               tilt: 'Nghiêng 15°',
               price: '259K',
+              rawPrice: 259000,
               target: 'Bé lớn (8 - 15kg)',
             },
             {
@@ -205,6 +214,7 @@ export const HomePage: React.FC = () => {
               inox: 'Ø 18-20 cm',
               tilt: 'Dáng phẳng',
               price: '300K',
+              rawPrice: 300000,
               target: 'Bé to (15 - 25kg)',
             },
             {
@@ -215,54 +225,74 @@ export const HomePage: React.FC = () => {
               inox: 'Ø 18-20 cm',
               tilt: 'Dáng phẳng',
               price: '350K',
+              rawPrice: 350000,
               target: 'Bé đại (> 25kg)',
             },
-          ].map((item) => (
-            <Link
-              key={item.size}
-              to="/products/bat-an-chong-gu-chong-kien-cho-cho-meo"
-              className="p-5 rounded-3xl bg-white dark:bg-cute-surface-dark border-2 border-cute-border-light dark:border-cute-border-dark shadow-sm hover:border-rose-400 hover:shadow-cute transition-all text-center flex flex-col justify-between group"
-            >
-              <div>
-                <span className="text-[11px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-950/60 px-2.5 py-0.5 rounded-full inline-block mb-2">
-                  {item.tilt}
-                </span>
-                <h3 className="text-xl font-black text-cute-brown dark:text-cute-cream group-hover:text-rose-500 transition-colors">
-                  {item.size}
-                </h3>
-                <span className="text-[11px] text-cute-brown-light dark:text-cute-muted block mb-3 font-medium">
-                  {item.target}
-                </span>
+          ].map((item) => {
+            const discounted = salePct > 0 ? calculateDiscountedPrice(item.rawPrice, salePct) : item.rawPrice;
+            return (
+              <Link
+                key={item.size}
+                to="/products/bat-an-chong-gu-chong-kien-cho-cho-meo"
+                className="relative p-5 rounded-3xl bg-white dark:bg-cute-surface-dark border-2 border-cute-border-light dark:border-cute-border-dark shadow-sm hover:border-rose-400 hover:shadow-cute transition-all text-center flex flex-col justify-between group"
+              >
+                {salePct > 0 && (
+                  <span className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-full bg-gradient-to-r from-rose-600 to-amber-500 text-white text-[10px] font-black shadow-sm">
+                    -{salePct}%
+                  </span>
+                )}
+                <div>
+                  <span className="text-[11px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-950/60 px-2.5 py-0.5 rounded-full inline-block mb-2">
+                    {item.tilt}
+                  </span>
+                  <h3 className="text-xl font-black text-cute-brown dark:text-cute-cream group-hover:text-rose-500 transition-colors">
+                    {item.size}
+                  </h3>
+                  <span className="text-[11px] text-cute-brown-light dark:text-cute-muted block mb-3 font-medium">
+                    {item.target}
+                  </span>
 
-                <div className="space-y-1.5 text-xs text-cute-brown-light dark:text-cute-muted border-t border-cute-border-light/60 pt-3">
-                  <div className="flex justify-between">
-                    <span>Chiều cao H1:</span>
-                    <strong className="text-cute-brown dark:text-cute-cream">{item.h1}</strong>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Chiều cao H2:</span>
-                    <strong className="text-cute-brown dark:text-cute-cream">{item.h2}</strong>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Đường kính D:</span>
-                    <strong className="text-cute-brown dark:text-cute-cream">{item.d}</strong>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Bát inox:</span>
-                    <strong className="text-rose-500">{item.inox}</strong>
+                  <div className="space-y-1.5 text-xs text-cute-brown-light dark:text-cute-muted border-t border-cute-border-light/60 pt-3">
+                    <div className="flex justify-between">
+                      <span>Chiều cao H1:</span>
+                      <strong className="text-cute-brown dark:text-cute-cream">{item.h1}</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Chiều cao H2:</span>
+                      <strong className="text-cute-brown dark:text-cute-cream">{item.h2}</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Đường kính D:</span>
+                      <strong className="text-cute-brown dark:text-cute-cream">{item.d}</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Bát inox:</span>
+                      <strong className="text-rose-500">{item.inox}</strong>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="mt-4 pt-3 border-t border-cute-border-light/60">
-                <span className="text-lg font-black text-rose-500 block">{item.price}</span>
-                <span className="text-[11px] font-bold text-cute-pink-500 mt-1 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
-                  <span>Thiết kế ngay</span>
-                  <ArrowRight className="w-3 h-3" />
-                </span>
-              </div>
-            </Link>
-          ))}
+                <div className="mt-4 pt-3 border-t border-cute-border-light/60">
+                  {salePct > 0 ? (
+                    <div className="space-y-0.5">
+                      <span className="text-xs text-cute-brown-light/70 dark:text-cute-muted line-through block">
+                        {formatVND(item.rawPrice)}
+                      </span>
+                      <span className="text-lg font-black text-rose-500 block">
+                        {formatVND(discounted)}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-lg font-black text-rose-500 block">{item.price}</span>
+                  )}
+                  <span className="text-[11px] font-bold text-cute-pink-500 mt-1 inline-flex items-center gap-1 group-hover:gap-1.5 transition-all">
+                    <span>Thiết kế ngay</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </section>
 

@@ -1,9 +1,10 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Star, Sparkles, Heart } from 'lucide-react';
+import { ShoppingBag, Star, Sparkles, Flame } from 'lucide-react';
 import { Product } from '../../types/product';
 import { formatVND } from '../../utils/currency';
-import { useAppDispatch } from '../../app/hooks';
+import { calculateDiscountedPrice, getProductDiscountPercentage } from '../../utils/sale';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { addToCart } from '../../features/cart/cartSlice';
 import { Badge } from '../common/Badge';
 
@@ -14,6 +15,11 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const saleCampaign = useAppSelector((state) => state.cart.saleCampaign);
+  const discountPct = getProductDiscountPercentage(product.id, saleCampaign);
+  const discountedPrice = calculateDiscountedPrice(product.price, discountPct);
+  const hasSale = discountPct > 0 && discountedPrice < product.price;
+
   const primaryImage =
     product.images.find((img) => img.is_primary)?.image_url ||
     product.images[0]?.image_url ||
@@ -55,8 +61,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             />
           </Link>
 
-          {/* Floating Badges */}
+          {/* Floating Badges Left */}
           <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
+            {hasSale && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-rose-600 to-amber-500 text-white text-xs font-black shadow-md animate-pulse">
+                <Flame className="w-3.5 h-3.5 fill-amber-200 text-amber-200" />
+                <span>-{discountPct}% SALE</span>
+              </span>
+            )}
             {product.is_featured && (
               <Badge variant="pink" size="sm">
                 <Sparkles className="w-3 h-3 text-rose-500" />
@@ -106,10 +118,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       {/* Footer / Price & Add */}
       <div className="p-4 sm:p-5 pt-0 flex items-center justify-between border-t border-cute-border-light/40 dark:border-cute-border-dark/40 mt-3">
         <div>
-          <span className="text-[10px] text-cute-brown-light dark:text-cute-muted block">Giá yêu thương</span>
-          <span className="text-base sm:text-lg font-black text-rose-500 font-sans">
-            {formatVND(product.price)}
+          <span className="text-[10px] text-cute-brown-light dark:text-cute-muted block">
+            {hasSale ? `Đang giảm ${discountPct}%` : 'Giá yêu thương'}
           </span>
+          <div className="flex items-baseline gap-1.5 flex-wrap">
+            <span className="text-base sm:text-lg font-black text-rose-500 font-sans">
+              {formatVND(discountedPrice)}
+            </span>
+            {hasSale && (
+              <span className="text-xs text-cute-brown-light/70 dark:text-cute-muted line-through font-medium">
+                {formatVND(product.price)}
+              </span>
+            )}
+          </div>
         </div>
 
         <button
@@ -125,4 +146,3 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     </div>
   );
 };
-

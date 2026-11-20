@@ -12,7 +12,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { clearCart, setDepositPercentage } from '../../features/cart/cartSlice';
+import { clearCart, setDepositPercentage, setSaleCampaign } from '../../features/cart/cartSlice';
 import { checkoutSchema, CheckoutFormData } from '../../schemas/checkoutSchema';
 import { orderService } from '../../services/orderService';
 import { settingsService } from '../../services/settingsService';
@@ -29,9 +29,16 @@ import { OrderSuccessModal } from '../../components/checkout/OrderSuccessModal';
 export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { items, subtotal, shippingFee, total, depositAmount, depositPercentage } = useAppSelector(
-    (state) => state.cart
-  );
+  const {
+    items,
+    originalSubtotal,
+    discountAmount,
+    subtotal,
+    shippingFee,
+    total,
+    depositAmount,
+    depositPercentage,
+  } = useAppSelector((state) => state.cart);
 
   const [settings, setSettings] = useState<ShopSettings>(initialSettings);
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
@@ -51,6 +58,7 @@ export const CheckoutPage: React.FC = () => {
         if (s.bank_transfer && typeof s.bank_transfer.deposit_percentage === 'number') {
           dispatch(setDepositPercentage(s.bank_transfer.deposit_percentage));
         }
+        dispatch(setSaleCampaign(s.sale_campaign || null));
       })
       .catch(() => {});
   }, [dispatch]);
@@ -354,6 +362,11 @@ export const CheckoutPage: React.FC = () => {
                     </h4>
                     <span className="text-[11px] text-cute-brown-light dark:text-cute-muted block">
                       SL: {it.quantity} x {formatVND(it.unitPrice)}
+                      {it.discountPercentage && it.originalUnitPrice && it.originalUnitPrice > it.unitPrice ? (
+                        <span className="ml-1.5 line-through opacity-70">
+                          {formatVND(it.originalUnitPrice)}
+                        </span>
+                      ) : null}
                     </span>
                     {(it.customization.petName || it.customization.customText || it.customization.phoneOnTag) && (
                       <div className="text-[10px] text-cute-pink-600 dark:text-cute-pink-300 font-semibold block space-y-0.5">
@@ -397,6 +410,18 @@ export const CheckoutPage: React.FC = () => {
 
             {/* Pricing details */}
             <div className="pt-3 border-t border-cute-border-light dark:border-cute-border-dark space-y-1.5 text-xs text-cute-brown-light dark:text-cute-muted">
+              {discountAmount && discountAmount > 0 ? (
+                <>
+                  <div className="flex justify-between">
+                    <span>Tạm tính (Giá gốc):</span>
+                    <span className="line-through">{formatVND(originalSubtotal || subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                    <span>Khuyến mãi Sale:</span>
+                    <span>-{formatVND(discountAmount)}</span>
+                  </div>
+                </>
+              ) : null}
               <div className="flex justify-between">
                 <span>Tiền hàng:</span>
                 <span className="font-semibold text-cute-brown dark:text-cute-cream">{formatVND(subtotal)}</span>
