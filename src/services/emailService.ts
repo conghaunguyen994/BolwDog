@@ -54,18 +54,18 @@ export function markDepositEmailDispatched(orderKey?: string): void {
 }
 
 function getBaseSiteUrl(customConfig?: EmailNotificationConfig): string {
-  if (customConfig?.production_site_url?.trim()) {
-    return customConfig.production_site_url.trim().replace(/\/+$/, '');
+  const configured = customConfig?.production_site_url?.trim().replace(/\/+$/, '');
+  if (configured && !/^https?:\/\/bolwdog\.vercel\.app$/i.test(configured)) {
+    return configured;
   }
   if (typeof window !== 'undefined' && window.location?.origin) {
-    const origin = window.location.origin;
+    const origin = window.location.origin.replace(/\/+$/, '');
     // Nếu đang test ở localhost, ưu tiên dùng domain production để link trong email bấm vào xem được trên điện thoại
-    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-      return 'https://bolwdog.vercel.app';
+    if (!origin.includes('localhost') && !origin.includes('127.0.0.1')) {
+      return origin;
     }
-    return origin.replace(/\/+$/, '');
   }
-  return 'https://bolwdog.vercel.app';
+  return 'https://bowlshop.vercel.app';
 }
 
 export function buildOrderTrackingUrl(

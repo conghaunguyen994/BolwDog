@@ -55,13 +55,18 @@ function formatVndServer(amount?: number | null): string {
 }
 
 function resolveSiteUrl(cfg?: StoredEmailConfig | null, siteUrlHint?: string | null): string {
-  const configured = cfg?.production_site_url?.trim();
-  if (configured) {
-    return configured.replace(/\/+$/, '');
+  const configured = cfg?.production_site_url?.trim().replace(/\/+$/, '');
+  if (configured && !/^https?:\/\/bolwdog\.vercel\.app$/i.test(configured)) {
+    return configured;
   }
-  const hinted = siteUrlHint?.trim();
-  if (hinted && !hinted.includes('localhost') && !hinted.includes('127.0.0.1')) {
-    return hinted.replace(/\/+$/, '');
+  const hinted = siteUrlHint?.trim().replace(/\/+$/, '');
+  if (
+    hinted &&
+    !hinted.includes('localhost') &&
+    !hinted.includes('127.0.0.1') &&
+    !/^https?:\/\/bolwdog\.vercel\.app$/i.test(hinted)
+  ) {
+    return hinted;
   }
   return 'https://bowlshop.vercel.app';
 }

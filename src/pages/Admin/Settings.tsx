@@ -34,19 +34,37 @@ export const AdminSettings: React.FC = () => {
   const [testingSepay, setTestingSepay] = useState(false);
   const [sepayTestStatus, setSepayTestStatus] = useState<string | null>(null);
   const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false);
+  const [copiedAuthWebhookUrl, setCopiedAuthWebhookUrl] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
 
   const sepayConfig = settings.sepay || defaultShopSettings.sepay!;
+  const cleanSepayApiKey = (sepayConfig.api_key || '')
+    .trim()
+    .replace(/^(Bearer|Apikey)\s+/i, '');
 
-  const webhookUrl =
-    typeof window !== 'undefined'
-      ? `${window.location.origin}/api/sepay-webhook`
-      : 'https://bolwdog.vercel.app/api/sepay-webhook';
+  const siteOrigin =
+    typeof window !== 'undefined' &&
+    window.location?.origin &&
+    !window.location.origin.includes('localhost') &&
+    !window.location.origin.includes('127.0.0.1')
+      ? window.location.origin
+      : 'https://bowlshop.vercel.app';
 
-  const handleCopyWebhookUrl = () => {
-    navigator.clipboard.writeText(webhookUrl);
-    setCopiedWebhookUrl(true);
-    setTimeout(() => setCopiedWebhookUrl(false), 2000);
+  const webhookUrl = `${siteOrigin}/api/sepay-webhook`;
+  const authenticatedWebhookUrl = cleanSepayApiKey
+    ? `${webhookUrl}?api_key=${encodeURIComponent(cleanSepayApiKey)}`
+    : '';
+
+  const handleCopyWebhookUrl = (withKey = false) => {
+    const targetUrl = withKey && authenticatedWebhookUrl ? authenticatedWebhookUrl : webhookUrl;
+    navigator.clipboard.writeText(targetUrl);
+    if (withKey) {
+      setCopiedAuthWebhookUrl(true);
+      setTimeout(() => setCopiedAuthWebhookUrl(false), 2000);
+    } else {
+      setCopiedWebhookUrl(true);
+      setTimeout(() => setCopiedWebhookUrl(false), 2000);
+    }
   };
 
   const handleTestSepay = async () => {
@@ -409,19 +427,31 @@ export const AdminSettings: React.FC = () => {
           </div>
 
           {/* Webhook Endpoint Box */}
-          <div className="p-4 rounded-2xl bg-white dark:bg-cute-surface-dark border border-emerald-200 dark:border-emerald-800 space-y-2">
+          <div className="p-4 rounded-2xl bg-white dark:bg-cute-surface-dark border border-emerald-200 dark:border-emerald-800 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <label className="text-xs font-bold text-cute-brown dark:text-cute-cream flex items-center gap-1.5">
                 <span>📍 Đường link Webhook nhận dữ liệu từ SePay:</span>
               </label>
-              <button
-                type="button"
-                onClick={handleCopyWebhookUrl}
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 transition-colors self-start sm:self-auto"
-              >
-                {copiedWebhookUrl ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedWebhookUrl ? 'Đã sao chép Link Webhook' : 'Sao chép Link Webhook'}</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => handleCopyWebhookUrl(false)}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 transition-colors"
+                >
+                  {copiedWebhookUrl ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedWebhookUrl ? 'Đã copy Link' : 'Copy Link chuẩn'}</span>
+                </button>
+                {authenticatedWebhookUrl && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopyWebhookUrl(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-xl shadow-sm transition-colors"
+                  >
+                    {copiedAuthWebhookUrl ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedAuthWebhookUrl ? 'Đã copy Link kèm Key!' : 'Copy Link kèm API Key (Khuyên dùng)'}</span>
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <input
@@ -431,8 +461,10 @@ export const AdminSettings: React.FC = () => {
                 className="w-full px-3.5 py-2.5 rounded-xl border border-cute-border-light bg-cute-cream/30 text-xs font-mono font-bold text-emerald-800 dark:text-emerald-300 select-all"
               />
             </div>
-            <p className="text-[11px] text-cute-brown-light dark:text-cute-muted">
-              💡 Hãy copy đường dẫn này dán vào mục <strong>Cài đặt Webhook</strong> trên tài khoản SePay của bạn.
+            <p className="text-[11px] text-cute-brown-light dark:text-cute-muted leading-relaxed">
+              💡 Hãy dán đúng link <strong className="font-mono text-emerald-800">{webhookUrl}</strong> vào mục <strong>Cài đặt Webhook</strong> trên <a href="https://my.sepay.vn" target="_blank" rel="noreferrer" className="underline font-bold">my.sepay.vn</a>.
+              <br />
+              🔐 <strong>Xác thực Webhook:</strong> Chọn Kiểu chứng thực = <strong>API Key</strong> (nhập <code className="bg-emerald-50 px-1 rounded">Apikey [Token]</code>), <strong>hoặc</strong> bấm nút <em>"Copy Link kèm API Key"</em> để dán khi chọn <em>"Không cần chứng thực"</em>.
             </p>
           </div>
 
@@ -664,7 +696,7 @@ export const AdminSettings: React.FC = () => {
               type="url"
               value={emailConfig.production_site_url || ''}
               onChange={(e) => updateEmailConfig({ production_site_url: e.target.value })}
-              placeholder="https://bolwdog.vercel.app"
+              placeholder="https://bowlshop.vercel.app"
               className="w-full px-3.5 py-2 rounded-xl border border-cute-border-light text-xs bg-white focus:outline-none font-mono"
             />
             <span className="text-[10px] text-cute-brown-light dark:text-cute-muted">

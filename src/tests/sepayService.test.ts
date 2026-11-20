@@ -4,6 +4,7 @@ import { emailService } from '../services/emailService';
 import { settingsService } from '../services/settingsService';
 import { defaultShopSettings } from '../constants/defaultSettings';
 import type { Order } from '../types/order';
+import { stripApiKeyPrefix, verifyWebhookTransactionWithSepayApi } from '../../api/_lib/sepayApi';
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -267,5 +268,63 @@ describe('emailService.notifyDepositConfirmed - Simultaneous Admin & Customer Em
     expect(fallbackRes.sent).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain('https://formsubmit.co/ajax/');
+  });
+});
+
+describe('api/_lib/sepayApi - Webhook Auth & Transaction Verification', () => {
+  it('should strip Apikey or Bearer prefix cleanly', () => {
+    expect(stripApiKeyPrefix('Apikey ABC_123 ')).toBe('ABC_123');
+    expect(stripApiKeyPrefix('Bearer xyz789')).toBe('xyz789');
+    expect(stripApiKeyPrefix('RAW_KEY')).toBe('RAW_KEY');
+    expect(stripApiKeyPrefix(undefined)).toBe('');
+  });
+
+  it('should verify matching genuine SePay transaction by id and transferAmount', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          transactions: [
+            {
+              id: '101020099',
+              amount_in: '22900.00',
+              reference_number: 'FT26324692209912',
+              transaction_content: 'BD BD202611207BCF6- Ma GD ACSP/ p6927718',
+            },
+          ],
+        }),
+    } as Response);
+
+    const verified = await verifyWebhookTransactionWithSepayApi('SERVER_TOKEN', {
+      id: 101020099,
+      referenceCode: 'FT26324692209912',
+      transferAmount: 22900,
+    });
+    expect(verified).toBe(true);
+  });
+
+  it('should reject forged webhook payload with mismatched amount or unknown id', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          transactions: [
+            {
+              id: '101020099',
+              amount_in: '22900.00',
+              reference_number: 'FT26324692209912',
+            },
+          ],
+        }),
+    } as Response);
+
+    const forged = await verifyWebhookTransactionWithSepayApi('SERVER_TOKEN', {
+      id: 101020099,
+      referenceCode: 'FT26324692209912',
+      transferAmount: 999999,
+    });
+    expect(forged).toBe(false);
   });
 });

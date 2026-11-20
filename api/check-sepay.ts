@@ -1,11 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendDepositConfirmedEmailsServer } from './_lib/depositEmail.js';
-
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://mwuewkvddhjtxmfzvjyj.supabase.co';
-const SUPABASE_KEY =
-  process.env.VITE_SUPABASE_ANON_KEY ||
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  'sb_publishable_4Ri-LJHIAOjRCU64cLaYgQ_ZwRb2wqv';
+import {
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY,
+  stripApiKeyPrefix,
+  resolveSepayServerToken,
+  fetchSepayTransactions,
+} from './_lib/sepayApi.js';
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -30,28 +31,13 @@ export default async function handler(req: any, res: any) {
     const { action, apiKey, orderReference, phone } = body;
 
     if (action === 'verify-key') {
-      const token = String(apiKey || '')
-        .trim()
-        .replace(/^(Bearer|Apikey)\s+/i, '');
+      const token = stripApiKeyPrefix(apiKey);
       if (!token) {
         return res.status(400).json({ ok: false, message: 'Vui lòng nhập SePay API Token để kiểm tra.' });
       }
 
-      const sepayRes = await fetch('https://my.sepay.vn/userapi/transactions/list?limit=1', {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const rawText = await sepayRes.text();
-      let json: any = {};
-      try {
-        json = JSON.parse(rawText);
-      } catch {
-        json = {};
-      }
+      const sepayRes = await fetchSepayTransactions(token, 1);
+      const { json } = sepayRes;
 
       if (!sepayRes.ok || json.status === 401 || json.error) {
         if (sepayRes.status === 401 || sepayRes.status === 403) {
@@ -82,7 +68,7 @@ export default async function handler(req: any, res: any) {
       const authHeader = String(req.headers['authorization'] || '').trim();
       const supabase = createClient(
         SUPABASE_URL,
-        SUPABASE_KEY,
+        SUPABASE_ANON_KEY,
         authHeader
           ? {
               global: {
@@ -117,23 +103,7 @@ export default async function handler(req: any, res: any) {
       }
 
       // 2. Nếu có API Token (từ Admin, Vercel env SEPAY_API_KEY, hoặc đọc qua SUPABASE_SERVICE_ROLE_KEY) -> quét trực tiếp SePay API
-      let token = String(apiKey || process.env.SEPAY_API_KEY || '')
-        .trim()
-        .replace(/^(Bearer|Apikey)\s+/i, '');
-
-      if (!token && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        const serviceClient = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-        const { data: sepayRow } = await serviceClient
-          .from('shop_settings')
-          .select('setting_value')
-          .eq('setting_key', 'sepay')
-          .maybeSingle();
-        if (sepayRow?.setting_value?.enabled && sepayRow.setting_value.api_key) {
-          token = String(sepayRow.setting_value.api_key)
-            .trim()
-            .replace(/^(Bearer|Apikey)\s+/i, '');
-        }
-      }
+      const token = await resolveSepayServerToken(apiKey);
 
       if (!token) {
         return res.status(200).json({
@@ -142,21 +112,8 @@ export default async function handler(req: any, res: any) {
         });
       }
 
-      const sepayRes = await fetch('https://my.sepay.vn/userapi/transactions/list?limit=50', {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const sepayText = await sepayRes.text();
-      let sepayJson: any = {};
-      try {
-        sepayJson = JSON.parse(sepayText);
-      } catch {
-        sepayJson = {};
-      }
+      const sepayRes = await fetchSepayTransactions(token, 50);
+      const sepayJson = sepayRes.json;
 
       if (!sepayRes.ok) {
         return res.status(200).json({

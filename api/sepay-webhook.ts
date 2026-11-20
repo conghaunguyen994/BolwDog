@@ -1,11 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendDepositConfirmedEmailsServer } from './_lib/depositEmail.js';
-
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://mwuewkvddhjtxmfzvjyj.supabase.co';
-const SUPABASE_KEY =
-  process.env.VITE_SUPABASE_ANON_KEY ||
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  'sb_publishable_4Ri-LJHIAOjRCU64cLaYgQ_ZwRb2wqv';
+import {
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY,
+  stripApiKeyPrefix,
+  resolveSepayServerToken,
+  verifyWebhookTransactionWithSepayApi,
+} from './_lib/sepayApi.js';
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -13,7 +14,7 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Content-Type, Authorization, X-Api-Key'
+    'X-CSRF-Token, X-Requested-With, Accept, Content-Type, Authorization, X-Api-Key, Api-Key'
   );
 
   if (req.method === 'OPTIONS') {
@@ -37,8 +38,13 @@ export default async function handler(req: any, res: any) {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
-    const authHeader = String(req.headers['authorization'] || req.headers['x-api-key'] || '');
-    const apiKey = authHeader.replace(/^(Apikey|Bearer)\s+/i, '').trim() || String(req.query?.api_key || '').trim();
+    const authHeader = String(
+      req.headers['authorization'] || req.headers['x-api-key'] || req.headers['api-key'] || ''
+    );
+    let apiKey =
+      stripApiKeyPrefix(authHeader) ||
+      stripApiKeyPrefix(req.query?.api_key) ||
+      stripApiKeyPrefix(req.query?.apikey);
 
     const {
       id,
@@ -46,12 +52,14 @@ export default async function handler(req: any, res: any) {
       transactionDate,
       accountNumber,
       content,
+      description,
       transferType,
       transferAmount,
       referenceCode,
     } = body;
 
-    if (!content || !transferAmount) {
+    const effectiveContent = String(content || description || '').trim();
+    if (!effectiveContent || !transferAmount) {
       return res.status(200).json({
         success: true,
         matched: false,
@@ -59,14 +67,30 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    // Nếu SePay cấu hình Webhook "Không cần chứng thực" (không gửi Authorization / ?api_key=),
+    // chủ động đối chiếu ngược lại SePay User API xem giao dịch id/referenceCode này có thật hay không.
+    if (!apiKey) {
+      const serverToken = await resolveSepayServerToken();
+      if (
+        serverToken &&
+        (await verifyWebhookTransactionWithSepayApi(serverToken, {
+          id,
+          referenceCode,
+          transferAmount,
+        }))
+      ) {
+        apiKey = serverToken;
+      }
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const { data, error } = await supabase.rpc('process_sepay_webhook', {
       p_sepay_id: typeof id === 'number' ? id : Number(id) || null,
       p_gateway: gateway || 'BankTransfer',
       p_transaction_date: transactionDate ? String(transactionDate) : new Date().toISOString(),
       p_account_number: accountNumber || '',
-      p_content: content || '',
+      p_content: effectiveContent,
       p_transfer_type: transferType || 'in',
       p_transfer_amount: Number(transferAmount) || 0,
       p_reference_code: referenceCode || null,
@@ -99,6 +123,7 @@ export default async function handler(req: any, res: any) {
       return res.status(401).json({
         success: false,
         error: result.error,
+        hint: 'Hay dan URL Webhook kem ?api_key=<SEPAY_API_KEY> hoac chon Kieu chung thuc API Key tren my.sepay.vn (Authorization: Apikey <SEPAY_API_KEY>).',
       });
     }
 
