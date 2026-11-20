@@ -109,7 +109,7 @@ export const OrderTrackingPage: React.FC = () => {
                 skipIfServerWebhookConfigured: Boolean(paidInfo?.viaServerDb),
               }
             )
-            .catch(() => {});
+            .catch(() => { });
         }
       }
 
@@ -127,24 +127,24 @@ export const OrderTrackingPage: React.FC = () => {
 
     const channel = supabase
       ? supabase
-          .channel(`track-order-${order.id}`)
-          .on(
-            'postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${order.id}` },
-            (payload: any) => {
-              const updated = payload.new;
-              if (updated) {
-                if (updated.payment_status === 'partially_paid' || updated.payment_status === 'paid') {
-                  triggerPaidSuccess(updated.payment_status, updated.order_status, {
-                    viaServerDb: true,
-                  });
-                } else {
-                  setOrder((prev) => (prev ? { ...prev, ...updated } : prev));
-                }
+        .channel(`track-order-${order.id}`)
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${order.id}` },
+          (payload: any) => {
+            const updated = payload.new;
+            if (updated) {
+              if (updated.payment_status === 'partially_paid' || updated.payment_status === 'paid') {
+                triggerPaidSuccess(updated.payment_status, updated.order_status, {
+                  viaServerDb: true,
+                });
+              } else {
+                setOrder((prev) => (prev ? { ...prev, ...updated } : prev));
               }
             }
-          )
-          .subscribe()
+          }
+        )
+        .subscribe()
       : null;
 
     // Tự động kiểm tra mỗi 3 giây khi đơn đang chờ cọc (không cần user bấm nút)
@@ -210,7 +210,7 @@ export const OrderTrackingPage: React.FC = () => {
   }, [order?.id, order?.customer_email]);
 
   useEffect(() => {
-    settingsService.getSettings().then(setSettings).catch(() => {});
+    settingsService.getSettings().then(setSettings).catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -268,12 +268,12 @@ export const OrderTrackingPage: React.FC = () => {
       const updatedItems = order.items.map((it, idx) =>
         idx === 0
           ? {
-              ...it,
-              customization_data: {
-                ...(it.customization_data || {}),
-                demoPreview: updatedDemo,
-              },
-            }
+            ...it,
+            customization_data: {
+              ...(it.customization_data || {}),
+              demoPreview: updatedDemo,
+            },
+          }
           : it
       );
       const nextOrder: Order = { ...order, items: updatedItems };
@@ -450,11 +450,10 @@ export const OrderTrackingPage: React.FC = () => {
                   key={item.id}
                   type="button"
                   onClick={() => setOrder(item)}
-                  className={`px-3.5 py-2 rounded-2xl text-xs font-bold border transition-all ${
-                    active
+                  className={`px-3.5 py-2 rounded-2xl text-xs font-bold border transition-all ${active
                       ? 'bg-cute-pink-400 text-white border-cute-pink-500 shadow-sm'
                       : 'bg-cute-cream/50 text-cute-brown border-cute-border-light hover:border-cute-pink-300'
-                  }`}
+                    }`}
                 >
                   {item.order_reference} • {formatVND(item.total_amount)}
                 </button>
@@ -545,13 +544,12 @@ export const OrderTrackingPage: React.FC = () => {
                   return (
                     <div
                       key={step.label}
-                      className={`p-3 rounded-2xl border text-center space-y-1 transition-all ${
-                        isCurrent
+                      className={`p-3 rounded-2xl border text-center space-y-1 transition-all ${isCurrent
                           ? 'bg-cute-pink/40 border-cute-pink-400 shadow-sm ring-1 ring-cute-pink-300'
                           : isDone
-                          ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 text-emerald-900 dark:text-emerald-300'
-                          : 'bg-cute-cream/30 dark:bg-cute-cream-dark/30 border-cute-border-light opacity-60'
-                      }`}
+                            ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 text-emerald-900 dark:text-emerald-300'
+                            : 'bg-cute-cream/30 dark:bg-cute-cream-dark/30 border-cute-border-light opacity-60'
+                        }`}
                     >
                       <span className="text-xs font-black block">
                         {isDone ? '✓ ' : `${idx + 1}. `}
@@ -642,11 +640,10 @@ export const OrderTrackingPage: React.FC = () => {
                     📸 Hình ảnh mô phỏng file 3D (Bấm vào ảnh để phóng to xem chi tiết):
                   </span>
                   <div
-                    className={`grid gap-3 ${
-                      gallery.length === 1
+                    className={`grid gap-3 ${gallery.length === 1
                         ? 'grid-cols-1 max-w-xl mx-auto'
                         : 'grid-cols-1 sm:grid-cols-2'
-                    }`}
+                      }`}
                   >
                     {gallery.map((imgSrc, i) => (
                       <div
@@ -840,11 +837,7 @@ export const OrderTrackingPage: React.FC = () => {
                     để hoàn tất toàn bộ (0đ COD). Sau khi chuyển xong, trang sẽ{' '}
                     <strong>tự động xác nhận và thông báo ngay</strong>.
                   </p>
-                  <p className="text-[11px] text-emerald-800 dark:text-emerald-300 font-bold flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />
-                    <RefreshCw className="w-3 h-3 animate-spin text-emerald-600" />
-                    <span>Đang tự động kiểm tra giao dịch SePay 24/7 (không cần bấm nút)...</span>
-                  </p>
+
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
@@ -922,8 +915,8 @@ export const OrderTrackingPage: React.FC = () => {
                 {isAdmin || (user && order.customer_id === user.id)
                   ? order.shipping_address
                   : (order.shipping_address.includes(',')
-                      ? '*** ' + order.shipping_address.substring(order.shipping_address.indexOf(','))
-                      : '*** (Đã ẩn để bảo mật)')}
+                    ? '*** ' + order.shipping_address.substring(order.shipping_address.indexOf(','))
+                    : '*** (Đã ẩn để bảo mật)')}
               </p>
             </div>
 
@@ -1003,12 +996,12 @@ export const OrderTrackingPage: React.FC = () => {
             setOrder((prev) =>
               prev
                 ? {
-                    ...prev,
-                    payment_status:
-                      confirmedPaymentStatus ||
-                      (prev.payment_status === 'paid' ? 'paid' : 'partially_paid'),
-                    order_status: prev.order_status === 'pending' ? 'confirmed' : prev.order_status,
-                  }
+                  ...prev,
+                  payment_status:
+                    confirmedPaymentStatus ||
+                    (prev.payment_status === 'paid' ? 'paid' : 'partially_paid'),
+                  order_status: prev.order_status === 'pending' ? 'confirmed' : prev.order_status,
+                }
                 : prev
             );
           }}
