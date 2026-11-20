@@ -115,10 +115,24 @@ export default async function handler(req: any, res: any) {
         }
       }
 
-      // 2. Nếu có API Token (từ Admin hoặc biến môi trường server SEPAY_API_KEY) -> quét trực tiếp SePay API
-      const token = String(apiKey || process.env.SEPAY_API_KEY || '')
+      // 2. Nếu có API Token (từ Admin, Vercel env SEPAY_API_KEY, hoặc đọc qua SUPABASE_SERVICE_ROLE_KEY) -> quét trực tiếp SePay API
+      let token = String(apiKey || process.env.SEPAY_API_KEY || '')
         .trim()
         .replace(/^(Bearer|Apikey)\s+/i, '');
+
+      if (!token && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        const serviceClient = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+        const { data: sepayRow } = await serviceClient
+          .from('shop_settings')
+          .select('setting_value')
+          .eq('setting_key', 'sepay')
+          .maybeSingle();
+        if (sepayRow?.setting_value?.enabled && sepayRow.setting_value.api_key) {
+          token = String(sepayRow.setting_value.api_key)
+            .trim()
+            .replace(/^(Bearer|Apikey)\s+/i, '');
+        }
+      }
 
       if (!token) {
         return res.status(200).json({

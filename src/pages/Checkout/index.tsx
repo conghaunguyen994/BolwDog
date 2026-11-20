@@ -449,6 +449,19 @@ export const CheckoutPage: React.FC = () => {
             onClose={handleCloseQRModal}
             order={createdOrder}
             settings={settings}
+            onProofUploaded={() => {
+              setCreatedOrder((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      payment_status:
+                        prev.payment_status === 'paid' ? 'paid' : 'partially_paid',
+                      order_status:
+                        prev.order_status === 'pending' ? 'confirmed' : prev.order_status,
+                    }
+                  : prev
+              );
+            }}
           />
         </>
       )}

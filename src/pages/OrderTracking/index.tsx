@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Search,
@@ -19,7 +19,7 @@ import {
 import confetti from 'canvas-confetti';
 import { orderService } from '../../services/orderService';
 import { settingsService } from '../../services/settingsService';
-import { sepayService } from '../../services/sepayService';
+import { sepayService, playPaymentSuccessChime } from '../../services/sepayService';
 import { supabase } from '../../services/supabase/client';
 import { DemoReviewStatus, Order, OrderStatus } from '../../types/order';
 import { ShopSettings } from '../../types/settings';
@@ -64,11 +64,32 @@ export const OrderTrackingPage: React.FC = () => {
   const [emailInput, setEmailInput] = useState('');
   const [emailSaving, setEmailSaving] = useState(false);
   const [emailSavedNotice, setEmailSavedNotice] = useState<string | null>(null);
-  const [checkingSepay, setCheckingSepay] = useState(false);
-  const [sepayNotice, setSepayNotice] = useState<string | null>(null);
+  const [justConfirmedDeposit, setJustConfirmedDeposit] = useState(false);
+  const [showToastNotification, setShowToastNotification] = useState(false);
+  const checkingTrackRef = useRef(false);
 
   useEffect(() => {
     if (!order?.id) return;
+
+    const triggerPaidSuccess = (nextPaymentStatus?: string, nextOrderStatus?: string) => {
+      setOrder((prev) => {
+        if (!prev) return prev;
+        const alreadyPaid = prev.payment_status === 'partially_paid' || prev.payment_status === 'paid';
+        if (!alreadyPaid) {
+          playPaymentSuccessChime();
+          confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+          setJustConfirmedDeposit(true);
+          setShowToastNotification(true);
+        }
+        return {
+          ...prev,
+          payment_status: (nextPaymentStatus as any) || 'partially_paid',
+          order_status:
+            (nextOrderStatus as OrderStatus) ||
+            (prev.order_status === 'pending' ? 'confirmed' : prev.order_status),
+        };
+      });
+    };
 
     const channel = supabase
       ? supabase
@@ -79,9 +100,10 @@ export const OrderTrackingPage: React.FC = () => {
             (payload: any) => {
               const updated = payload.new;
               if (updated) {
-                setOrder((prev) => (prev ? { ...prev, ...updated } : prev));
                 if (updated.payment_status === 'partially_paid' || updated.payment_status === 'paid') {
-                  confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                  triggerPaidSuccess(updated.payment_status, updated.order_status);
+                } else {
+                  setOrder((prev) => (prev ? { ...prev, ...updated } : prev));
                 }
               }
             }
@@ -89,65 +111,54 @@ export const OrderTrackingPage: React.FC = () => {
           .subscribe()
       : null;
 
-    // Polling mỗi 5 giây khi đơn đang chờ cọc (hỗ trợ cả khách vãng lai qua RPC)
+    // Tự động kiểm tra mỗi 3 giây khi đơn đang chờ cọc (không cần user bấm nút)
     const shouldPoll =
       order.payment_status === 'deposit_pending' || order.payment_status === 'unpaid';
-    const pollTimer = shouldPoll
-      ? setInterval(async () => {
-          try {
-            const snapshot = await sepayService.getOrderPaymentStatus(
-              order.order_reference,
-              order.customer_phone
-            );
-            if (
-              snapshot.found &&
-              (snapshot.payment_status === 'partially_paid' || snapshot.payment_status === 'paid')
-            ) {
-              setOrder((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      payment_status: snapshot.payment_status || prev.payment_status,
-                      order_status: snapshot.order_status || prev.order_status,
-                    }
-                  : prev
-              );
-              confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
-              clearInterval(pollTimer);
-            }
-          } catch {
-            // Bỏ qua lỗi tạm thời
+
+    let tickCount = 0;
+    const runAutoCheck = async () => {
+      if (checkingTrackRef.current) return;
+      checkingTrackRef.current = true;
+      tickCount += 1;
+      try {
+        const snapshot = await sepayService.getOrderPaymentStatus(
+          order.order_reference,
+          order.customer_phone
+        );
+        if (
+          snapshot.found &&
+          (snapshot.payment_status === 'partially_paid' || snapshot.payment_status === 'paid')
+        ) {
+          triggerPaidSuccess(snapshot.payment_status, snapshot.order_status);
+          return;
+        }
+
+        // Mỗi 6 giây (tick chẵn) chủ động đối soát thêm từ SePay API nếu webhook chậm
+        if (tickCount % 2 === 0 && (settings.sepay?.enabled ?? true)) {
+          const sepayRes = await sepayService.checkTransactionForOrder(order, settings.sepay);
+          if (sepayRes.found) {
+            triggerPaidSuccess('partially_paid', 'confirmed');
           }
-        }, 5000)
-      : null;
+        }
+      } catch {
+        // Bỏ qua lỗi tạm thời
+      } finally {
+        checkingTrackRef.current = false;
+      }
+    };
+
+    const firstTimeout = shouldPoll ? setTimeout(runAutoCheck, 2500) : null;
+    const pollTimer = shouldPoll ? setInterval(runAutoCheck, 3000) : null;
 
     return () => {
+      if (firstTimeout) clearTimeout(firstTimeout);
       if (pollTimer) clearInterval(pollTimer);
+      checkingTrackRef.current = false;
       if (supabase && channel) {
         supabase.removeChannel(channel);
       }
     };
-  }, [order?.id, order?.payment_status, order?.order_reference, order?.customer_phone]);
-
-  const handleCheckSepayForOrder = async () => {
-    if (!order) return;
-    setCheckingSepay(true);
-    setSepayNotice(null);
-    try {
-      const res = await sepayService.checkTransactionForOrder(order, settings.sepay);
-      if (res.found) {
-        confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
-        setSepayNotice(`🎉 ${res.message}`);
-        handleLookup(order.order_reference, order.customer_phone);
-      } else {
-        setSepayNotice(res.message);
-      }
-    } catch (e: any) {
-      setSepayNotice(`⚠️ ${e.message || 'Lỗi kiểm tra SePay'}`);
-    } finally {
-      setCheckingSepay(false);
-    }
-  };
+  }, [order?.id, order?.payment_status, order?.order_reference, order?.customer_phone, settings.sepay]);
 
   useEffect(() => {
     setEmailInput(order?.customer_email || '');
@@ -294,6 +305,27 @@ export const OrderTrackingPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
+      {/* Floating Toast Notification khi SePay tự động xác nhận chuyển khoản */}
+      {showToastNotification && order && (
+        <div className="fixed top-20 right-4 z-50 max-w-sm p-4 rounded-2xl bg-emerald-600 text-white shadow-2xl border-2 border-emerald-300 flex items-start gap-3 animate-in slide-in-from-right duration-300">
+          <CheckCircle2 className="w-6 h-6 text-emerald-100 flex-shrink-0 mt-0.5" />
+          <div className="text-xs space-y-1 flex-1">
+            <p className="font-black text-sm">🎉 Đã Nhận Chuyển Khoản Thành Công!</p>
+            <p className="opacity-95 leading-relaxed">
+              Hệ thống SePay vừa tự động xác nhận tiền cọc <strong>{formatVND(order.deposit_amount)}</strong> cho đơn <strong>{order.order_reference}</strong>.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowToastNotification(false)}
+            className="p-1 rounded-lg hover:bg-emerald-700 text-white/80 hover:text-white"
+            aria-label="Đóng thông báo"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Title */}
       <div className="text-center max-w-lg mx-auto space-y-2">
         <Badge variant="pink" size="sm">
@@ -412,6 +444,25 @@ export const OrderTrackingPage: React.FC = () => {
               </span>
             </div>
           </div>
+
+          {/* Banner Thông báo ngay khi hệ thống SePay tự động xác nhận nhận cọc */}
+          {justConfirmedDeposit &&
+            (order.payment_status === 'partially_paid' || order.payment_status === 'paid') && (
+              <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 dark:from-emerald-950/50 dark:to-teal-950/40 border-2 border-emerald-400 flex items-start gap-3.5 shadow-sm animate-in fade-in duration-300">
+                <div className="p-2 rounded-2xl bg-emerald-500 text-white flex-shrink-0">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div className="text-xs sm:text-sm text-emerald-950 dark:text-emerald-200 space-y-1">
+                  <p className="font-black text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                    <Zap className="w-4 h-4 fill-emerald-600 text-emerald-600" />
+                    <span>BÂU SHOP ĐÃ NHẬN CHUYỂN KHOẢN ĐẶT CỌC THÀNH CÔNG!</span>
+                  </p>
+                  <p className="text-xs opacity-90 leading-relaxed">
+                    Hệ thống tự động đã ghi nhận khoản cọc <strong>{formatVND(order.deposit_amount)}</strong> cho đơn hàng <strong>{order.order_reference}</strong>. Xưởng BolwDog đang chuẩn bị dựng file 3D và sẽ gửi mẫu Demo cho ba mẹ duyệt nhé!
+                  </p>
+                </div>
+              </div>
+            )}
 
           {/* Progress Timeline */}
           {order.order_status !== 'cancelled' ? (
@@ -712,26 +763,16 @@ export const OrderTrackingPage: React.FC = () => {
                     Bé đang đợi xác nhận chuyển khoản đặt cọc
                   </span>
                   <p className="opacity-90">
-                    Số tiền cọc làm mẫu: <strong className="text-rose-600 text-sm font-extrabold">{formatVND(order.deposit_amount)}</strong>. Quét lại mã QR để thanh toán.
+                    Số tiền cần chuyển cọc: <strong className="text-rose-600 text-sm font-extrabold">{formatVND(order.deposit_amount)}</strong>. Sau khi chuyển khoản đúng cú pháp, trang sẽ <strong>tự động xác nhận và thông báo ngay</strong>.
                   </p>
-                  <p className="text-[11px] text-emerald-800 dark:text-emerald-300 font-bold flex items-center gap-1">
-                    <Zap className="w-3.5 h-3.5 text-emerald-600 fill-emerald-600" />
-                    <span>Cổng SePay 24/7 tự động nhận diện và cập nhật trong 3-5 giây ngay sau khi chuyển khoản.</span>
+                  <p className="text-[11px] text-emerald-800 dark:text-emerald-300 font-bold flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />
+                    <RefreshCw className="w-3 h-3 animate-spin text-emerald-600" />
+                    <span>Đang tự động kiểm tra giao dịch SePay 24/7 (không cần bấm nút)...</span>
                   </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCheckSepayForOrder}
-                    isLoading={checkingSepay}
-                    className="border-emerald-400 text-emerald-800 hover:bg-emerald-100 text-xs"
-                    leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${checkingSepay ? 'animate-spin' : ''}`} />}
-                  >
-                    Kiểm tra SePay
-                  </Button>
-
                   <Button
                     variant="primary"
                     size="sm"
@@ -742,12 +783,6 @@ export const OrderTrackingPage: React.FC = () => {
                   </Button>
                 </div>
               </div>
-
-              {sepayNotice && (
-                <div className="p-2.5 rounded-xl bg-white/90 dark:bg-cute-surface-dark border border-emerald-300 text-xs text-emerald-900 dark:text-emerald-200 font-semibold">
-                  {sepayNotice}
-                </div>
-              )}
             </div>
           )}
 
@@ -822,6 +857,20 @@ export const OrderTrackingPage: React.FC = () => {
           onClose={() => setIsQRModalOpen(false)}
           order={order}
           settings={settings}
+          onProofUploaded={() => {
+            setJustConfirmedDeposit(true);
+            setShowToastNotification(true);
+            setOrder((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    payment_status:
+                      prev.payment_status === 'paid' ? 'paid' : 'partially_paid',
+                    order_status: prev.order_status === 'pending' ? 'confirmed' : prev.order_status,
+                  }
+                : prev
+            );
+          }}
         />
       )}
 

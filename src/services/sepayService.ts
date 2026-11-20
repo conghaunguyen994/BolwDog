@@ -41,6 +41,42 @@ export interface OrderPaymentStatusSnapshot {
   total_amount?: number;
 }
 
+/**
+ * Phát âm thanh báo nhận tiền cọc thành công (nhẹ nhàng, an toàn mọi trình duyệt)
+ */
+export function playPaymentSuccessChime(): void {
+  try {
+    if (typeof window === 'undefined') return;
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+
+    const playTone = (freq: number, start: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.001, start);
+      gain.gain.exponentialRampToValueAtTime(0.12, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + duration);
+    };
+
+    playTone(523.25, now, 0.16); // C5
+    playTone(659.25, now + 0.12, 0.22); // E5
+    playTone(783.99, now + 0.24, 0.32); // G5
+  } catch {
+    // Bỏ qua nếu trình duyệt chặn autoplay audio
+  }
+}
+
 export const sepayService = {
   /**
    * Trích xuất mã đơn hàng từ nội dung chuyển khoản của khách.

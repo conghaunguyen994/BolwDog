@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
-import { Copy, Check, UploadCloud, AlertCircle, ShieldCheck, Heart, ArrowRight, Zap, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Copy, Check, UploadCloud, ShieldCheck, ArrowRight, Zap, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { Order } from '../../types/order';
@@ -8,7 +8,7 @@ import { ShopSettings } from '../../types/settings';
 import { formatVND } from '../../utils/currency';
 import { generateVietQrUrl } from '../../utils/qrGenerator';
 import { orderService } from '../../services/orderService';
-import { sepayService } from '../../services/sepayService';
+import { sepayService, playPaymentSuccessChime } from '../../services/sepayService';
 import { supabase } from '../../services/supabase/client';
 
 interface BankTransferQRModalProps {
@@ -34,8 +34,8 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
   const [isAutoPaid, setIsAutoPaid] = useState(
     order.payment_status === 'partially_paid' || order.payment_status === 'paid'
   );
-  const [checkingSepay, setCheckingSepay] = useState(false);
-  const [sepayNotice, setSepayNotice] = useState<string | null>(null);
+  const notifiedRef = useRef(false);
+  const checkingRef = useRef(false);
 
   const bank = settings.bank_transfer;
   const isSepayActive = settings.sepay?.enabled ?? true;
@@ -53,16 +53,21 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
 
   // Đồng bộ trạng thái khi order prop thay đổi
   useEffect(() => {
-    setIsAutoPaid(order.payment_status === 'partially_paid' || order.payment_status === 'paid');
+    const alreadyPaid = order.payment_status === 'partially_paid' || order.payment_status === 'paid';
+    setIsAutoPaid(alreadyPaid);
+    notifiedRef.current = alreadyPaid;
   }, [order.id, order.payment_status]);
 
-  // Lắng nghe biến động số dư Realtime & Polling an toàn qua RPC (hỗ trợ cả khách vãng lai chưa đăng nhập)
+  // Lắng nghe biến động số dư Realtime & Tự động quét SePay mỗi 3 giây (không cần bấm nút)
   useEffect(() => {
     if (!isOpen || isAutoPaid || !order.id) return;
 
     const markPaidSuccess = () => {
+      if (notifiedRef.current) return;
+      notifiedRef.current = true;
       setIsAutoPaid(true);
-      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+      playPaymentSuccessChime();
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
       onProofUploaded?.();
     };
 
@@ -82,9 +87,13 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
           .subscribe()
       : null;
 
-    // Polling mỗi 4 giây qua SECURITY DEFINER RPC (không bị RLS chặn với khách vãng lai)
-    const interval = setInterval(async () => {
+    let tickCount = 0;
+    const runAutoCheck = async () => {
+      if (checkingRef.current || notifiedRef.current) return;
+      checkingRef.current = true;
+      tickCount += 1;
       try {
+        // Kiểm tra DB nhanh qua SECURITY DEFINER RPC
         const snapshot = await sepayService.getOrderPaymentStatus(
           order.order_reference,
           order.customer_phone
@@ -94,20 +103,43 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
           (snapshot.payment_status === 'partially_paid' || snapshot.payment_status === 'paid')
         ) {
           markPaidSuccess();
-          clearInterval(interval);
+          return;
+        }
+
+        // Mỗi 6 giây (tick chẵn) chủ động quét SePay API dự phòng nếu webhook chưa tới
+        if (tickCount % 2 === 0 && isSepayActive) {
+          const sepayRes = await sepayService.checkTransactionForOrder(order, settings.sepay);
+          if (sepayRes.found) {
+            markPaidSuccess();
+          }
         }
       } catch {
-        // Bỏ qua lỗi mạng tạm thời
+        // Bỏ qua lỗi mạng tạm thời, tiếp tục chu kỳ tiếp theo
+      } finally {
+        checkingRef.current = false;
       }
-    }, 4000);
+    };
+
+    // Chạy kiểm tra lần đầu sau 2.5s và lặp lại mỗi 3 giây
+    const firstTimeout = setTimeout(runAutoCheck, 2500);
+    const interval = setInterval(runAutoCheck, 3000);
 
     return () => {
+      clearTimeout(firstTimeout);
       clearInterval(interval);
+      checkingRef.current = false;
       if (supabase && channel) {
         supabase.removeChannel(channel);
       }
     };
-  }, [isOpen, isAutoPaid, order.id, order.order_reference, order.customer_phone, onProofUploaded]);
+  }, [
+    isOpen,
+    isAutoPaid,
+    isSepayActive,
+    order,
+    settings.sepay,
+    onProofUploaded,
+  ]);
 
   const copyToClipboard = (text: string, type: 'account' | 'note') => {
     navigator.clipboard.writeText(text);
@@ -117,26 +149,6 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
     } else {
       setCopiedNote(true);
       setTimeout(() => setCopiedNote(false), 2000);
-    }
-  };
-
-  const handleManualCheckSepay = async () => {
-    setCheckingSepay(true);
-    setSepayNotice(null);
-    try {
-      const res = await sepayService.checkTransactionForOrder(order, settings.sepay);
-      if (res.found) {
-        setIsAutoPaid(true);
-        confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
-        setSepayNotice(`🎉 ${res.message}`);
-        onProofUploaded?.();
-      } else {
-        setSepayNotice(res.message);
-      }
-    } catch (e: any) {
-      setSepayNotice(`⚠️ ${e.message || 'Chưa tìm thấy giao dịch. Vui lòng thử lại sau ít giây.'}`);
-    } finally {
-      setCheckingSepay(false);
     }
   };
 
@@ -213,7 +225,7 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
     <Modal isOpen={isOpen} onClose={onClose} title="Chuyển Khoản Đặt Cọc Yêu Thương" maxWidth="lg">
       <div className="space-y-4">
         
-        {/* Banner Tự Động Nhận Diện SePay */}
+        {/* Banner Tự Động Nhận Diện SePay (Không cần bấm nút) */}
         {isSepayActive && (
           <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-sky-50 dark:from-emerald-950/30 dark:to-sky-950/30 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
             <div className="flex items-start gap-2.5">
@@ -222,30 +234,19 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
               </span>
               <div>
                 <span className="font-black text-emerald-800 dark:text-emerald-300 block">
-                  Cổng Thanh Toán Tự Động SePay 24/7 Đang Hoạt Động
+                  Cổng Thanh Toán Tự Động SePay 24/7 Đang Trực
                 </span>
                 <p className="text-[11px] text-emerald-700 dark:text-emerald-300 opacity-90">
-                  Quét mã QR và giữ nguyên nội dung chuyển khoản. Hệ thống sẽ <strong>tự động duyệt cọc trong 3 - 5 giây</strong> mà không cần chụp biên lai!
+                  Quét mã QR và giữ nguyên nội dung chuyển khoản. Sau khi chuyển xong, hệ thống <strong>tự động kiểm tra và báo thành công ngay</strong> (không cần bấm nút hay chụp ảnh)!
                 </p>
               </div>
             </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleManualCheckSepay}
-              isLoading={checkingSepay}
-              className="border-emerald-400 text-emerald-800 hover:bg-emerald-100 flex-shrink-0 text-[11px]"
-              leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${checkingSepay ? 'animate-spin' : ''}`} />}
-            >
-              Kiểm tra ngay
-            </Button>
-          </div>
-        )}
-
-        {sepayNotice && (
-          <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 text-xs text-amber-900 dark:text-amber-200">
-            {sepayNotice}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 dark:bg-emerald-950/60 border border-emerald-300 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold flex-shrink-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+              <RefreshCw className="w-3 h-3 animate-spin text-emerald-600" />
+              <span>Đang tự động chờ tiền vào...</span>
+            </div>
           </div>
         )}
 
