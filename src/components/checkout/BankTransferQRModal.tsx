@@ -16,7 +16,12 @@ import { Button } from '../common/Button';
 import { Order, PaymentStatus } from '../../types/order';
 import { ShopSettings } from '../../types/settings';
 import { formatVND } from '../../utils/currency';
-import { generateVietQrUrl } from '../../utils/qrGenerator';
+import {
+  generateVietQrUrl,
+  getVerifiedBankConfig,
+  isTrustedVietQrUrl,
+  VERIFIED_OFFICIAL_BANK,
+} from '../../utils/qrGenerator';
 import { orderService } from '../../services/orderService';
 import { sepayService, playPaymentSuccessChime } from '../../services/sepayService';
 import { emailService } from '../../services/emailService';
@@ -55,11 +60,14 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
   const [confirmedAmount, setConfirmedAmount] = useState<number>(
     order.payment_status === 'paid' ? order.total_amount : order.deposit_amount
   );
+  const [tamperWarning, setTamperWarning] = useState(false);
 
   const notifiedRef = useRef(false);
   const checkingRef = useRef(false);
+  const qrImgRef = useRef<HTMLImageElement | null>(null);
+  const accountNoRef = useRef<HTMLSpanElement | null>(null);
 
-  const bank = settings.bank_transfer;
+  const bank = getVerifiedBankConfig(settings.bank_transfer);
   const isSepayActive = settings.sepay?.enabled ?? true;
   const depositPercentage =
     order.total_amount > 0
@@ -97,7 +105,44 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
       alreadyFullyPaid ? order.total_amount : qrAmount
     );
     notifiedRef.current = alreadyFullyPaid;
+    setTamperWarning(false);
   }, [order.id, order.payment_status, isOpen]);
+
+  // Lớp bảo vệ DOM Anti-Tamper: tự động phát hiện & khôi phục ngay lập tức nếu tiện ích lạ / mã độc cố thay ảnh QR hoặc STK
+  useEffect(() => {
+    if (!isOpen || isAutoPaid) return;
+    if (typeof MutationObserver === 'undefined') return;
+
+    const verifyDomIntegrity = () => {
+      const imgEl = qrImgRef.current;
+      if (imgEl) {
+        const currentSrc = imgEl.getAttribute('src') || '';
+        if (!isTrustedVietQrUrl(currentSrc) || currentSrc !== qrUrl) {
+          imgEl.setAttribute('src', qrUrl);
+          setTamperWarning(true);
+        }
+      }
+      const accEl = accountNoRef.current;
+      if (accEl && accEl.textContent?.trim() !== VERIFIED_OFFICIAL_BANK.account_number) {
+        accEl.textContent = VERIFIED_OFFICIAL_BANK.account_number;
+        setTamperWarning(true);
+      }
+    };
+
+    const observer = new MutationObserver(verifyDomIntegrity);
+    if (qrImgRef.current) {
+      observer.observe(qrImgRef.current, { attributes: true, attributeFilter: ['src', 'srcset'] });
+    }
+    if (accountNoRef.current) {
+      observer.observe(accountNoRef.current, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+    }
+
+    return () => observer.disconnect();
+  }, [isOpen, isAutoPaid, qrUrl]);
 
   // Lắng nghe biến động số dư Realtime & Tự động quét SePay mỗi 3 giây
   useEffect(() => {
@@ -418,15 +463,26 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
           </div>
         )}
 
+        {tamperWarning && (
+          <div className="p-3 rounded-2xl bg-rose-50 border-2 border-rose-400 text-rose-800 text-xs font-bold flex items-start gap-2">
+            <ShieldCheck className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+            <span>
+              Cảnh báo bảo mật: Phát hiện tác động bất thường từ trình duyệt/tiện ích lạ lên mã QR hoặc STK. Hệ thống đã tự động khôi phục về đúng tài khoản chính chủ <strong>MB Bank • {VERIFIED_OFFICIAL_BANK.account_number} • {VERIFIED_OFFICIAL_BANK.account_holder}</strong>!
+            </span>
+          </div>
+        )}
+
         {/* QR Code and Bank Details Grid */}
         <div className="flex flex-col sm:flex-row items-center gap-5 p-4 rounded-3xl bg-cute-cream/60 dark:bg-cute-cream-dark/60 border border-cute-border-light dark:border-cute-border-dark">
           {/* QR Display */}
           <div className="flex flex-col items-center">
             <div className="p-2.5 bg-white rounded-2xl shadow-cute border border-cute-pink/50">
               <img
+                ref={qrImgRef}
                 src={qrUrl}
                 alt="VietQR Mã Chuyển Khoản"
                 className="w-44 h-44 object-contain rounded-xl"
+                referrerPolicy="no-referrer"
               />
             </div>
             <span className="text-[11px] text-cute-brown-light dark:text-cute-muted mt-2 font-medium">
@@ -455,7 +511,10 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
             <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-cute-surface-dark border border-cute-border-light dark:border-cute-border-dark">
               <div>
                 <span className="text-[10px] text-cute-brown-light dark:text-cute-muted block">Số tài khoản:</span>
-                <span className="font-extrabold text-sm text-cute-brown dark:text-cute-cream tracking-wider">
+                <span
+                  ref={accountNoRef}
+                  className="font-extrabold text-sm text-cute-brown dark:text-cute-cream tracking-wider"
+                >
                   {bank.account_number}
                 </span>
               </div>
@@ -512,6 +571,15 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Ghi chú xác thực chính chủ chống giả mạo QR */}
+        <div className="px-3.5 py-2.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-900 dark:text-emerald-200 flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span>
+            <strong>Bảo vệ tài khoản chính chủ:</strong> Khi quét QR trên App Ngân hàng, vui lòng đối chiếu đúng{' '}
+            <strong>MB Bank • {VERIFIED_OFFICIAL_BANK.account_number} • {VERIFIED_OFFICIAL_BANK.account_holder}</strong> trước khi xác nhận chuyển tiền.
+          </span>
         </div>
 
         {/* Upload Proof Slip (Dự phòng nếu chuyển từ cây ATM hoặc sai cú pháp) */}

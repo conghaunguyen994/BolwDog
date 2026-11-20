@@ -843,80 +843,59 @@ export const AdminSettings: React.FC = () => {
 
         {/* Section 2: Bank Transfer & VietQR Configuration */}
         <div className="cute-card p-6 space-y-4">
-          <h2 className="text-base font-bold text-cute-brown dark:text-cute-cream flex items-center gap-2 pb-3 border-b border-cute-border-light">
-            <Building2 className="w-5 h-5 text-rose-500" />
-            <span>Tài khoản ngân hàng nhận tiền cọc (VietQR)</span>
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-cute-border-light">
+            <h2 className="text-base font-bold text-cute-brown dark:text-cute-cream flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-rose-500" />
+              <span>Tài khoản ngân hàng nhận tiền (VietQR)</span>
+            </h2>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 text-[11px] font-extrabold">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span>🔒 Đã khóa cứng STK &amp; QR chống hack</span>
+            </span>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-[11px] text-emerald-900 font-medium">
+            🛡️ Để chống hacker chiếm quyền tài khoản / tấn công Database đổi STK hoặc chèn ảnh QR giả, 4 trường thông tin tài khoản thụ hưởng bên dưới được <strong>khóa cứng ở cả mã nguồn lẫn Trigger Database</strong> (chỉ thay đổi được khi chủ tiệm cập nhật trực tiếp trong code). Bạn vẫn có thể chỉnh sửa <strong>% Đặt cọc</strong> và <strong>Tiền tố nội dung</strong> bình thường.
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-cute-brown mb-1">Tên ngân hàng</label>
+              <label className="block text-xs font-bold text-cute-brown mb-1">Tên ngân hàng (Đã khóa)</label>
               <input
                 type="text"
+                readOnly
                 value={settings.bank_transfer.bank_name}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    bank_transfer: { ...settings.bank_transfer, bank_name: e.target.value },
-                  })
-                }
-                className="w-full px-3.5 py-2 rounded-xl border border-cute-border-light text-xs bg-white focus:outline-none"
+                className="w-full px-3.5 py-2 rounded-xl border border-cute-border-light text-xs bg-gray-100 text-cute-brown/80 cursor-not-allowed focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-cute-brown mb-1">Mã ngân hàng (VCB, MB, TCB, VPB...)</label>
+              <label className="block text-xs font-bold text-cute-brown mb-1">Mã ngân hàng (Đã khóa)</label>
               <input
                 type="text"
+                readOnly
                 value={settings.bank_transfer.bank_code}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    bank_transfer: { ...settings.bank_transfer, bank_code: e.target.value.toUpperCase() },
-                  })
-                }
-                className="w-full px-3.5 py-2 rounded-xl border border-cute-border-light text-xs bg-white focus:outline-none uppercase font-mono"
+                className="w-full px-3.5 py-2 rounded-xl border border-cute-border-light text-xs bg-gray-100 text-cute-brown/80 cursor-not-allowed focus:outline-none uppercase font-mono"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-cute-brown mb-1">Số tài khoản nhận tiền *</label>
+              <label className="block text-xs font-bold text-cute-brown mb-1">Số tài khoản nhận tiền (Đã khóa) *</label>
               <input
                 type="text"
-                required
+                readOnly
                 value={settings.bank_transfer.account_number}
-                onChange={(e) => {
-                  const nextAcc = e.target.value;
-                  const oldAcc = settings.bank_transfer.account_number;
-                  const shouldSyncSepay =
-                    !sepayConfig.account_number ||
-                    sepayConfig.account_number === oldAcc ||
-                    sepayConfig.account_number === '5801769728';
-                  setSettings({
-                    ...settings,
-                    bank_transfer: { ...settings.bank_transfer, account_number: nextAcc },
-                    sepay: shouldSyncSepay
-                      ? { ...sepayConfig, account_number: nextAcc }
-                      : settings.sepay,
-                  });
-                }}
-                className="w-full px-3.5 py-2 rounded-xl border border-cute-border-light text-xs bg-white focus:outline-none font-mono font-bold"
+                className="w-full px-3.5 py-2 rounded-xl border border-cute-border-light text-xs bg-gray-100 text-cute-brown/80 cursor-not-allowed focus:outline-none font-mono font-bold"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-cute-brown mb-1">Tên chủ tài khoản (In hoa không dấu) *</label>
+              <label className="block text-xs font-bold text-cute-brown mb-1">Tên chủ tài khoản (Đã khóa) *</label>
               <input
                 type="text"
-                required
+                readOnly
                 value={settings.bank_transfer.account_holder}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    bank_transfer: { ...settings.bank_transfer, account_holder: e.target.value.toUpperCase() },
-                  })
-                }
-                className="w-full px-3.5 py-2 rounded-xl border border-cute-border-light text-xs bg-white focus:outline-none uppercase font-bold"
+                className="w-full px-3.5 py-2 rounded-xl border border-cute-border-light text-xs bg-gray-100 text-cute-brown/80 cursor-not-allowed focus:outline-none uppercase font-bold"
               />
             </div>
 

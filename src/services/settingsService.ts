@@ -1,6 +1,7 @@
 import { supabase } from './supabase/client';
 import { ShopSettings } from '../types/settings';
 import { defaultShopSettings } from '../constants/defaultSettings';
+import { getVerifiedBankConfig } from '../utils/qrGenerator';
 
 const LEGACY_SECRET_FIELDS_BY_KEY: Record<string, string[]> = {
   sepay: ['api_key'],
@@ -42,6 +43,12 @@ export function sanitizeSettingEntry(
     delete cleanSepay.api_key;
     copy.sepay = cleanSepay;
     hadSecrets = true;
+  }
+
+  // Khóa cứng STK ngân hàng & chặn tuyệt đối qr_custom_image giả mạo trên client/DB
+  if (key === 'bank_transfer') {
+    const verified = getVerifiedBankConfig(copy);
+    return { clean: { ...verified }, hadSecrets };
   }
 
   return { clean: copy, hadSecrets };
