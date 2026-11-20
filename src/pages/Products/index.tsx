@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Filter, SlidersHorizontal, ArrowUpDown, Sparkles, X } from 'lucide-react';
+import { Search, ArrowUpDown, Sparkles, X } from 'lucide-react';
 import { Product, Category } from '../../types/product';
 import { productService } from '../../services/productService';
 import { ProductCard } from '../../components/products/ProductCard';
@@ -19,11 +19,28 @@ export const ProductsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState(currentSearch);
   const [sortBy, setSortBy] = useState<'newest' | 'price_asc' | 'price_desc'>('newest');
   const [maxPrice, setMaxPrice] = useState<number>(500000);
-  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
 
   useEffect(() => {
     setSearchQuery(currentSearch);
   }, [currentSearch]);
+
+  // Tự động đồng bộ ô tìm kiếm sau 250ms khi người dùng gõ (không cần bấm Enter)
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (trimmed === currentSearch.trim()) return;
+
+    const timer = setTimeout(() => {
+      const newParams = new URLSearchParams(searchParams);
+      if (trimmed) {
+        newParams.set('search', trimmed);
+      } else {
+        newParams.delete('search');
+      }
+      setSearchParams(newParams, { replace: true });
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, currentSearch, searchParams, setSearchParams]);
 
   useEffect(() => {
     async function fetchCats() {
@@ -150,9 +167,24 @@ export const ProductsPage: React.FC = () => {
             placeholder="Tìm theo tên sản phẩm..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full text-xs sm:text-sm pl-9 pr-4 py-2.5 rounded-2xl border border-cute-border-light dark:border-cute-border-dark bg-cute-cream/50 dark:bg-cute-cream-dark/50 text-cute-brown dark:text-cute-cream focus:outline-none focus:ring-2 focus:ring-cute-pink-300"
+            className="w-full text-xs sm:text-sm pl-9 pr-9 py-2.5 rounded-2xl border border-cute-border-light dark:border-cute-border-dark bg-cute-cream/50 dark:bg-cute-cream-dark/50 text-cute-brown dark:text-cute-cream focus:outline-none focus:ring-2 focus:ring-cute-pink-300"
           />
           <Search className="w-4 h-4 text-cute-brown-light absolute left-3 top-3" />
+          {searchQuery && (
+            <button
+              type="button"
+              aria-label="Xóa từ khóa tìm kiếm"
+              onClick={() => {
+                setSearchQuery('');
+                const next = new URLSearchParams(searchParams);
+                next.delete('search');
+                setSearchParams(next, { replace: true });
+              }}
+              className="absolute right-2.5 top-2.5 p-0.5 rounded-full text-cute-brown-light hover:text-rose-500 hover:bg-cute-pink/20 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </form>
 
         <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
