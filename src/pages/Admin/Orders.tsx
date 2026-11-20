@@ -132,9 +132,10 @@ export const AdminOrders: React.FC = () => {
       if (res.found) {
         alert(`🎉 ${res.message}`);
         await fetchOrders();
-        const updated = await orderService.lookupOrders(order.order_reference, '');
-        if (updated && updated[0]) {
-          setSelectedOrder(updated[0]);
+        const refreshed = await orderService.getAllOrders({ search: order.order_reference });
+        const matched = refreshed.find((o) => o.id === order.id);
+        if (matched) {
+          setSelectedOrder(matched);
         }
       } else {
         alert(res.message);

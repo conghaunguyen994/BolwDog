@@ -523,10 +523,21 @@ ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS gateway TEXT;
 ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS transaction_id TEXT;
 ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS transaction_content TEXT;
 
+DROP POLICY IF EXISTS "Shop settings viewable by everyone" ON public.shop_settings;
+CREATE POLICY "Shop settings viewable by everyone"
+ON public.shop_settings FOR SELECT
+USING (
+  public.is_admin() OR
+  setting_key NOT IN ('workshop_expenses', 'manual_orders', 'financial_reports', 'admin_notes', 'sepay')
+);
+
+DROP FUNCTION IF EXISTS public.process_sepay_webhook(BIGINT, TEXT, TIMESTAMPTZ, TEXT, TEXT, TEXT, NUMERIC, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.process_sepay_webhook(BIGINT, TEXT, TEXT, TEXT, TEXT, TEXT, NUMERIC, TEXT, TEXT);
+
 CREATE OR REPLACE FUNCTION public.process_sepay_webhook(
   p_sepay_id BIGINT,
   p_gateway TEXT,
-  p_transaction_date TIMESTAMPTZ,
+  p_transaction_date TEXT,
   p_account_number TEXT,
   p_content TEXT,
   p_transfer_type TEXT,
@@ -542,61 +553,76 @@ DECLARE
   v_order RECORD;
   v_order_ref TEXT;
   v_matches TEXT[];
-  v_new_payment_status public.payment_status;
-  v_new_order_status public.order_status;
+  v_new_payment_status public.orders.payment_status%TYPE;
+  v_new_order_status public.orders.order_status%TYPE;
   v_sepay_config JSONB;
   v_configured_key TEXT;
   v_clean_content TEXT;
+  v_alnum_content TEXT;
   v_clean_ref TEXT;
+  v_is_admin BOOLEAN := FALSE;
+  v_existing_paid NUMERIC := 0;
+  v_total_paid NUMERIC := 0;
+  v_ref_clean TEXT := nullif(trim(coalesce(p_reference_code, '')), '');
+  v_tx_id TEXT;
 BEGIN
   IF lower(coalesce(p_transfer_type, '')) <> 'in' OR coalesce(p_transfer_amount, 0) <= 0 THEN
     RETURN jsonb_build_object('success', false, 'message', 'Bo qua giao dich khong phai tien vao');
   END IF;
 
-  SELECT setting_value->'sepay' INTO v_sepay_config
+  BEGIN
+    v_is_admin := public.is_admin();
+  EXCEPTION WHEN OTHERS THEN
+    v_is_admin := FALSE;
+  END;
+
+  SELECT CASE
+           WHEN setting_key = 'sepay' THEN setting_value
+           ELSE setting_value->'sepay'
+         END
+  INTO v_sepay_config
   FROM public.shop_settings
-  WHERE setting_key = 'general' OR setting_key = 'sepay'
-  ORDER BY updated_at DESC
+  WHERE setting_key IN ('sepay', 'general')
+  ORDER BY (setting_key = 'sepay') DESC, updated_at DESC
   LIMIT 1;
 
-  IF v_sepay_config IS NOT NULL AND (v_sepay_config->>'enabled')::boolean = true THEN
-    v_configured_key := trim(coalesce(v_sepay_config->>'api_key', ''));
-    IF v_configured_key <> '' AND p_api_key IS NOT NULL AND trim(p_api_key) <> '' THEN
-      IF trim(p_api_key) <> v_configured_key THEN
-        RETURN jsonb_build_object('success', false, 'error', 'Sai ma API Key xac thuc SePay');
-      END IF;
+  IF NOT v_is_admin THEN
+    IF v_sepay_config IS NULL OR coalesce((v_sepay_config->>'enabled')::boolean, false) = false THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Cong thanh toan SePay chua duoc bat');
+    END IF;
+
+    v_configured_key := regexp_replace(trim(coalesce(v_sepay_config->>'api_key', '')), '^Apikey\s+', '', 'i');
+    IF v_configured_key = '' THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Chua cau hinh SePay API Key');
+    END IF;
+
+    IF regexp_replace(trim(coalesce(p_api_key, '')), '^Apikey\s+', '', 'i') <> v_configured_key THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Sai ma API Key xac thuc SePay');
     END IF;
   END IF;
 
   v_clean_content := upper(coalesce(p_content, ''));
-  v_matches := regexp_matches(v_clean_content, '(BD-[0-9]{8}-[A-Z0-9]+)', 'i');
+  v_alnum_content := regexp_replace(v_clean_content, '[^A-Z0-9]', '', 'g');
 
-  IF v_matches IS NOT NULL AND array_length(v_matches, 1) > 0 THEN
-    v_order_ref := v_matches[1];
-  ELSE
-    v_matches := regexp_matches(v_clean_content, '(BD[0-9]{8}[A-Z0-9]+)', 'i');
-    IF v_matches IS NOT NULL AND array_length(v_matches, 1) > 0 THEN
-      v_order_ref := v_matches[1];
-    END IF;
+  v_matches := regexp_matches(v_clean_content, 'BD[\s\-_.]*([0-9]{8})[\s\-_.]*([A-Z0-9]{4,8})', 'i');
+  IF v_matches IS NOT NULL AND array_length(v_matches, 1) >= 2 THEN
+    v_order_ref := 'BD-' || v_matches[1] || '-' || upper(v_matches[2]);
   END IF;
 
   IF v_order_ref IS NOT NULL THEN
-    v_clean_ref := upper(replace(v_order_ref, '-', ''));
+    v_clean_ref := regexp_replace(upper(v_order_ref), '[^A-Z0-9]', '', 'g');
     SELECT * INTO v_order
     FROM public.orders
     WHERE upper(order_reference) = upper(v_order_ref)
-       OR upper(replace(order_reference, '-', '')) = v_clean_ref
+       OR regexp_replace(upper(order_reference), '[^A-Z0-9]', '', 'g') = v_clean_ref
     LIMIT 1;
   END IF;
 
   IF v_order.id IS NULL THEN
     SELECT * INTO v_order
     FROM public.orders
-    WHERE payment_status IN ('unpaid', 'deposit_pending')
-      AND (
-        v_clean_content LIKE '%' || upper(order_reference) || '%'
-        OR v_clean_content LIKE '%' || upper(replace(order_reference, '-', '')) || '%'
-      )
+    WHERE payment_status::text IN ('unpaid', 'deposit_pending', 'partially_paid')
+      AND v_alnum_content LIKE '%' || regexp_replace(upper(order_reference), '[^A-Z0-9]', '', 'g') || '%'
     ORDER BY created_at DESC
     LIMIT 1;
   END IF;
@@ -609,28 +635,55 @@ BEGIN
     );
   END IF;
 
-  IF p_reference_code IS NOT NULL AND EXISTS (
-    SELECT 1 FROM public.payments
-    WHERE order_id = v_order.id
-      AND (transaction_id = p_reference_code OR transaction_id = p_sepay_id::text)
+  IF (
+    (v_ref_clean IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.payments WHERE order_id = v_order.id AND transaction_id = v_ref_clean
+    ))
+    OR (p_sepay_id IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.payments
+      WHERE order_id = v_order.id
+        AND (
+          transaction_id = p_sepay_id::text
+          OR proof_image_url = 'https://my.sepay.vn/transaction/' || p_sepay_id::text
+        )
+    ))
   ) THEN
     RETURN jsonb_build_object(
       'success', true,
+      'duplicate', true,
       'message', 'Giao dich nay da duoc he thong xu ly truoc do',
       'order_id', v_order.id,
-      'order_reference', v_order.order_reference
+      'order_reference', v_order.order_reference,
+      'payment_status', v_order.payment_status::text,
+      'order_status', v_order.order_status::text
     );
   END IF;
 
-  IF p_transfer_amount >= v_order.total_amount THEN
-    v_new_payment_status := 'paid'::public.payment_status;
-  ELSIF p_transfer_amount >= (v_order.deposit_amount * 0.95) THEN
-    v_new_payment_status := 'partially_paid'::public.payment_status;
-  ELSE
-    v_new_payment_status := 'partially_paid'::public.payment_status;
-  END IF;
+  SELECT COALESCE(SUM(amount), 0) INTO v_existing_paid
+  FROM public.payments
+  WHERE order_id = v_order.id
+    AND payment_status = 'verified';
 
-  v_new_order_status := 'confirmed'::public.order_status;
+  v_total_paid := v_existing_paid + p_transfer_amount;
+
+  IF v_total_paid >= (v_order.total_amount * 0.98) THEN
+    v_new_payment_status := 'paid';
+    IF v_order.order_status::text = 'pending' THEN
+      v_new_order_status := 'confirmed';
+    ELSE
+      v_new_order_status := v_order.order_status;
+    END IF;
+  ELSIF v_total_paid >= (v_order.deposit_amount * 0.95) THEN
+    v_new_payment_status := 'partially_paid';
+    IF v_order.order_status::text = 'pending' THEN
+      v_new_order_status := 'confirmed';
+    ELSE
+      v_new_order_status := v_order.order_status;
+    END IF;
+  ELSE
+    v_new_payment_status := v_order.payment_status;
+    v_new_order_status := v_order.order_status;
+  END IF;
 
   UPDATE public.orders
   SET
@@ -639,6 +692,7 @@ BEGIN
     updated_at = NOW()
   WHERE id = v_order.id;
 
+  v_tx_id := coalesce(v_ref_clean, p_sepay_id::text);
   INSERT INTO public.payments (
     order_id,
     amount,
@@ -654,27 +708,82 @@ BEGIN
     p_transfer_amount,
     'sepay_vietqr',
     'verified',
-    'https://my.sepay.vn/transaction/' || coalesce(p_sepay_id::text, coalesce(p_reference_code, 'auto')),
+    'https://my.sepay.vn/transaction/' || coalesce(p_sepay_id::text, coalesce(v_ref_clean, 'auto')),
     p_gateway,
-    coalesce(p_reference_code, p_sepay_id::text),
+    v_tx_id,
     p_content,
     NOW()
   );
 
   RETURN jsonb_build_object(
     'success', true,
-    'message', 'Xac nhan thanh toan SePay thanh cong',
+    'message', CASE
+      WHEN v_new_payment_status::text IN ('partially_paid', 'paid') THEN 'Xac nhan thanh toan SePay thanh cong'
+      ELSE 'Da ghi nhan giao dich nhung chua du so tien coc yeu cau'
+    END,
+    'insufficient_deposit', (v_new_payment_status::text NOT IN ('partially_paid', 'paid')),
     'order_id', v_order.id,
     'order_reference', v_order.order_reference,
     'customer_name', v_order.customer_name,
     'customer_email', v_order.customer_email,
     'customer_phone', v_order.customer_phone,
     'transfer_amount', p_transfer_amount,
-    'payment_status', v_new_payment_status,
-    'order_status', v_new_order_status
+    'total_paid', v_total_paid,
+    'payment_status', v_new_payment_status::text,
+    'order_status', v_new_order_status::text
   );
 END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.process_sepay_webhook TO anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.get_order_payment_status(
+  p_order_ref TEXT,
+  p_phone TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_order RECORD;
+  v_phone_digits TEXT := right(regexp_replace(coalesce(p_phone, ''), '\D', '', 'g'), 9);
+  v_sepay_enabled BOOLEAN := TRUE;
+BEGIN
+  IF coalesce(trim(p_order_ref), '') = '' OR length(v_phone_digits) < 9 THEN
+    RETURN jsonb_build_object('found', false);
+  END IF;
+
+  SELECT coalesce((setting_value->>'enabled')::boolean, true)
+  INTO v_sepay_enabled
+  FROM public.shop_settings
+  WHERE setting_key = 'sepay'
+  LIMIT 1;
+
+  SELECT id, order_reference, payment_status::text AS payment_status, order_status::text AS order_status, deposit_amount, total_amount, updated_at
+  INTO v_order
+  FROM public.orders
+  WHERE upper(order_reference) = upper(trim(p_order_ref))
+    AND right(regexp_replace(customer_phone, '\D', '', 'g'), 9) = v_phone_digits
+  LIMIT 1;
+
+  IF v_order.id IS NULL THEN
+    RETURN jsonb_build_object('found', false, 'sepay_enabled', coalesce(v_sepay_enabled, true));
+  END IF;
+
+  RETURN jsonb_build_object(
+    'found', true,
+    'sepay_enabled', coalesce(v_sepay_enabled, true),
+    'order_id', v_order.id,
+    'order_reference', v_order.order_reference,
+    'payment_status', v_order.payment_status,
+    'order_status', v_order.order_status,
+    'deposit_amount', v_order.deposit_amount,
+    'total_amount', v_order.total_amount,
+    'updated_at', v_order.updated_at
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_order_payment_status TO anon, authenticated, service_role;
 

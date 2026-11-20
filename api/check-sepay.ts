@@ -1,0 +1,197 @@
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://mwuewkvddhjtxmfzvjyj.supabase.co';
+const SUPABASE_KEY =
+  process.env.VITE_SUPABASE_ANON_KEY ||
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  'sb_publishable_4Ri-LJHIAOjRCU64cLaYgQ_ZwRb2wqv';
+
+export default async function handler(req: any, res: any) {
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'OPTIONS,POST');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Content-Type, Authorization'
+  );
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
+    const { action, apiKey, orderReference, phone } = body;
+
+    if (action === 'verify-key') {
+      const token = String(apiKey || '')
+        .trim()
+        .replace(/^Apikey\s+/i, '');
+      if (!token) {
+        return res.status(400).json({ ok: false, message: 'Vui lòng nhập SePay API Key để kiểm tra.' });
+      }
+
+      const sepayRes = await fetch('https://my.sepay.vn/userapi/transactions/list?limit=1', {
+        method: 'GET',
+        headers: {
+          Authorization: `Apikey ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!sepayRes.ok) {
+        if (sepayRes.status === 401 || sepayRes.status === 403) {
+          return res.status(200).json({
+            ok: false,
+            message: 'API Key không hợp lệ hoặc đã bị vô hiệu hóa trên SePay.',
+          });
+        }
+        return res.status(200).json({
+          ok: false,
+          message: `SePay trả về mã lỗi HTTP ${sepayRes.status}.`,
+        });
+      }
+
+      const json = await sepayRes.json();
+      const count = Array.isArray(json.transactions) ? json.transactions.length : 0;
+      return res.status(200).json({
+        ok: true,
+        message: 'Kết nối SePay API thành công! Tài khoản ngân hàng đang sẵn sàng nhận diện giao dịch.',
+        count,
+      });
+    }
+
+    if (action === 'check-order') {
+      if (!orderReference) {
+        return res.status(400).json({ found: false, message: 'Thiếu mã đơn hàng để kiểm tra.' });
+      }
+
+      const authHeader = String(req.headers['authorization'] || '').trim();
+      const supabase = createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY,
+        authHeader
+          ? {
+              global: {
+                headers: {
+                  Authorization: authHeader,
+                },
+              },
+            }
+          : undefined
+      );
+
+      // 1. Kiểm tra trạng thái hiện tại trong Database trước (nếu Webhook đã cập nhật rồi)
+      if (phone) {
+        const { data: statusData } = await supabase.rpc('get_order_payment_status', {
+          p_order_ref: orderReference,
+          p_phone: phone,
+        });
+
+        if (
+          statusData &&
+          statusData.found &&
+          (statusData.payment_status === 'partially_paid' || statusData.payment_status === 'paid')
+        ) {
+          return res.status(200).json({
+            found: true,
+            fromDatabase: true,
+            payment_status: statusData.payment_status,
+            amount: Number(statusData.deposit_amount || 0),
+            message: `Đã xác nhận thanh toán cho đơn ${orderReference}!`,
+          });
+        }
+      }
+
+      // 2. Nếu có API Key (từ Admin hoặc biến môi trường server SEPAY_API_KEY) -> quét trực tiếp SePay API
+      const token = String(apiKey || process.env.SEPAY_API_KEY || '')
+        .trim()
+        .replace(/^Apikey\s+/i, '');
+
+      if (!token) {
+        return res.status(200).json({
+          found: false,
+          message: `Chưa ghi nhận giao dịch từ Webhook SePay cho đơn ${orderReference}. Nếu bạn vừa chuyển khoản, vui lòng đợi 10-30 giây để ngân hàng đồng bộ nhé!`,
+        });
+      }
+
+      const sepayRes = await fetch('https://my.sepay.vn/userapi/transactions/list?limit=50', {
+        method: 'GET',
+        headers: {
+          Authorization: `Apikey ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!sepayRes.ok) {
+        return res.status(200).json({
+          found: false,
+          message: `Không thể kết nối SePay (HTTP ${sepayRes.status})`,
+        });
+      }
+
+      const sepayJson = await sepayRes.json();
+      const transactions = sepayJson.transactions || [];
+      const targetNormalized = String(orderReference)
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '');
+
+      const matched = transactions.find((tx: any) => {
+        const amountIn = Number(tx.amount_in || 0);
+        const type = String(tx.transfer_type || tx.transferType || (amountIn > 0 ? 'in' : '')).toLowerCase();
+        if (type !== 'in' && amountIn <= 0) return false;
+
+        const rawContent = String(tx.transaction_content || tx.content || '').toUpperCase();
+        const normalizedContent = rawContent.replace(/[^A-Z0-9]/g, '');
+        return normalizedContent.includes(targetNormalized);
+      });
+
+      if (!matched) {
+        return res.status(200).json({
+          found: false,
+          message: `Chưa tìm thấy giao dịch nào có nội dung chứa mã ${orderReference}. Vui lòng đợi 10-30 giây để ngân hàng đồng bộ nhé.`,
+        });
+      }
+
+      const amount = Number(matched.amount_in || matched.transferAmount || 0);
+      const { data: rpcData, error: rpcError } = await supabase.rpc('process_sepay_webhook', {
+        p_sepay_id: typeof matched.id === 'number' ? matched.id : Number(matched.id) || null,
+        p_gateway: matched.bank_brand_name || matched.gateway || 'BankTransfer',
+        p_transaction_date: matched.transaction_date || matched.transactionDate || new Date().toISOString(),
+        p_account_number: matched.account_number || matched.accountNumber || '',
+        p_content: matched.transaction_content || matched.content || '',
+        p_transfer_type: 'in',
+        p_transfer_amount: amount,
+        p_reference_code: matched.reference_number || matched.referenceCode || null,
+        p_api_key: token,
+      });
+
+      if (rpcError) {
+        return res.status(200).json({
+          found: false,
+          message: `Tìm thấy giao dịch ${amount.toLocaleString('vi-VN')} đ nhưng lỗi cập nhật DB: ${rpcError.message}`,
+        });
+      }
+
+      return res.status(200).json({
+        found: true,
+        amount,
+        result: rpcData,
+        message: `Đã tìm thấy giao dịch chuyển khoản ${amount.toLocaleString('vi-VN')} đ cho đơn ${orderReference}!`,
+      });
+    }
+
+    return res.status(400).json({ error: 'Invalid action' });
+  } catch (err: any) {
+    return res.status(500).json({
+      found: false,
+      ok: false,
+      message: err.message || 'Lỗi máy chủ khi kiểm tra SePay',
+    });
+  }
+}

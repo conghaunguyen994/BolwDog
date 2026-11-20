@@ -47,51 +47,63 @@ export const BankTransferQRModal: React.FC<BankTransferQRModalProps> = ({
 
   const transferNote = `${bank.transfer_note_prefix || 'BD'} ${order.order_reference}`;
 
-  // Lắng nghe biến động số dư Realtime từ SePay Webhook cập nhật vào Supabase
+  // Đồng bộ trạng thái khi order prop thay đổi
+  useEffect(() => {
+    setIsAutoPaid(order.payment_status === 'partially_paid' || order.payment_status === 'paid');
+  }, [order.id, order.payment_status]);
+
+  // Lắng nghe biến động số dư Realtime & Polling an toàn qua RPC (hỗ trợ cả khách vãng lai chưa đăng nhập)
   useEffect(() => {
     if (!isOpen || isAutoPaid || !order.id) return;
 
-    if (supabase) {
-      const channel = supabase
-        .channel(`qr-listen-${order.id}`)
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${order.id}` },
-          (payload: any) => {
-            const newPaymentStatus = payload.new?.payment_status;
-            if (newPaymentStatus === 'partially_paid' || newPaymentStatus === 'paid') {
-              setIsAutoPaid(true);
-              confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-              onProofUploaded?.();
+    const markPaidSuccess = () => {
+      setIsAutoPaid(true);
+      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+      onProofUploaded?.();
+    };
+
+    const channel = supabase
+      ? supabase
+          .channel(`qr-listen-${order.id}`)
+          .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${order.id}` },
+            (payload: any) => {
+              const newPaymentStatus = payload.new?.payment_status;
+              if (newPaymentStatus === 'partially_paid' || newPaymentStatus === 'paid') {
+                markPaidSuccess();
+              }
             }
-          }
-        )
-        .subscribe();
+          )
+          .subscribe()
+      : null;
 
-      // Polling dự phòng mỗi 4 giây
-      const interval = setInterval(async () => {
-        try {
-          const { data } = await supabase
-            .from('orders')
-            .select('payment_status')
-            .eq('id', order.id)
-            .single();
+    // Polling mỗi 4 giây qua SECURITY DEFINER RPC (không bị RLS chặn với khách vãng lai)
+    const interval = setInterval(async () => {
+      try {
+        const snapshot = await sepayService.getOrderPaymentStatus(
+          order.order_reference,
+          order.customer_phone
+        );
+        if (
+          snapshot.found &&
+          (snapshot.payment_status === 'partially_paid' || snapshot.payment_status === 'paid')
+        ) {
+          markPaidSuccess();
+          clearInterval(interval);
+        }
+      } catch {
+        // Bỏ qua lỗi mạng tạm thời
+      }
+    }, 4000);
 
-          if (data && (data.payment_status === 'partially_paid' || data.payment_status === 'paid')) {
-            setIsAutoPaid(true);
-            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-            onProofUploaded?.();
-            clearInterval(interval);
-          }
-        } catch {}
-      }, 4000);
-
-      return () => {
-        clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (supabase && channel) {
         supabase.removeChannel(channel);
-      };
-    }
-  }, [isOpen, isAutoPaid, order.id, onProofUploaded]);
+      }
+    };
+  }, [isOpen, isAutoPaid, order.id, order.order_reference, order.customer_phone, onProofUploaded]);
 
   const copyToClipboard = (text: string, type: 'account' | 'note') => {
     navigator.clipboard.writeText(text);

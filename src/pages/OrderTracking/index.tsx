@@ -68,29 +68,66 @@ export const OrderTrackingPage: React.FC = () => {
   const [sepayNotice, setSepayNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!order?.id || !supabase) return;
+    if (!order?.id) return;
 
     const channel = supabase
-      .channel(`track-order-${order.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${order.id}` },
-        (payload: any) => {
-          const updated = payload.new;
-          if (updated) {
-            setOrder((prev) => (prev ? { ...prev, ...updated } : prev));
-            if (updated.payment_status === 'partially_paid' || updated.payment_status === 'paid') {
-              confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+      ? supabase
+          .channel(`track-order-${order.id}`)
+          .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${order.id}` },
+            (payload: any) => {
+              const updated = payload.new;
+              if (updated) {
+                setOrder((prev) => (prev ? { ...prev, ...updated } : prev));
+                if (updated.payment_status === 'partially_paid' || updated.payment_status === 'paid') {
+                  confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                }
+              }
             }
+          )
+          .subscribe()
+      : null;
+
+    // Polling mỗi 5 giây khi đơn đang chờ cọc (hỗ trợ cả khách vãng lai qua RPC)
+    const shouldPoll =
+      order.payment_status === 'deposit_pending' || order.payment_status === 'unpaid';
+    const pollTimer = shouldPoll
+      ? setInterval(async () => {
+          try {
+            const snapshot = await sepayService.getOrderPaymentStatus(
+              order.order_reference,
+              order.customer_phone
+            );
+            if (
+              snapshot.found &&
+              (snapshot.payment_status === 'partially_paid' || snapshot.payment_status === 'paid')
+            ) {
+              setOrder((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      payment_status: snapshot.payment_status || prev.payment_status,
+                      order_status: snapshot.order_status || prev.order_status,
+                    }
+                  : prev
+              );
+              confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+              clearInterval(pollTimer);
+            }
+          } catch {
+            // Bỏ qua lỗi tạm thời
           }
-        }
-      )
-      .subscribe();
+        }, 5000)
+      : null;
 
     return () => {
-      supabase.removeChannel(channel);
+      if (pollTimer) clearInterval(pollTimer);
+      if (supabase && channel) {
+        supabase.removeChannel(channel);
+      }
     };
-  }, [order?.id]);
+  }, [order?.id, order?.payment_status, order?.order_reference, order?.customer_phone]);
 
   const handleCheckSepayForOrder = async () => {
     if (!order) return;

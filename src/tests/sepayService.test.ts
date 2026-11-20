@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { sepayService } from '../services/sepayService';
 
 describe('sepayService - Order Reference Extraction & Parsing', () => {
@@ -20,10 +20,22 @@ describe('sepayService - Order Reference Extraction & Parsing', () => {
     expect(ref).toBe('BD-20261118-F4E45');
   });
 
-  it('should normalize and extract order reference with spaces instead of hyphens', () => {
-    const content = 'BD 20261118 F4E45';
+  it('should normalize and extract order reference when bank strips hyphens to spaces', () => {
+    const content = 'MBVCB.123456.BD BD 20261118 F4E45.CT tu NGUYEN VAN A';
     const ref = sepayService.extractOrderReference(content);
     expect(ref).toBe('BD-20261118-F4E45');
+  });
+
+  it('should normalize concatenated prefix and order reference without hyphens', () => {
+    const content = 'BDBD20261118F4E45';
+    const ref = sepayService.extractOrderReference(content);
+    expect(ref).toBe('BD-20261118-F4E45');
+  });
+
+  it('should normalize and extract order reference wrapped in bank dots', () => {
+    const content = 'MBVCB.1234.BD-20261120-A1B2C.CT';
+    const ref = sepayService.extractOrderReference(content);
+    expect(ref).toBe('BD-20261120-A1B2C');
   });
 
   it('should return null when transaction content has no order reference', () => {

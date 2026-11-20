@@ -1,16 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://mwuewkvddhjtxmfzvjyj.supabase.co';
-const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_4Ri-LJHIAOjRCU64cLaYgQ_ZwRb2wqv';
+const SUPABASE_KEY =
+  process.env.VITE_SUPABASE_ANON_KEY ||
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  'sb_publishable_4Ri-LJHIAOjRCU64cLaYgQ_ZwRb2wqv';
 
 export default async function handler(req: any, res: any) {
-  // Handle CORS
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+    'X-CSRF-Token, X-Requested-With, Accept, Content-Type, Authorization, X-Api-Key'
   );
 
   if (req.method === 'OPTIONS') {
@@ -18,7 +20,6 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  // GET: Health check & info for browser / webhook verification
   if (req.method === 'GET') {
     return res.status(200).json({
       status: 'active',
@@ -34,9 +35,9 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const body = req.body || {};
-    const authHeader = req.headers['authorization'] || '';
-    const apiKey = authHeader.replace(/^Apikey\s+/i, '').trim();
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
+    const authHeader = String(req.headers['authorization'] || req.headers['x-api-key'] || '');
+    const apiKey = authHeader.replace(/^(Apikey|Bearer)\s+/i, '').trim() || String(req.query?.api_key || '').trim();
 
     const {
       id,
@@ -49,21 +50,20 @@ export default async function handler(req: any, res: any) {
       referenceCode,
     } = body;
 
-    // Validate minimum required payload
     if (!content || !transferAmount) {
       return res.status(200).json({
-        success: false,
+        success: true,
+        matched: false,
         message: 'Bỏ qua: Dữ liệu giao dịch thiếu nội dung hoặc số tiền',
       });
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Call PostgreSQL SECURITY DEFINER RPC
     const { data, error } = await supabase.rpc('process_sepay_webhook', {
       p_sepay_id: typeof id === 'number' ? id : Number(id) || null,
       p_gateway: gateway || 'BankTransfer',
-      p_transaction_date: transactionDate || new Date().toISOString(),
+      p_transaction_date: transactionDate ? String(transactionDate) : new Date().toISOString(),
       p_account_number: accountNumber || '',
       p_content: content || '',
       p_transfer_type: transferType || 'in',
@@ -80,10 +80,21 @@ export default async function handler(req: any, res: any) {
       });
     }
 
+    const result = data as { success?: boolean; error?: string; message?: string };
+
+    if (result?.error) {
+      return res.status(401).json({
+        success: false,
+        error: result.error,
+      });
+    }
+
+    // Luôn trả về 200 để SePay đánh dấu đã nhận webhook (kể cả chuyển khoản ngoài không thuộc đơn hàng)
     return res.status(200).json({
       success: true,
-      message: 'SePay Webhook processed successfully',
-      result: data,
+      matched: Boolean(result?.success),
+      message: result?.message || 'SePay Webhook processed successfully',
+      result,
     });
   } catch (err: any) {
     console.error('Webhook processing exception:', err);

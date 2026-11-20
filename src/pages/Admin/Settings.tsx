@@ -531,10 +531,10 @@ export const AdminSettings: React.FC = () => {
                 Kết nối tài khoản ngân hàng của bạn (ví dụ BIDV số tài khoản <strong>{settings.bank_transfer.account_number}</strong>).
               </li>
               <li>
-                Vào mục <strong>Cài đặt Webhook</strong> trên SePay -&gt; bấm <strong>Thêm Webhook</strong> -&gt; dán link Webhook ở trên vào ô URL, chọn sự kiện <strong>Khi có giao dịch tiền vào (in)</strong>.
+                Vào mục <strong>Cài đặt Webhook</strong> trên SePay -&gt; bấm <strong>Thêm Webhook</strong> -&gt; dán link Webhook ở trên vào ô URL, chọn sự kiện <strong>Khi có giao dịch tiền vào (in)</strong>, kiểu chứng thực <strong>API Key</strong>, và mục <em>&ldquo;Bỏ qua nếu nội dung không có code thanh toán&rdquo;</em> chọn <strong>Không</strong> (vì BolwDog tự bắt mã đơn <code>BD-...</code>).
               </li>
               <li>
-                Vào menu <strong>API Key</strong> trên SePay, copy mã API Key và dán vào ô bên trên rồi bấm <strong>Lưu cấu hình tiệm</strong> ở góc trên!
+                Vào menu <strong>API Key</strong> trên SePay, copy mã API Key và dán vào ô bên trên rồi bấm <strong>Lưu cấu hình tiệm</strong> ở góc trên! *(Đảm bảo đã chạy file SQL <code>supabase/SEPAY_INTEGRATION.sql</code> trên Supabase trước khi bật)*.
               </li>
             </ol>
           </div>
