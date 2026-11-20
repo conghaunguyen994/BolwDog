@@ -13,14 +13,14 @@ export interface EmailPayload {
   textBody: string;
   htmlBody: string;
   eventType:
-    | 'new_order'
-    | 'deposit_confirmed'
-    | 'demo_3d_sent'
-    | 'demo_approved'
-    | 'demo_revision_requested'
-    | 'payment_proof_submitted'
-    | 'order_status_updated'
-    | 'test_email';
+  | 'new_order'
+  | 'deposit_confirmed'
+  | 'demo_3d_sent'
+  | 'demo_approved'
+  | 'demo_revision_requested'
+  | 'payment_proof_submitted'
+  | 'order_status_updated'
+  | 'test_email';
   orderReference?: string;
 }
 
@@ -579,9 +579,8 @@ export const emailService = {
               </tr>
             </table>
 
-            ${
-              action.feedback
-                ? `<div style="background:#FFF1F2;border-left:4px solid ${statusColor};border-radius:12px;padding:14px 16px;margin:16px 0;">
+            ${action.feedback
+        ? `<div style="background:#FFF1F2;border-left:4px solid ${statusColor};border-radius:12px;padding:14px 16px;margin:16px 0;">
                     <div style="font-size:11px;font-weight:800;color:${statusColor};text-transform:uppercase;margin-bottom:4px;">
                       📝 Nội dung khách yêu cầu:
                     </div>
@@ -589,8 +588,8 @@ export const emailService = {
                       "${action.feedback}"
                     </div>
                   </div>`
-                : ''
-            }
+        : ''
+      }
 
             <div style="text-align:center;margin:28px 0 10px;">
               <a href="${adminOrdersUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:${statusColor};color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:900;padding:14px 30px;border-radius:99px;box-shadow:0 8px 18px ${statusColor}40;">
@@ -719,30 +718,30 @@ export const emailService = {
 
     const adminPromise: Promise<boolean> = hasAdminEmail
       ? dispatchEmail(
-          {
-            to: config.admin_email.trim(),
-            cc: config.admin_backup_email?.trim() || undefined,
-            replyTo: hasCustomerEmail ? order.customer_email!.trim() : config.admin_email.trim(),
-            subject: `[BolwDog] 💰 ĐÃ NHẬN CỌC ${formatVND(paidAmount)} - Đơn #${order.order_reference} (${order.customer_name})`,
-            textBody: [
-              `Xin chào Admin Nguyễn Công Hậu,`,
-              ``,
-              `Hệ thống vừa xác nhận đã nhận tiền cọc cho đơn hàng #${order.order_reference}.`,
-              `• Khách hàng: ${order.customer_name} (${order.customer_phone})`,
-              hasCustomerEmail ? `• Email khách: ${order.customer_email}` : '',
-              `• Số tiền cọc đã nhận: ${formatVND(paidAmount)}`,
-              totalAmount > 0
-                ? `• Tổng đơn: ${formatVND(totalAmount)} (Còn lại thu COD: ${formatVND(remainingAmount)})`
-                : '',
-              `• Kênh xác nhận: ${gateway}`,
-              `• Thời gian: ${nowFormatted}`,
-              ``,
-              `👉 Mở Cổng Admin xử lý đơn ngay: ${adminOrdersUrl}`,
-              `👉 Link đơn hàng phía khách: ${trackingUrl}`,
-            ]
-              .filter(Boolean)
-              .join('\n'),
-            htmlBody: `
+        {
+          to: config.admin_email.trim(),
+          cc: config.admin_backup_email?.trim() || undefined,
+          replyTo: hasCustomerEmail ? order.customer_email!.trim() : config.admin_email.trim(),
+          subject: `[BolwDog] 💰 ĐÃ NHẬN CỌC ${formatVND(paidAmount)} - Đơn #${order.order_reference} (${order.customer_name})`,
+          textBody: [
+            `Xin chào Admin Nguyễn Công Hậu,`,
+            ``,
+            `Hệ thống vừa xác nhận đã nhận tiền cọc cho đơn hàng #${order.order_reference}.`,
+            `• Khách hàng: ${order.customer_name} (${order.customer_phone})`,
+            hasCustomerEmail ? `• Email khách: ${order.customer_email}` : '',
+            `• Số tiền cọc đã nhận: ${formatVND(paidAmount)}`,
+            totalAmount > 0
+              ? `• Tổng đơn: ${formatVND(totalAmount)} (Còn lại thu COD: ${formatVND(remainingAmount)})`
+              : '',
+            `• Kênh xác nhận: ${gateway}`,
+            `• Thời gian: ${nowFormatted}`,
+            ``,
+            `👉 Mở Cổng Admin xử lý đơn ngay: ${adminOrdersUrl}`,
+            `👉 Link đơn hàng phía khách: ${trackingUrl}`,
+          ]
+            .filter(Boolean)
+            .join('\n'),
+          htmlBody: `
               <!DOCTYPE html>
               <html>
               <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -765,25 +764,22 @@ export const emailService = {
                         <td style="padding:7px 0;color:#8C6239;width:130px;">Khách hàng:</td>
                         <td style="padding:7px 0;font-weight:800;">${safeName} • <a href="tel:${safePhone}" style="color:#2563EB;">${safePhone}</a></td>
                       </tr>
-                      ${
-                        hasCustomerEmail
-                          ? `<tr><td style="padding:7px 0;color:#8C6239;">Email khách:</td><td style="padding:7px 0;"><a href="mailto:${safeEmail}" style="color:#2563EB;font-weight:600;">${safeEmail}</a></td></tr>`
-                          : ''
-                      }
-                      ${
-                        firstItemName
-                          ? `<tr><td style="padding:7px 0;color:#8C6239;">Sản phẩm chính:</td><td style="padding:7px 0;font-weight:700;">${firstItemName}</td></tr>`
-                          : ''
-                      }
+                      ${hasCustomerEmail
+              ? `<tr><td style="padding:7px 0;color:#8C6239;">Email khách:</td><td style="padding:7px 0;"><a href="mailto:${safeEmail}" style="color:#2563EB;font-weight:600;">${safeEmail}</a></td></tr>`
+              : ''
+            }
+                      ${firstItemName
+              ? `<tr><td style="padding:7px 0;color:#8C6239;">Sản phẩm chính:</td><td style="padding:7px 0;font-weight:700;">${firstItemName}</td></tr>`
+              : ''
+            }
                       <tr>
                         <td style="padding:7px 0;color:#8C6239;">Kênh nhận:</td>
                         <td style="padding:7px 0;font-weight:700;">${safeGateway}</td>
                       </tr>
-                      ${
-                        totalAmount > 0
-                          ? `<tr><td style="padding:7px 0;color:#8C6239;">Tổng đơn / COD:</td><td style="padding:7px 0;"><strong>${formatVND(totalAmount)}</strong> (Còn thu COD: <strong style="color:#DB2777;">${formatVND(remainingAmount)}</strong>)</td></tr>`
-                          : ''
-                      }
+                      ${totalAmount > 0
+              ? `<tr><td style="padding:7px 0;color:#8C6239;">Tổng đơn / COD:</td><td style="padding:7px 0;"><strong>${formatVND(totalAmount)}</strong> (Còn thu COD: <strong style="color:#DB2777;">${formatVND(remainingAmount)}</strong>)</td></tr>`
+              : ''
+            }
                       <tr>
                         <td style="padding:7px 0;color:#8C6239;">Thời gian:</td>
                         <td style="padding:7px 0;color:#6B7280;">${escapeHtml(nowFormatted)}</td>
@@ -804,41 +800,41 @@ export const emailService = {
               </body>
               </html>
             `,
-            eventType: 'deposit_confirmed',
-            orderReference: order.order_reference,
-          },
-          config
-        )
-          .then(() => true)
-          .catch(() => false)
+          eventType: 'deposit_confirmed',
+          orderReference: order.order_reference,
+        },
+        config
+      )
+        .then(() => true)
+        .catch(() => false)
       : Promise.resolve(false);
 
     const customerPromise: Promise<boolean> = hasCustomerEmail
       ? dispatchEmail(
-          {
-            to: order.customer_email!.trim(),
-            replyTo: config.admin_email.trim(),
-            subject: `[BolwDog Studio] ✅ Đã nhận tiền cọc ${formatVND(paidAmount)} cho đơn #${order.order_reference}`,
-            textBody: [
-              `Chào ba mẹ ${order.customer_name},`,
-              ``,
-              `BolwDog Studio xác nhận đã nhận được khoản chuyển khoản tiền cọc ${formatVND(paidAmount)} qua ${gateway} cho đơn hàng #${order.order_reference}.`,
-              totalAmount > 0 ? `• Tổng giá trị đơn: ${formatVND(totalAmount)}` : '',
-              `• Đã thanh toán cọc: ${formatVND(paidAmount)}`,
-              totalAmount > 0
-                ? `• Số tiền còn lại (thanh toán khi nhận hàng): ${formatVND(remainingAmount)}`
-                : '',
-              ``,
-              `Xưởng đang bắt đầu dựng file 3D cá nhân hóa cho bé và sẽ gửi bản xem trước 3D để ba mẹ duyệt trước khi in.`,
-              ``,
-              `👉 Theo dõi tiến độ đơn hàng trực tuyến tại: ${trackingUrl}`,
-              ``,
-              `Trân trọng,`,
-              `BolwDog Studio – Hotline/Zalo: 0345553913`,
-            ]
-              .filter(Boolean)
-              .join('\n'),
-            htmlBody: `
+        {
+          to: order.customer_email!.trim(),
+          replyTo: config.admin_email.trim(),
+          subject: `[BolwDog Studio] ✅ Đã nhận tiền cọc ${formatVND(paidAmount)} cho đơn #${order.order_reference}`,
+          textBody: [
+            `Chào ba mẹ ${order.customer_name},`,
+            ``,
+            `BolwDog Studio xác nhận đã nhận được khoản chuyển khoản tiền cọc ${formatVND(paidAmount)} qua ${gateway} cho đơn hàng #${order.order_reference}.`,
+            totalAmount > 0 ? `• Tổng giá trị đơn: ${formatVND(totalAmount)}` : '',
+            `• Đã thanh toán cọc: ${formatVND(paidAmount)}`,
+            totalAmount > 0
+              ? `• Số tiền còn lại (thanh toán khi nhận hàng): ${formatVND(remainingAmount)}`
+              : '',
+            ``,
+            `Xưởng đang bắt đầu dựng file 3D cá nhân hóa cho bé và sẽ gửi bản xem trước 3D để ba mẹ duyệt trước khi in.`,
+            ``,
+            `👉 Theo dõi tiến độ đơn hàng trực tuyến tại: ${trackingUrl}`,
+            ``,
+            `Trân trọng,`,
+            `BolwDog Studio – Hotline/Zalo: 0345553913`,
+          ]
+            .filter(Boolean)
+            .join('\n'),
+          htmlBody: `
               <!DOCTYPE html>
               <html>
               <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -871,20 +867,18 @@ export const emailService = {
                           <td style="padding:5px 0;color:#92400E;">Mã đơn hàng:</td>
                           <td style="padding:5px 0;text-align:right;font-weight:900;color:#4A2810;">#${safeRef}</td>
                         </tr>
-                        ${
-                          totalAmount > 0
-                            ? `<tr><td style="padding:5px 0;color:#92400E;">Tổng giá trị đơn:</td><td style="padding:5px 0;text-align:right;font-weight:700;">${formatVND(totalAmount)}</td></tr>`
-                            : ''
-                        }
+                        ${totalAmount > 0
+              ? `<tr><td style="padding:5px 0;color:#92400E;">Tổng giá trị đơn:</td><td style="padding:5px 0;text-align:right;font-weight:700;">${formatVND(totalAmount)}</td></tr>`
+              : ''
+            }
                         <tr>
                           <td style="padding:5px 0;color:#047857;font-weight:700;">Đã thanh toán cọc:</td>
                           <td style="padding:5px 0;text-align:right;font-weight:900;color:#059669;font-size:15px;">${formatVND(paidAmount)}</td>
                         </tr>
-                        ${
-                          totalAmount > 0
-                            ? `<tr><td style="padding:5px 0;color:#92400E;">Còn lại thanh toán khi nhận hàng:</td><td style="padding:5px 0;text-align:right;font-weight:800;color:#DB2777;">${formatVND(remainingAmount)}</td></tr>`
-                            : ''
-                        }
+                        ${totalAmount > 0
+              ? `<tr><td style="padding:5px 0;color:#92400E;">Còn lại thanh toán khi nhận hàng:</td><td style="padding:5px 0;text-align:right;font-weight:800;color:#DB2777;">${formatVND(remainingAmount)}</td></tr>`
+              : ''
+            }
                       </table>
                     </div>
                     <div style="background:#FDF2F8;border-left:4px solid #EC4899;border-radius:12px;padding:12px 14px;font-size:12.5px;line-height:1.55;color:#831843;">
@@ -903,13 +897,13 @@ export const emailService = {
               </body>
               </html>
             `,
-            eventType: 'deposit_confirmed',
-            orderReference: order.order_reference,
-          },
-          config
-        )
-          .then(() => true)
-          .catch(() => false)
+          eventType: 'deposit_confirmed',
+          orderReference: order.order_reference,
+        },
+        config
+      )
+        .then(() => true)
+        .catch(() => false)
       : Promise.resolve(false);
 
     const [adminSent, customerSent] = await Promise.all([adminPromise, customerPromise]);
