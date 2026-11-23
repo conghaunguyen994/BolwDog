@@ -1,5 +1,6 @@
 import {
   dispatchServerEmail,
+  getActiveServerEmailChannel,
   hasServerEmailProvider,
   type ServerEmailEventType,
 } from './_lib/emailDispatch.js';
@@ -39,6 +40,7 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({
         ok: true,
         hasServerProvider: hasServerEmailProvider(),
+        activeChannel: getActiveServerEmailChannel(),
       });
     }
 

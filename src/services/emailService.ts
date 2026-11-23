@@ -50,23 +50,22 @@ function buildTransactionalEmailHtml(params: {
   accentBg?: string;
   accentColor?: string;
 }): string {
-  const accentBg = params.accentBg || '#fdf2f8';
-  const accentColor = params.accentColor || '#be185d';
+  const accentColor = params.accentColor || '#111827';
   return `
     <!DOCTYPE html>
     <html lang="vi">
     <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-    <body style="margin:0;padding:16px;background-color:#f9fafb;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
-      <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
-        <div style="padding:20px 24px;border-bottom:1px solid #e5e7eb;background:${accentBg};">
-          <p style="margin:0 0 4px;font-size:12px;font-weight:bold;color:${accentColor};">${params.eyebrow}</p>
-          <h1 style="margin:0;font-size:18px;font-weight:bold;color:#111827;line-height:1.4;">${params.title}</h1>
-          ${params.subtitle ? `<p style="margin:6px 0 0;font-size:15px;font-weight:bold;color:${accentColor};">${params.subtitle}</p>` : ''}
+    <body style="margin:0;padding:16px;background-color:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+      <div style="max-width:560px;margin:0 auto;">
+        <div style="padding-bottom:12px;margin-bottom:16px;border-bottom:1px solid #e5e7eb;">
+          <p style="margin:0 0 4px;font-size:12px;color:#6b7280;">${params.eyebrow}</p>
+          <h2 style="margin:0;font-size:17px;font-weight:bold;color:#111827;line-height:1.4;">${params.title}</h2>
+          ${params.subtitle ? `<p style="margin:4px 0 0;font-size:15px;font-weight:bold;color:${accentColor};">${params.subtitle}</p>` : ''}
         </div>
-        <div style="padding:20px 24px;font-size:14px;line-height:1.6;">
+        <div style="font-size:14px;line-height:1.65;color:#1f2937;">
           ${params.bodyHtml}
         </div>
-        <div style="padding:14px 24px;border-top:1px solid #e5e7eb;background:#f9fafb;font-size:12px;color:#6b7280;line-height:1.5;">
+        <div style="margin-top:20px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280;line-height:1.5;">
           ${params.footerNote}<br/>
           Hotline/Zalo hỗ trợ: 0345.553.913 &middot; 200 Phường Quy Nhơn Nam, TP. Quy Nhơn, Tỉnh Gia Lai.
         </div>

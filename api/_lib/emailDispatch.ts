@@ -1,3 +1,5 @@
+import nodemailer from 'nodemailer';
+
 export type ServerEmailEventType =
   | 'new_order'
   | 'deposit_confirmed'
@@ -29,7 +31,7 @@ export function normalizeEmailAddress(email?: string | null): string {
 
 export interface ServerDispatchResult {
   ok: boolean;
-  channel: 'webhook' | 'emailjs' | 'none';
+  channel: 'gmail_smtp' | 'webhook' | 'emailjs' | 'none';
   reason?: string;
 }
 
@@ -49,6 +51,10 @@ export async function fetchWithTimeout(
 
 export function getServerEmailCredentials() {
   return {
+    gmailUser: normalizeEmailAddress(process.env.GMAIL_SMTP_USER || ''),
+    // Google App Password 16 ký tự thường copy kèm dấu cách ("abcd efgh ijkl mnop") -> tự động xóa khoảng trắng
+    gmailAppPassword: String(process.env.GMAIL_SMTP_APP_PASSWORD || '').replace(/\s+/g, '').trim(),
+    gmailFromName: String(process.env.GMAIL_SMTP_FROM_NAME || '').trim(),
     webhookUrl: String(process.env.EMAIL_WEBHOOK_URL || '').trim(),
     emailjsServiceId: String(process.env.EMAILJS_SERVICE_ID || '').trim(),
     emailjsTemplateId: String(process.env.EMAILJS_TEMPLATE_ID || '').trim(),
@@ -57,22 +63,33 @@ export function getServerEmailCredentials() {
   };
 }
 
-export function hasServerEmailProvider(): boolean {
+export function getActiveServerEmailChannel(): 'gmail_smtp' | 'webhook' | 'emailjs' | 'none' {
   const creds = getServerEmailCredentials();
-  return (
-    Boolean(creds.webhookUrl && creds.webhookUrl.startsWith('https://')) ||
-    Boolean(creds.emailjsServiceId && creds.emailjsTemplateId && creds.emailjsPublicKey)
-  );
+  if (creds.gmailUser && creds.gmailAppPassword) return 'gmail_smtp';
+  if (creds.webhookUrl && creds.webhookUrl.startsWith('https://')) return 'webhook';
+  if (creds.emailjsServiceId && creds.emailjsTemplateId && creds.emailjsPublicKey) return 'emailjs';
+  return 'none';
+}
+
+export function hasServerEmailProvider(): boolean {
+  return getActiveServerEmailChannel() !== 'none';
 }
 
 /**
  * Gửi email từ Vercel Serverless Functions chỉ dùng credentials trong biến môi trường `.env`
- * (KHÔNG đọc webhook URL hay API key từ Database).
+ * (KHÔNG đọc mật khẩu, webhook URL hay API key từ Database).
+ * Thứ tự ưu tiên:
+ * 1. Gmail SMTP chính chủ (smtp.gmail.com:465 + App Password) -> có DKIM chính chủ Gmail, vào Inbox tốt nhất
+ * 2. Google Apps Script Webhook (dự phòng)
+ * 3. EmailJS REST API (dự phòng)
  */
 export async function dispatchServerEmail(
   payload: ServerEmailPayload
 ): Promise<ServerDispatchResult> {
   const {
+    gmailUser,
+    gmailAppPassword,
+    gmailFromName,
     webhookUrl,
     emailjsServiceId,
     emailjsTemplateId,
@@ -87,10 +104,42 @@ export async function dispatchServerEmail(
       ? normalizedCcRaw
       : '';
   const normalizedReplyTo = normalizeEmailAddress(payload.replyTo);
-  const senderName = (payload.senderName || 'Ú òa Shop').trim();
+  const senderName = (gmailFromName || payload.senderName || 'Ú òa Shop').trim();
 
   if (!normalizedTo) {
     return { ok: false, channel: 'none', reason: 'invalid_recipient' };
+  }
+
+  // Kênh 1 (Ưu tiên): Gmail SMTP chính chủ với App Password
+  if (gmailUser && gmailAppPassword) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: {
+          user: gmailUser,
+          pass: gmailAppPassword,
+        },
+        connectionTimeout: 8000,
+        greetingTimeout: 8000,
+        socketTimeout: 10000,
+      });
+
+      await transporter.sendMail({
+        from: `"${senderName.replace(/"/g, '')}" <${gmailUser}>`,
+        to: normalizedTo,
+        cc: normalizedCc || undefined,
+        replyTo: normalizedReplyTo || gmailUser,
+        subject: payload.subject,
+        text: payload.textBody,
+        html: payload.htmlBody,
+      });
+
+      return { ok: true, channel: 'gmail_smtp' };
+    } catch (err) {
+      console.error('[emailDispatch] Gmail SMTP send failed, trying fallback:', err);
+    }
   }
 
   if (webhookUrl && webhookUrl.startsWith('https://')) {
