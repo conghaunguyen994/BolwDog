@@ -1,5 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { dispatchServerEmail, hasServerEmailProvider } from './emailDispatch.js';
+import {
+  dispatchServerEmail,
+  hasServerEmailProvider,
+  normalizeEmailAddress,
+} from './emailDispatch.js';
 
 export interface DepositEmailOrderInfo {
   orderReference: string;
@@ -142,95 +146,93 @@ export async function sendDepositConfirmedEmailsServer(
     const safeRef = escapeHtml(orderRef);
     const safeName = escapeHtml(customerName);
     const safePhone = escapeHtml(customerPhone);
-    const safeEmail = escapeHtml(customerEmail);
     const safeGateway = escapeHtml(gateway);
 
-    const adminEmail =
+    const adminEmail = normalizeEmailAddress(
       cfg?.admin_email?.trim() ||
-      process.env.ADMIN_EMAIL?.trim() ||
-      'conghaunguyen994@gmail.com.vn';
-    const adminBackupEmail = cfg?.admin_backup_email?.trim() || undefined;
+        process.env.ADMIN_EMAIL?.trim() ||
+        'conghaunguyen994@gmail.com'
+    );
+    const adminBackupEmail = normalizeEmailAddress(cfg?.admin_backup_email) || undefined;
+    const normalizedCustomerEmail = normalizeEmailAddress(customerEmail);
 
-    const sendAdminPromise = adminEmail.includes('@')
+    const sendAdminPromise = adminEmail
       ? dispatchServerEmail({
         to: adminEmail,
         cc: adminBackupEmail,
-        replyTo: customerEmail.includes('@') ? customerEmail : adminEmail,
+        replyTo: normalizedCustomerEmail || adminEmail,
+        senderName: 'Ú òa Shop',
         subject: isFullPaid
-          ? `[Ú òa Shop] 🎉 ĐÃ THANH TOÁN ĐỦ 100% ${formatVndServer(paidAmount)} - Đơn #${orderRef} (${customerName})`
-          : `[Ú òa Shop] 💰 ĐÃ NHẬN CỌC ${formatVndServer(paidAmount)} - Đơn #${orderRef} (${customerName})`,
+          ? `Xác nhận thanh toán đủ ${formatVndServer(paidAmount)} đơn #${orderRef} - ${customerName}`
+          : `Xác nhận đã nhận cọc ${formatVndServer(paidAmount)} đơn #${orderRef} - ${customerName}`,
         textBody: [
           `Xin chào Admin Nguyễn Công Hậu,`,
           ``,
           isFullPaid
-            ? `Hệ thống vừa ghi nhận THANH TOÁN ĐỦ 100% TOÀN BỘ ĐƠN thành công cho đơn #${orderRef} (0 đ COD — chỉ chờ giao đơn).`
-            : `Hệ thống vừa ghi nhận thanh toán cọc thành công cho đơn #${orderRef}.`,
-          `• Khách hàng: ${customerName} (${customerPhone || 'N/A'})`,
-          customerEmail ? `• Email khách: ${customerEmail}` : '',
-          `• Số tiền đã nhận: ${formatVndServer(paidAmount)}`,
+            ? `Hệ thống vừa ghi nhận thanh toán đủ 100% cho đơn hàng #${orderRef} (0 đ COD).`
+            : `Hệ thống vừa ghi nhận thanh toán cọc thành công cho đơn hàng #${orderRef}.`,
+          `- Khách hàng: ${customerName} (${customerPhone || 'N/A'})`,
+          normalizedCustomerEmail ? `- Email khách: ${normalizedCustomerEmail}` : '',
+          `- Số tiền đã nhận: ${formatVndServer(paidAmount)}`,
           totalAmount > 0
             ? isFullPaid
-              ? `• Tổng giá trị đơn: ${formatVndServer(totalAmount)} (Còn lại COD: 0 đ — Đã thanh toán đủ 100%)`
-              : `• Tổng giá trị đơn: ${formatVndServer(totalAmount)} (Còn lại COD: ${formatVndServer(remainingAmount)})`
+              ? `- Tổng giá trị đơn: ${formatVndServer(totalAmount)} (Còn lại COD: 0 đ)`
+              : `- Tổng giá trị đơn: ${formatVndServer(totalAmount)} (Còn lại COD: ${formatVndServer(remainingAmount)})`
             : '',
-          `• Kênh thanh toán: ${gateway}`,
-          `• Thời gian ghi nhận: ${nowFormatted}`,
+          `- Kênh thanh toán: ${gateway}`,
+          `- Thời gian ghi nhận: ${nowFormatted}`,
           ``,
-          `👉 Mở Cổng Admin xử lý đơn ngay: ${adminOrdersUrl}`,
-          `👉 Link đơn hàng của khách: ${trackingUrl}`,
+          `Mở trang quản trị đơn hàng: ${adminOrdersUrl}`,
+          `Trang tra cứu đơn của khách: ${trackingUrl}`,
         ]
           .filter(Boolean)
           .join('\n'),
         htmlBody: `
             <!DOCTYPE html>
-            <html>
+            <html lang="vi">
             <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-            <body style="margin:0;padding:20px;background-color:#FFF5EE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-              <div style="max-width:580px;margin:0 auto;background:#FFFFFF;border-radius:24px;border:2px solid #A7F3D0;overflow:hidden;box-shadow:0 10px 25px rgba(16,185,129,0.12);">
-                <div style="background:linear-gradient(135deg,#ECFDF5 0%,#F0FDF4 100%);padding:24px;text-align:center;border-bottom:1px solid #A7F3D0;">
-                  <div style="display:inline-block;background:#D1FAE5;color:#047857;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:800;text-transform:uppercase;margin-bottom:8px;">
-                    ${isFullPaid ? '🎉 Thanh toán đủ 100% (0đ COD)' : '💸 Thanh toán tự động'}
-                  </div>
-                  <h1 style="margin:0;font-size:20px;font-weight:900;color:#065F46;">
-                    ${isFullPaid ? `Đã Thanh Toán Đủ 100% Đơn #${safeRef}` : `Đã Nhận Tiền Cọc Đơn #${safeRef}`}
+            <body style="margin:0;padding:16px;background-color:#f9fafb;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+              <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+                <div style="padding:20px 24px;border-bottom:1px solid #e5e7eb;background:#f0fdf4;">
+                  <p style="margin:0 0 4px;font-size:12px;font-weight:bold;color:#047857;">Ú òa Shop - Thông báo thanh toán</p>
+                  <h1 style="margin:0;font-size:18px;font-weight:bold;color:#065f46;">
+                    ${isFullPaid ? `Đã thanh toán đủ 100% đơn #${safeRef}` : `Đã nhận tiền cọc đơn #${safeRef}`}
                   </h1>
-                  <p style="margin:6px 0 0;font-size:18px;font-weight:900;color:#059669;">
+                  <p style="margin:6px 0 0;font-size:16px;font-weight:bold;color:#059669;">
                     +${formatVndServer(paidAmount)}
                   </p>
                 </div>
-                <div style="padding:24px;color:#4A2810;">
+                <div style="padding:20px 24px;font-size:14px;line-height:1.6;">
                   <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px;">
                     <tr>
-                      <td style="padding:7px 0;color:#8C6239;width:130px;">Khách hàng:</td>
-                      <td style="padding:7px 0;font-weight:800;">${safeName}${safePhone ? ` • <a href="tel:${safePhone}" style="color:#2563EB;">${safePhone}</a>` : ''}</td>
+                      <td style="padding:6px 0;color:#6b7280;width:130px;">Khách hàng:</td>
+                      <td style="padding:6px 0;font-weight:bold;">${safeName}${safePhone ? ` - <a href="tel:${safePhone}" style="color:#2563eb;text-decoration:none;">${safePhone}</a>` : ''}</td>
                     </tr>
-                    ${customerEmail
-            ? `<tr><td style="padding:7px 0;color:#8C6239;">Email khách:</td><td style="padding:7px 0;"><a href="mailto:${safeEmail}" style="color:#2563EB;font-weight:600;">${safeEmail}</a></td></tr>`
+                    ${normalizedCustomerEmail
+            ? `<tr><td style="padding:6px 0;color:#6b7280;">Email khách:</td><td style="padding:6px 0;"><a href="mailto:${escapeHtml(normalizedCustomerEmail)}" style="color:#2563eb;text-decoration:none;">${escapeHtml(normalizedCustomerEmail)}</a></td></tr>`
             : ''
           }
                     <tr>
-                      <td style="padding:7px 0;color:#8C6239;">Kênh nhận:</td>
-                      <td style="padding:7px 0;font-weight:700;">${safeGateway}</td>
+                      <td style="padding:6px 0;color:#6b7280;">Kênh nhận:</td>
+                      <td style="padding:6px 0;">${safeGateway}</td>
                     </tr>
                     ${totalAmount > 0
-            ? `<tr><td style="padding:7px 0;color:#8C6239;">Tổng đơn / COD:</td><td style="padding:7px 0;"><strong>${formatVndServer(totalAmount)}</strong> (${isFullPaid ? '<strong style="color:#059669;">Đã thanh toán đủ 100% — COD 0 đ</strong>' : `Còn thu COD: <strong style="color:#DB2777;">${formatVndServer(remainingAmount)}</strong>`})</td></tr>`
+            ? `<tr><td style="padding:6px 0;color:#6b7280;">Tổng đơn / COD:</td><td style="padding:6px 0;"><strong>${formatVndServer(totalAmount)}</strong> (${isFullPaid ? 'COD 0 đ' : `Còn thu COD: <strong>${formatVndServer(remainingAmount)}</strong>`})</td></tr>`
             : ''
           }
                     <tr>
-                      <td style="padding:7px 0;color:#8C6239;">Thời gian:</td>
-                      <td style="padding:7px 0;color:#6B7280;">${escapeHtml(nowFormatted)}</td>
+                      <td style="padding:6px 0;color:#6b7280;">Thời gian:</td>
+                      <td style="padding:6px 0;">${escapeHtml(nowFormatted)}</td>
                     </tr>
                   </table>
-                  <div style="text-align:center;margin:24px 0 12px;">
-                    <a href="${adminOrdersUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:linear-gradient(135deg,#10B981 0%,#059669 100%);color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:900;padding:14px 30px;border-radius:99px;box-shadow:0 8px 18px rgba(16,185,129,0.3);">
-                      Mở Cổng Admin Xử Lý Đơn Ngay
+                  <p style="margin:20px 0 12px;">
+                    <a href="${adminOrdersUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#059669;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;padding:11px 22px;border-radius:8px;">
+                      Mở trang quản trị đơn hàng
                     </a>
-                  </div>
-                  <div style="text-align:center;margin-top:12px;">
-                    <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:#2563EB;text-decoration:underline;">
-                      Xem trang tra cứu đơn của khách
-                    </a>
-                  </div>
+                  </p>
+                  <p style="margin:0;font-size:12px;color:#6b7280;">
+                    Trang tra cứu của khách: <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;">${trackingUrl}</a>
+                  </p>
                 </div>
               </div>
             </body>
@@ -241,94 +243,89 @@ export async function sendDepositConfirmedEmailsServer(
       }).then((r) => r.ok)
       : Promise.resolve(false);
 
-    const sendCustomerPromise = customerEmail.includes('@')
+    const sendCustomerPromise = normalizedCustomerEmail
       ? dispatchServerEmail({
-        to: customerEmail,
+        to: normalizedCustomerEmail,
         replyTo: adminEmail,
+        senderName: 'Ú òa Shop',
         subject: isFullPaid
-          ? `[Ú òa Shop] 🎉 Đã thanh toán đủ 100% (${formatVndServer(paidAmount)}) cho đơn #${orderRef} — Chỉ chờ nhận đơn!`
-          : `[Ú òa Shop] ✅ Đã nhận tiền cọc ${formatVndServer(paidAmount)} cho đơn #${orderRef}`,
+          ? `Xác nhận thanh toán đủ đơn hàng #${orderRef} - Ú òa Shop`
+          : `Xác nhận đã nhận tiền cọc đơn hàng #${orderRef} - Ú òa Shop`,
         textBody: [
           `Chào bạn ${customerName},`,
           ``,
           isFullPaid
-            ? `Ú òa Shop xác nhận đã nhận thanh toán đủ 100% (${formatVndServer(paidAmount)}) qua ${gateway} cho đơn hàng #${orderRef}. Đơn hàng đã hoàn tất thanh toán toàn bộ — khi nhận hàng bạn không cần thanh toán thêm (0 đ COD), chỉ chờ nhận đơn tại nhà!`
+            ? `Ú òa Shop xác nhận đã nhận thanh toán đủ 100% (${formatVndServer(paidAmount)}) qua ${gateway} cho đơn hàng #${orderRef}. Khi nhận hàng bạn không cần thanh toán thêm (0 đ COD).`
             : `Ú òa Shop xác nhận đã nhận được khoản chuyển khoản tiền cọc ${formatVndServer(paidAmount)} qua ${gateway} cho đơn hàng #${orderRef}.`,
-          totalAmount > 0 ? `• Tổng giá trị đơn: ${formatVndServer(totalAmount)}` : '',
-          `• Đã thanh toán: ${formatVndServer(paidAmount)}`,
+          totalAmount > 0 ? `- Tổng giá trị đơn: ${formatVndServer(totalAmount)}` : '',
+          `- Đã thanh toán: ${formatVndServer(paidAmount)}`,
           totalAmount > 0
             ? isFullPaid
-              ? `• Số tiền còn lại khi nhận hàng (COD): 0 đ (Đã thanh toán đủ 100% — Chỉ chờ nhận đơn)`
-              : `• Số tiền còn lại (thanh toán khi nhận hàng): ${formatVndServer(remainingAmount)}`
+              ? `- Số tiền còn lại khi nhận hàng (COD): 0 đ`
+              : `- Số tiền còn lại khi nhận hàng (COD): ${formatVndServer(remainingAmount)}`
             : '',
+          `- Thời gian ghi nhận: ${nowFormatted}`,
           ``,
-          `Xưởng đang bắt đầu thiết kế file 3D cá nhân hóa cho đơn hàng của bạn và sẽ gửi bản xem trước 3D để bạn duyệt trước khi in.`,
+          `Bước tiếp theo: Xưởng đang tiến hành thiết kế bản dựng 3D cá nhân hóa cho đơn hàng của bạn và sẽ gửi bản xem trước để bạn kiểm tra trước khi in.`,
           ``,
-          `👉 Theo dõi tiến độ đơn hàng trực tuyến tại: ${trackingUrl}`,
+          `Theo dõi tiến độ đơn hàng tại: ${trackingUrl}`,
           ``,
+          `Nếu cần hỗ trợ thêm, bạn có thể trả lời trực tiếp email này hoặc liên hệ Hotline/Zalo: 0345.553.913.`,
           `Trân trọng,`,
-          `Ú òa Shop – Hotline/Zalo: 0345553913`,
+          `Ú òa Shop - 200 Phường Quy Nhơn Nam, TP. Quy Nhơn, Tỉnh Gia Lai`,
         ]
           .filter(Boolean)
           .join('\n'),
         htmlBody: `
             <!DOCTYPE html>
-            <html>
+            <html lang="vi">
             <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-            <body style="margin:0;padding:20px;background-color:#FFF5EE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-              <div style="max-width:580px;margin:0 auto;background:#FFFFFF;border-radius:24px;border:2px solid #FBCFE8;overflow:hidden;box-shadow:0 10px 25px rgba(244,114,182,0.14);">
-                <div style="background:linear-gradient(135deg,#FDF2F8 0%,#ECFDF5 100%);padding:26px 24px;text-align:center;border-bottom:1px solid #FBCFE8;">
-                  <div style="display:inline-block;width:54px;height:54px;line-height:54px;border-radius:18px;background:#D1FAE5;font-size:26px;margin-bottom:10px;">
-                    🐾
-                  </div>
-                  <h1 style="margin:0;font-size:22px;font-weight:900;color:#831843;">
-                    Ú òa <span style="color:#EC4899;">Shop</span>
+            <body style="margin:0;padding:16px;background-color:#f9fafb;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+              <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+                <div style="padding:20px 24px;border-bottom:1px solid #e5e7eb;background:#fdf2f8;">
+                  <p style="margin:0 0 4px;font-size:13px;font-weight:bold;color:#be185d;">Ú òa Shop</p>
+                  <h1 style="margin:0;font-size:18px;font-weight:bold;color:#111827;">
+                    ${isFullPaid ? `Xác nhận thanh toán đủ đơn hàng #${safeRef}` : `Xác nhận đã nhận tiền cọc đơn hàng #${safeRef}`}
                   </h1>
-                  <p style="margin:4px 0 0;font-size:12px;color:#047857;font-weight:700;">
-                    Xác nhận thanh toán cọc thành công
+                </div>
+                <div style="padding:20px 24px;font-size:14px;line-height:1.6;">
+                  <p style="margin:0 0 12px;">Chào bạn <strong>${safeName}</strong>,</p>
+                  <p style="margin:0 0 16px;">
+                    Ú òa Shop đã ghi nhận khoản chuyển khoản <strong>${formatVndServer(paidAmount)}</strong> qua <strong>${safeGateway}</strong> vào lúc ${escapeHtml(nowFormatted)} cho đơn hàng <strong>#${safeRef}</strong>.
+                  </p>
+                  <table style="width:100%;border-collapse:collapse;font-size:13px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:16px;">
+                    <tr>
+                      <td style="padding:8px 12px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Mã đơn hàng</td>
+                      <td style="padding:8px 12px;text-align:right;font-weight:bold;border-bottom:1px solid #e5e7eb;">#${safeRef}</td>
+                    </tr>
+                    ${totalAmount > 0
+            ? `<tr><td style="padding:8px 12px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Tổng giá trị đơn</td><td style="padding:8px 12px;text-align:right;border-bottom:1px solid #e5e7eb;">${formatVndServer(totalAmount)}</td></tr>`
+            : ''
+          }
+                    <tr>
+                      <td style="padding:8px 12px;color:#047857;font-weight:bold;border-bottom:1px solid #e5e7eb;">Đã thanh toán</td>
+                      <td style="padding:8px 12px;text-align:right;font-weight:bold;color:#059669;border-bottom:1px solid #e5e7eb;">${formatVndServer(paidAmount)}</td>
+                    </tr>
+                    ${totalAmount > 0
+            ? `<tr><td style="padding:8px 12px;color:#6b7280;">Còn lại khi nhận hàng (COD)</td><td style="padding:8px 12px;text-align:right;font-weight:bold;">${isFullPaid ? '0 đ' : formatVndServer(remainingAmount)}</td></tr>`
+            : ''
+          }
+                  </table>
+                  <p style="margin:0 0 18px;font-size:13px;color:#374151;">
+                    <strong>Bước tiếp theo:</strong> Xưởng đang tiến hành thiết kế bản dựng 3D cá nhân hóa cho đơn hàng của bạn và sẽ gửi bản xem trước để bạn kiểm tra, xác nhận trước khi in.
+                  </p>
+                  <p style="margin:0 0 18px;">
+                    <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#059669;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;padding:11px 22px;border-radius:8px;">
+                      Theo dõi tiến độ đơn hàng
+                    </a>
+                  </p>
+                  <p style="margin:0;font-size:12px;color:#6b7280;word-break:break-all;">
+                    Link tra cứu trực tiếp: <a href="${trackingUrl}" style="color:#2563eb;">${trackingUrl}</a>
                   </p>
                 </div>
-                <div style="padding:26px 24px;color:#4A2810;">
-                  <div style="display:inline-block;background:#ECFDF5;border:1px solid #A7F3D0;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:800;color:#047857;text-transform:uppercase;margin-bottom:12px;">
-                    ✅ Đã Nhận Tiền Cọc
-                  </div>
-                  <h2 style="margin:0 0 12px;font-size:18px;font-weight:900;color:#065F46;">
-                    Cảm ơn ba mẹ ${safeName}! Đơn hàng #${safeRef} đã được xác nhận cọc.
-                  </h2>
-                  <p style="margin:0 0 16px;font-size:13px;line-height:1.6;color:#52301B;">
-                    Hệ thống đã ghi nhận tự động khoản chuyển khoản <strong>${formatVndServer(paidAmount)}</strong> qua <strong>${safeGateway}</strong> vào lúc ${escapeHtml(nowFormatted)}.
-                  </p>
-                  <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:16px;padding:16px;margin:18px 0;">
-                    <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                      <tr>
-                        <td style="padding:5px 0;color:#92400E;">Mã đơn hàng:</td>
-                        <td style="padding:5px 0;text-align:right;font-weight:900;color:#4A2810;">#${safeRef}</td>
-                      </tr>
-                      ${totalAmount > 0
-            ? `<tr><td style="padding:5px 0;color:#92400E;">Tổng giá trị đơn:</td><td style="padding:5px 0;text-align:right;font-weight:700;">${formatVndServer(totalAmount)}</td></tr>`
-            : ''
-          }
-                      <tr>
-                        <td style="padding:5px 0;color:#047857;font-weight:700;">Đã thanh toán cọc:</td>
-                        <td style="padding:5px 0;text-align:right;font-weight:900;color:#059669;font-size:15px;">${formatVndServer(paidAmount)}</td>
-                      </tr>
-                      ${totalAmount > 0
-            ? `<tr><td style="padding:5px 0;color:#92400E;">Còn lại thanh toán khi nhận hàng:</td><td style="padding:5px 0;text-align:right;font-weight:800;color:#DB2777;">${formatVndServer(remainingAmount)}</td></tr>`
-            : ''
-          }
-                    </table>
-                  </div>
-                  <div style="background:#FDF2F8;border-left:4px solid #EC4899;border-radius:12px;padding:12px 14px;font-size:12.5px;line-height:1.55;color:#831843;">
-                    🎨 <strong>Bước tiếp theo:</strong> Nghệ nhân Ú òa Shop đang dựng bản thiết kế 3D riêng cho đơn hàng của bạn và sẽ gửi mẫu demo 3D để bạn kiểm tra &amp; chốt trước khi bấm máy in nhé!
-                  </div>
-                  <div style="text-align:center;margin:26px 0 18px;">
-                    <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:linear-gradient(135deg,#10B981 0%,#059669 100%);color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:900;padding:14px 30px;border-radius:99px;box-shadow:0 8px 20px rgba(16,185,129,0.3);">
-                      👉 Theo Dõi Tiến Độ Đơn Hàng
-                    </a>
-                  </div>
-                  <div style="padding:12px;background:#F9FAFB;border-radius:12px;border:1px dashed #E5E7EB;word-break:break-all;font-size:11px;color:#6B7280;">
-                    Link tra cứu trực tiếp: <a href="${trackingUrl}" style="color:#2563EB;">${trackingUrl}</a>
-                  </div>
+                <div style="padding:14px 24px;border-top:1px solid #e5e7eb;background:#f9fafb;font-size:12px;color:#6b7280;line-height:1.5;">
+                  Email này được gửi tự động để xác nhận thanh toán cho đơn hàng #${safeRef} tại Ú òa Shop.<br/>
+                  Hotline/Zalo hỗ trợ: 0345.553.913 &middot; 200 Phường Quy Nhơn Nam, TP. Quy Nhơn, Tỉnh Gia Lai.
                 </div>
               </div>
             </body>

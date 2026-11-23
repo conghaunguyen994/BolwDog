@@ -35,6 +35,47 @@ function escapeHtml(value?: string | null): string {
     .replace(/'/g, '&#39;');
 }
 
+function normalizeEmailAddress(email?: string | null): string {
+  const trimmed = String(email ?? '').trim();
+  if (!trimmed || !trimmed.includes('@')) return '';
+  return trimmed.replace(/@gmail\.com\.vn$/i, '@gmail.com');
+}
+
+function buildTransactionalEmailHtml(params: {
+  eyebrow: string;
+  title: string;
+  subtitle?: string;
+  bodyHtml: string;
+  footerNote: string;
+  accentBg?: string;
+  accentColor?: string;
+}): string {
+  const accentBg = params.accentBg || '#fdf2f8';
+  const accentColor = params.accentColor || '#be185d';
+  return `
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+    <body style="margin:0;padding:16px;background-color:#f9fafb;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+      <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+        <div style="padding:20px 24px;border-bottom:1px solid #e5e7eb;background:${accentBg};">
+          <p style="margin:0 0 4px;font-size:12px;font-weight:bold;color:${accentColor};">${params.eyebrow}</p>
+          <h1 style="margin:0;font-size:18px;font-weight:bold;color:#111827;line-height:1.4;">${params.title}</h1>
+          ${params.subtitle ? `<p style="margin:6px 0 0;font-size:15px;font-weight:bold;color:${accentColor};">${params.subtitle}</p>` : ''}
+        </div>
+        <div style="padding:20px 24px;font-size:14px;line-height:1.6;">
+          ${params.bodyHtml}
+        </div>
+        <div style="padding:14px 24px;border-top:1px solid #e5e7eb;background:#f9fafb;font-size:12px;color:#6b7280;line-height:1.5;">
+          ${params.footerNote}<br/>
+          Hotline/Zalo hỗ trợ: 0345.553.913 &middot; 200 Phường Quy Nhơn Nam, TP. Quy Nhơn, Tỉnh Gia Lai.
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
 export function hasDepositEmailBeenDispatched(orderKey?: string): boolean {
   if (!orderKey || typeof window === 'undefined') return false;
   try {
@@ -152,15 +193,23 @@ export async function dispatchEmail(
     return { ok: false, channel: 'disabled', error: 'Tính năng gửi email đang tắt.' };
   }
 
+  const normalizedTo = normalizeEmailAddress(payload.to);
+  const normalizedCcRaw = normalizeEmailAddress(payload.cc);
+  const normalizedCc =
+    normalizedCcRaw && normalizedCcRaw.toLowerCase() !== normalizedTo.toLowerCase()
+      ? normalizedCcRaw
+      : '';
+  const normalizedReplyTo = normalizeEmailAddress(payload.replyTo || config.admin_email);
+
   // Kênh 1: Serverless Backend /api/send-email (đọc EMAIL_WEBHOOK_URL & EmailJS keys an toàn từ .env)
   try {
     const apiRes = await fetch('/api/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        to: payload.to,
-        cc: payload.cc || '',
-        replyTo: payload.replyTo || config.admin_email,
+        to: normalizedTo,
+        cc: normalizedCc,
+        replyTo: normalizedReplyTo,
         subject: payload.subject,
         textBody: payload.textBody,
         htmlBody: payload.htmlBody,
@@ -181,7 +230,8 @@ export async function dispatchEmail(
 
   // Kênh 2: FormSubmit.co AJAX Relay (Dự phòng miễn phí không cần API key)
   try {
-    const targetEmail = payload.to || config.admin_email || 'conghaunguyen994@gmail.com.vn';
+    const targetEmail =
+      normalizedTo || normalizeEmailAddress(config.admin_email) || 'conghaunguyen994@gmail.com';
     const bodyData: Record<string, string> = {
       _subject: payload.subject,
       _template: 'box',
@@ -190,11 +240,11 @@ export async function dispatchEmail(
       Su_Kien: payload.eventType,
       Noi_Dung_Chi_Tiet: payload.textBody,
     };
-    if (payload.cc) {
-      bodyData._cc = payload.cc;
+    if (normalizedCc) {
+      bodyData._cc = normalizedCc;
     }
-    if (payload.replyTo) {
-      bodyData._replyto = payload.replyTo;
+    if (normalizedReplyTo) {
+      bodyData._replyto = normalizedReplyTo;
     }
 
     const res = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(targetEmail)}`, {
@@ -245,40 +295,52 @@ export const emailService = {
       })
       .join('\n');
 
-    const adminSubject = `[Ú òa Shop] 🛒 Đơn hàng mới #${order.order_reference} - ${order.customer_name} (${order.customer_phone})`;
+    const safeRef = escapeHtml(order.order_reference);
+    const safeName = escapeHtml(order.customer_name);
+    const safePhone = escapeHtml(order.customer_phone);
+    const safeCustomerEmail = escapeHtml(order.customer_email || 'Chưa cung cấp');
+    const safeAddress = escapeHtml(order.shipping_address);
+    const safeItemsSummary = escapeHtml(itemsSummary);
+    const adminOrdersUrl = `${getBaseSiteUrl(config)}/admin/orders`;
+
+    const adminSubject = `Đơn hàng mới #${order.order_reference} - ${order.customer_name} (${order.customer_phone})`;
     const adminText = [
       `Xin chào Admin Nguyễn Công Hậu,`,
-      `Tiệm vừa nhận được đơn đặt hàng in 3D mới!`,
+      `Hệ thống vừa ghi nhận đơn đặt hàng in 3D mới.`,
       ``,
-      `• Mã đơn hàng: ${order.order_reference}`,
-      `• Khách hàng: ${order.customer_name}`,
-      `• Số điện thoại: ${order.customer_phone}`,
-      `• Email khách: ${order.customer_email || 'Chưa cung cấp'}`,
-      `• Địa chỉ giao: ${order.shipping_address}`,
-      `• Tổng thanh toán: ${formatVND(order.total_amount)} (Cần cọc ${depositPct}%: ${formatVND(order.deposit_amount)})`,
-      `• Ghi chú: ${order.notes || 'Không có'}`,
+      `- Mã đơn hàng: #${order.order_reference}`,
+      `- Khách hàng: ${order.customer_name}`,
+      `- Số điện thoại: ${order.customer_phone}`,
+      `- Email khách: ${order.customer_email || 'Chưa cung cấp'}`,
+      `- Địa chỉ giao: ${order.shipping_address}`,
+      `- Tổng thanh toán: ${formatVND(order.total_amount)} (Cọc ${depositPct}%: ${formatVND(order.deposit_amount)})`,
+      `- Ghi chú: ${order.notes || 'Không có'}`,
       ``,
-      `Danh sách sản phẩm đặt in 3D:`,
+      `Danh sách sản phẩm:`,
       itemsSummary,
       ``,
-      `👉 Link kiểm tra đơn & gửi bản Demo 3D: ${getBaseSiteUrl()}/admin/orders`,
+      `Mở trang quản trị đơn hàng: ${adminOrdersUrl}`,
     ].join('\n');
 
-    const adminHtml = `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #f3d6dc;border-radius:16px;background:#fffaf7;color:#3b251b;">
-        <h2 style="color:#e11d48;margin-top:0;">🐾 Đơn Hàng In 3D Mới #${order.order_reference}</h2>
-        <p><strong>Khách hàng:</strong> ${order.customer_name} (${order.customer_phone})</p>
-        <p><strong>Email khách:</strong> ${order.customer_email || 'Chưa cung cấp'}</p>
-        <p><strong>Địa chỉ nhận:</strong> ${order.shipping_address}</p>
-        <p><strong>Tổng tiền:</strong> <strong style="color:#e11d48;">${formatVND(order.total_amount)}</strong> (Cọc ${depositPct}%: ${formatVND(order.deposit_amount)})</p>
-        <pre style="background:#ffffff;padding:12px;border-radius:10px;border:1px solid #eee;white-space:pre-wrap;">${itemsSummary}</pre>
-        <p style="margin-top:16px;">
-          <a href="${getBaseSiteUrl()}/admin/orders" style="display:inline-block;padding:10px 18px;background:#9333ea;color:#fff;text-decoration:none;border-radius:99px;font-weight:bold;">
-            Mở Cổng Quản Trị Đơn Hàng
+    const adminHtml = buildTransactionalEmailHtml({
+      eyebrow: 'Ú òa Shop - Đơn hàng mới',
+      title: `Đơn hàng in 3D mới #${safeRef}`,
+      accentBg: '#fdf2f8',
+      accentColor: '#be185d',
+      bodyHtml: `
+        <p style="margin:0 0 8px;"><strong>Khách hàng:</strong> ${safeName} (${safePhone})</p>
+        <p style="margin:0 0 8px;"><strong>Email khách:</strong> ${safeCustomerEmail}</p>
+        <p style="margin:0 0 8px;"><strong>Địa chỉ nhận:</strong> ${safeAddress}</p>
+        <p style="margin:0 0 12px;"><strong>Tổng tiền:</strong> ${formatVND(order.total_amount)} (Cọc ${depositPct}%: <strong>${formatVND(order.deposit_amount)}</strong>)</p>
+        <pre style="background:#f9fafb;padding:12px;border-radius:8px;border:1px solid #e5e7eb;white-space:pre-wrap;font-family:Arial,Helvetica,sans-serif;font-size:13px;margin:0 0 16px;">${safeItemsSummary}</pre>
+        <p style="margin:0;">
+          <a href="${adminOrdersUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:11px 22px;background:#be185d;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:14px;">
+            Mở trang quản trị đơn hàng
           </a>
         </p>
-      </div>
-    `;
+      `,
+      footerNote: `Thông báo đơn hàng mới #${safeRef} từ hệ thống Ú òa Shop.`,
+    });
 
     // Gửi về cho Admin
     await dispatchEmail(
@@ -297,37 +359,47 @@ export const emailService = {
 
     // Nếu khách hàng có nhập Email -> Gửi email xác nhận đơn hàng cho khách
     if (order.customer_email && order.customer_email.includes('@')) {
-      const custSubject = `[Ú òa Shop] 🐾 Xác nhận đơn hàng #${order.order_reference} của bé`;
+      const custSubject = `Xác nhận đơn hàng #${order.order_reference} tại Ú òa Shop`;
       const custText = [
-        `Chào ba mẹ ${order.customer_name},`,
-        `Cảm ơn ba mẹ đã đặt sản phẩm in 3D cá nhân hóa tại Ú òa Shop!`,
+        `Chào bạn ${order.customer_name},`,
+        `Cảm ơn bạn đã đặt sản phẩm in 3D cá nhân hóa tại Ú òa Shop.`,
         ``,
-        `• Mã đơn hàng: ${order.order_reference}`,
-        `• Tổng tiền: ${formatVND(order.total_amount)} (Số tiền đặt cọc ${depositPct}%: ${formatVND(order.deposit_amount)})`,
+        `- Mã đơn hàng: #${order.order_reference}`,
+        `- Tổng tiền: ${formatVND(order.total_amount)} (Đặt cọc ${depositPct}%: ${formatVND(order.deposit_amount)})`,
         ``,
         `Chi tiết sản phẩm:`,
         itemsSummary,
         ``,
-        `🎨 Quy trình tiếp theo: Sau khi xưởng thiết kế xong bản dựng file 3D theo tên & màu sắc của bé, xưởng sẽ gửi hình Demo 3D qua email này và trên trang tra cứu để ba mẹ xem trước và bấm "Chốt In".`,
+        `Quy trình tiếp theo: Sau khi xưởng thiết kế xong bản dựng 3D theo yêu cầu, xưởng sẽ gửi hình xem trước qua email này và trên trang tra cứu để bạn kiểm tra và xác nhận trước khi in.`,
         ``,
-        `👉 Xem tiến độ đơn hàng & duyệt bản Demo 3D tại đây: ${trackingUrl}`,
+        `Theo dõi tiến độ đơn hàng tại: ${trackingUrl}`,
+        ``,
+        `Trân trọng,`,
+        `Ú òa Shop - Hotline/Zalo: 0345.553.913`,
       ].join('\n');
 
-      const custHtml = `
-        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #f9a8d4;border-radius:16px;background:#fffaf7;color:#3b251b;">
-          <h2 style="color:#db2777;margin-top:0;">🐾 Cảm ơn ba mẹ đã đặt hàng tại Ú òa Shop!</h2>
-          <p>Xin chào <strong>${order.customer_name}</strong>,</p>
-          <p>Đơn hàng <strong>#${order.order_reference}</strong> của bé đã được ghi nhận trên hệ thống.</p>
-          <pre style="background:#ffffff;padding:12px;border-radius:10px;border:1px solid #f3d6dc;white-space:pre-wrap;">${itemsSummary}</pre>
-          <p><strong>Tổng thanh toán:</strong> ${formatVND(order.total_amount)} (Cọc ${depositPct}%: <strong>${formatVND(order.deposit_amount)}</strong>)</p>
-          <p>🎨 <strong>Đặc biệt:</strong> Sau khi nghệ nhân dựng xong file 3D chuẩn bị in, xưởng sẽ gửi bản Demo 3D để ba mẹ kiểm tra và chốt duyệt trước khi bấm máy in!</p>
-          <p style="margin-top:18px;">
-            <a href="${trackingUrl}" style="display:inline-block;padding:12px 22px;background:#ec4899;color:#fff;text-decoration:none;border-radius:99px;font-weight:bold;">
-              Theo Dõi Đơn & Xem Bản Demo 3D
+      const custHtml = buildTransactionalEmailHtml({
+        eyebrow: 'Ú òa Shop',
+        title: `Xác nhận đơn hàng #${safeRef}`,
+        accentBg: '#fdf2f8',
+        accentColor: '#be185d',
+        bodyHtml: `
+          <p style="margin:0 0 12px;">Chào bạn <strong>${safeName}</strong>,</p>
+          <p style="margin:0 0 12px;">Đơn hàng <strong>#${safeRef}</strong> của bạn đã được ghi nhận trên hệ thống Ú òa Shop.</p>
+          <pre style="background:#f9fafb;padding:12px;border-radius:8px;border:1px solid #e5e7eb;white-space:pre-wrap;font-family:Arial,Helvetica,sans-serif;font-size:13px;margin:0 0 14px;">${safeItemsSummary}</pre>
+          <p style="margin:0 0 12px;"><strong>Tổng thanh toán:</strong> ${formatVND(order.total_amount)} (Cọc ${depositPct}%: <strong>${formatVND(order.deposit_amount)}</strong>)</p>
+          <p style="margin:0 0 18px;font-size:13px;color:#374151;">Sau khi xưởng hoàn thiện bản dựng 3D theo yêu cầu, chúng tôi sẽ gửi bản xem trước để bạn kiểm tra và xác nhận trước khi in.</p>
+          <p style="margin:0 0 14px;">
+            <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:11px 22px;background:#be185d;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:14px;">
+              Theo dõi đơn hàng
             </a>
           </p>
-        </div>
-      `;
+          <p style="margin:0;font-size:12px;color:#6b7280;word-break:break-all;">
+            Link tra cứu trực tiếp: <a href="${trackingUrl}" style="color:#2563eb;">${trackingUrl}</a>
+          </p>
+        `,
+        footerNote: `Email này được gửi tự động để xác nhận đơn hàng #${safeRef} bạn vừa đặt tại Ú òa Shop.`,
+      });
 
       await dispatchEmail(
         {
@@ -357,106 +429,53 @@ export const emailService = {
       order.items[0]?.customization_data?.petName ||
       order.items[0]?.customization_data?.customText ||
       'bé cưng';
+    const safeRef = escapeHtml(order.order_reference);
+    const safeName = escapeHtml(order.customer_name);
+    const safePetName = escapeHtml(petName);
+    const noteText =
+      demo.adminNote ||
+      'Bạn vui lòng kiểm tra tên, biểu tượng và màu sắc trên bản dựng 3D rồi xác nhận chốt in giúp xưởng.';
 
-    const subject = `[Ú òa Shop] 🎨 Bản Demo 3D đơn #${order.order_reference} (${petName}) đã sẵn sàng – Mời ba mẹ duyệt chốt in!`;
+    const subject = `Bản xem trước 3D đơn hàng #${order.order_reference} (${petName}) đã sẵn sàng`;
     const textBody = [
-      `Chào ba mẹ ${order.customer_name},`,
+      `Chào bạn ${order.customer_name},`,
       ``,
-      `Nghệ nhân của Ú òa Shop vừa hoàn thiện bản dựng file 3D cho đơn hàng #${order.order_reference} (tên in trên bát: "${petName}").`,
+      `Xưởng Ú òa Shop vừa hoàn thiện bản dựng 3D cho đơn hàng #${order.order_reference} (tên khắc: "${petName}").`,
       ``,
-      `💬 Lời nhắn từ xưởng: "${demo.adminNote || 'Ba mẹ kiểm tra tên, icon và màu sắc trên bản dựng 3D rồi bấm Chốt In giúp xưởng nhé!'}"`,
+      `Ghi chú từ xưởng: "${noteText}"`,
       ``,
-      `👉 Ba mẹ bấm vào đường link dưới đây để xem hình ảnh mô phỏng 3D chi tiết và bấm nút "✅ Xác Nhận Chốt In" (hoặc "✏️ Yêu Cầu Chỉnh Sửa Thêm" nếu muốn đổi chi tiết nào nhé):`,
+      `Bạn vui lòng mở đường link dưới đây để xem hình ảnh mô phỏng 3D và chọn Xác nhận chốt in (hoặc gửi yêu cầu chỉnh sửa thêm nếu cần):`,
       `${trackingUrl}`,
       ``,
       `Trân trọng,`,
-      `Ú òa Shop – Nguyễn Công Hậu (Hotline/Zalo: 0345553913)`,
+      `Ú òa Shop - Hotline/Zalo: 0345.553.913`,
     ].join('\n');
 
-    const htmlBody = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      </head>
-      <body style="margin:0;padding:20px;background-color:#FFF5EE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-        <div style="max-width:580px;margin:0 auto;background:#FFFFFF;border-radius:24px;border:2px solid #FBCFE8;overflow:hidden;box-shadow:0 10px 25px rgba(244,114,182,0.15);">
-          
-          <!-- Header Banner Cute Pastel -->
-          <div style="background:linear-gradient(135deg, #FDF2F8 0%, #F5F3FF 100%);padding:28px 24px;text-align:center;border-bottom:1px solid #FBCFE8;">
-            <div style="display:inline-block;width:56px;height:56px;line-height:56px;border-radius:18px;background:#FCE7F3;font-size:28px;margin-bottom:10px;">
-              🐾
-            </div>
-            <h1 style="margin:0;font-size:22px;font-weight:900;color:#831843;letter-spacing:-0.5px;">
-              Ú òa <span style="color:#EC4899;">Shop</span>
-            </h1>
-            <p style="margin:4px 0 0;font-size:12px;color:#9D174D;font-weight:600;">
-              Xưởng in 3D sinh học cá nhân hóa cho thú cưng
-            </p>
-          </div>
-
-          <!-- Main Content -->
-          <div style="padding:28px 24px;color:#4A2810;">
-            <div style="display:inline-block;background:#FDF2F8;border:1px solid #FBCFE8;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:800;color:#DB2777;text-transform:uppercase;margin-bottom:12px;">
-              ✨ Bản Demo File 3D Hoàn Tất
-            </div>
-
-            <h2 style="margin:0 0 14px;font-size:18px;font-weight:900;color:#831843;line-height:1.4;">
-              Mẫu thiết kế 3D của bé <span style="color:#DB2777;">"${petName}"</span> đã sẵn sàng cho ba mẹ duyệt!
-            </h2>
-
-            <p style="margin:0 0 16px;font-size:13px;line-height:1.6;color:#52301B;">
-              Chào ba mẹ <strong>${order.customer_name}</strong>,<br/>
-              Nghệ nhân vừa hoàn thành mô phỏng 3D chiếc bát ăn theo đúng tên bé, phối màu và icon ba mẹ đã chọn cho đơn hàng <strong>#${order.order_reference}</strong>.
-            </p>
-
-            <!-- Lời nhắn nghệ nhân -->
-            <div style="background:#FFF1F2;border-left:4px solid #F43F5E;border-radius:14px;padding:14px 16px;margin:18px 0;">
-              <div style="font-size:11px;font-weight:800;color:#E11D48;text-transform:uppercase;margin-bottom:4px;">
-                💬 Lời nhắn từ xưởng in 3D:
-              </div>
-              <div style="font-size:13px;font-style:italic;color:#881337;line-height:1.5;">
-                "${demo.adminNote || 'Ba mẹ bấm vào link bên dưới để kiểm tra góc nhìn 3D, tên bé và phối màu rồi bấm nút Chốt In giúp xưởng nhé!'}"
-              </div>
-            </div>
-
-            <!-- Big Action Button (Link clickable 100%) -->
-            <div style="text-align:center;margin:30px 0 20px;">
-              <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:linear-gradient(135deg, #EC4899 0%, #D946EF 100%);color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:900;padding:15px 32px;border-radius:99px;box-shadow:0 8px 20px rgba(236,72,153,0.35);letter-spacing:0.3px;">
-                👉 Xem Bản Demo 3D & Bấm Chốt In Ngay
-              </a>
-              <p style="margin:10px 0 0;font-size:11px;color:#9CA3AF;">
-                (Bấm vào nút trên để xem hình ảnh 3D và chọn <strong>Ưng ý 100%</strong> hoặc <strong>Yêu cầu chỉnh sửa thêm</strong>)
-              </p>
-            </div>
-
-            <!-- Direct Link Fallback (Clickable <a>) -->
-            <div style="margin-top:20px;padding:12px 14px;background:#F9FAFB;border-radius:12px;border:1px dashed #E5E7EB;word-break:break-all;">
-              <span style="font-size:11px;color:#6B7280;font-weight:bold;display:block;margin-bottom:4px;">
-                Hoặc copy/bấm link trực tiếp dưới đây:
-              </span>
-              <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="color:#2563EB;font-size:12px;text-decoration:underline;font-weight:600;">
-                ${trackingUrl}
-              </a>
-            </div>
-
-          </div>
-
-          <!-- Footer Info -->
-          <div style="background:#FDF2F8;padding:18px 24px;border-top:1px solid #FBCFE8;text-align:center;font-size:11px;color:#831843;">
-            <p style="margin:0 0 4px;font-weight:800;">
-              🐾 Ú òa Shop – Nguyễn Công Hậu
-            </p>
-            <p style="margin:0;color:#9D174D;">
-              Hotline / Zalo hỗ trợ 24/7: <strong>0345.553.913</strong> • Địa chỉ xưởng: Quy Nhơn, Gia Lai
-            </p>
-          </div>
-
+    const htmlBody = buildTransactionalEmailHtml({
+      eyebrow: 'Ú òa Shop - Bản xem trước 3D',
+      title: `Mẫu thiết kế 3D đơn hàng #${safeRef} đã sẵn sàng`,
+      accentBg: '#fdf2f8',
+      accentColor: '#be185d',
+      bodyHtml: `
+        <p style="margin:0 0 12px;">Chào bạn <strong>${safeName}</strong>,</p>
+        <p style="margin:0 0 14px;">
+          Xưởng vừa hoàn thiện bản mô phỏng 3D cho đơn hàng <strong>#${safeRef}</strong> (tên khắc: <strong>${safePetName}</strong>).
+        </p>
+        <div style="background:#f9fafb;border-left:3px solid #be185d;padding:12px 14px;margin:0 0 18px;font-size:13px;color:#374151;">
+          <strong>Ghi chú từ xưởng:</strong><br/>
+          ${escapeHtml(noteText)}
         </div>
-      </body>
-      </html>
-    `;
+        <p style="margin:0 0 18px;">
+          <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#be185d;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;padding:11px 22px;border-radius:8px;">
+            Xem bản dựng 3D và xác nhận chốt in
+          </a>
+        </p>
+        <p style="margin:0;font-size:12px;color:#6b7280;word-break:break-all;">
+          Link tra cứu trực tiếp: <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;">${trackingUrl}</a>
+        </p>
+      `,
+      footerNote: `Email này được gửi tự động để mời bạn duyệt mẫu thiết kế 3D cho đơn hàng #${safeRef} tại Ú òa Shop.`,
+    });
 
     const gmailUrl = buildGmailComposeUrl({
       to: order.customer_email || '',
@@ -501,23 +520,31 @@ export const emailService = {
 
     const trackingUrl = buildOrderTrackingUrl(order, config);
     const adminOrdersUrl = `${getBaseSiteUrl(config)}/admin/orders`;
+    const safeRef = escapeHtml(order.order_reference);
+    const safeName = escapeHtml(order.customer_name);
+    const safePhone = escapeHtml(order.customer_phone);
+    const safeEmail = escapeHtml(order.customer_email || '');
 
     let subject = '';
     let actionHeading = '';
-    let statusColor = '#16a34a';
+    let statusColor = '#059669';
+    let accentBg = '#f0fdf4';
 
     if (action.type === 'demo_revision_requested') {
-      subject = `[Ú òa Shop] ✏️ KHÁCH YÊU CẦU CHỈNH SỬA FILE 3D - Đơn #${order.order_reference} (${order.customer_name})`;
-      actionHeading = `✏️ Khách hàng yêu cầu chỉnh sửa lại file 3D trên đơn #${order.order_reference}`;
-      statusColor = '#e11d48';
+      subject = `Khách yêu cầu chỉnh sửa file 3D đơn #${order.order_reference} - ${order.customer_name}`;
+      actionHeading = `Khách hàng yêu cầu chỉnh sửa file 3D đơn #${order.order_reference}`;
+      statusColor = '#dc2626';
+      accentBg = '#fef2f2';
     } else if (action.type === 'demo_approved') {
-      subject = `[Ú òa Shop] ✅ KHÁCH ĐÃ CHỐT IN FILE 3D - Đơn #${order.order_reference} (${order.customer_name})`;
-      actionHeading = `✅ Khách hàng đã XÁC NHẬN CHỐT IN bản Demo 3D đơn #${order.order_reference}!`;
-      statusColor = '#16a34a';
+      subject = `Khách đã duyệt chốt in file 3D đơn #${order.order_reference} - ${order.customer_name}`;
+      actionHeading = `Khách hàng đã xác nhận chốt in 3D đơn #${order.order_reference}`;
+      statusColor = '#059669';
+      accentBg = '#f0fdf4';
     } else {
-      subject = `[Ú òa Shop] 💸 Khách vừa gửi xác nhận chuyển khoản cọc - Đơn #${order.order_reference}`;
-      actionHeading = `💸 Khách hàng vừa báo đã chuyển cọc cho đơn #${order.order_reference}`;
+      subject = `Khách báo đã chuyển khoản cọc đơn #${order.order_reference} - ${order.customer_name}`;
+      actionHeading = `Khách hàng báo đã chuyển khoản cọc đơn #${order.order_reference}`;
       statusColor = '#d97706';
+      accentBg = '#fffbeb';
     }
 
     const textBody = [
@@ -525,89 +552,63 @@ export const emailService = {
       ``,
       actionHeading,
       ``,
-      `• Mã đơn hàng: ${order.order_reference}`,
-      `• Khách hàng: ${order.customer_name}`,
-      `• Số điện thoại: ${order.customer_phone}`,
-      `• Email khách: ${order.customer_email || 'Chưa cung cấp'}`,
-      action.feedback ? `• Nội dung phản hồi / yêu cầu chỉnh sửa của khách:\n  "${action.feedback}"` : '',
-      `• Thời gian thực hiện: ${new Date().toLocaleString('vi-VN')}`,
+      `- Mã đơn hàng: #${order.order_reference}`,
+      `- Khách hàng: ${order.customer_name}`,
+      `- Số điện thoại: ${order.customer_phone}`,
+      `- Email khách: ${order.customer_email || 'Chưa cung cấp'}`,
+      action.feedback ? `- Phản hồi của khách: "${action.feedback}"` : '',
+      `- Thời gian thực hiện: ${new Date().toLocaleString('vi-VN')}`,
       ``,
-      `👉 Mở trang Quản lý đơn hàng Admin để xử lý ngay: ${adminOrdersUrl}`,
-      `👉 Link đơn hàng phía khách: ${trackingUrl}`,
+      `Mở trang quản lý đơn hàng: ${adminOrdersUrl}`,
+      `Trang tra cứu phía khách: ${trackingUrl}`,
     ]
       .filter(Boolean)
       .join('\n');
 
-    const htmlBody = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      </head>
-      <body style="margin:0;padding:20px;background-color:#FFF5EE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-        <div style="max-width:580px;margin:0 auto;background:#FFFFFF;border-radius:24px;border:2px solid ${statusColor}40;overflow:hidden;box-shadow:0 10px 25px rgba(0,0,0,0.06);">
-          
-          <!-- Header -->
-          <div style="background:${statusColor}15;padding:24px;border-bottom:1px solid ${statusColor}30;text-align:center;">
-            <div style="font-size:28px;margin-bottom:6px;">🔔</div>
-            <h1 style="margin:0;font-size:18px;font-weight:900;color:${statusColor};line-height:1.4;">
-              ${actionHeading}
-            </h1>
-          </div>
-
-          <!-- Body -->
-          <div style="padding:24px;color:#4A2810;">
-            <table style="width:100%;border-collapse:collapse;margin-bottom:18px;font-size:13px;">
-              <tr>
-                <td style="padding:8px 0;color:#8C6239;width:120px;">Mã đơn:</td>
-                <td style="padding:8px 0;font-weight:900;color:#4A2810;">#${order.order_reference}</td>
-              </tr>
-              <tr>
-                <td style="padding:8px 0;color:#8C6239;">Khách hàng:</td>
-                <td style="padding:8px 0;font-weight:bold;">${order.customer_name} • <a href="tel:${order.customer_phone}" style="color:#2563EB;">${order.customer_phone}</a></td>
-              </tr>
-              ${order.customer_email ? `
-              <tr>
-                <td style="padding:8px 0;color:#8C6239;">Email khách:</td>
-                <td style="padding:8px 0;font-weight:bold;"><a href="mailto:${order.customer_email}" style="color:#2563EB;">${order.customer_email}</a></td>
-              </tr>
-              ` : ''}
-              <tr>
-                <td style="padding:8px 0;color:#8C6239;">Thời gian:</td>
-                <td style="padding:8px 0;color:#6B7280;">${new Date().toLocaleString('vi-VN')}</td>
-              </tr>
-            </table>
-
-            ${action.feedback
-        ? `<div style="background:#FFF1F2;border-left:4px solid ${statusColor};border-radius:12px;padding:14px 16px;margin:16px 0;">
-                    <div style="font-size:11px;font-weight:800;color:${statusColor};text-transform:uppercase;margin-bottom:4px;">
-                      📝 Nội dung khách yêu cầu:
-                    </div>
-                    <div style="font-size:14px;font-weight:800;color:#881337;line-height:1.5;">
-                      "${action.feedback}"
-                    </div>
-                  </div>`
-        : ''
-      }
-
-            <div style="text-align:center;margin:28px 0 10px;">
-              <a href="${adminOrdersUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:${statusColor};color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:900;padding:14px 30px;border-radius:99px;box-shadow:0 8px 18px ${statusColor}40;">
-                Mở Cổng Admin Xử Lý Đơn Ngay
-              </a>
-            </div>
-
-            <div style="margin-top:18px;text-align:center;">
-              <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="color:#2563EB;font-size:12px;text-decoration:underline;">
-                Xem link giao diện trang tra cứu của khách
-              </a>
-            </div>
-          </div>
-
-        </div>
-      </body>
-      </html>
-    `;
+    const htmlBody = buildTransactionalEmailHtml({
+      eyebrow: 'Ú òa Shop - Phản hồi từ khách hàng',
+      title: escapeHtml(actionHeading),
+      accentBg,
+      accentColor: statusColor,
+      bodyHtml: `
+        <table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px;">
+          <tr>
+            <td style="padding:6px 0;color:#6b7280;width:120px;">Mã đơn:</td>
+            <td style="padding:6px 0;font-weight:bold;">#${safeRef}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#6b7280;">Khách hàng:</td>
+            <td style="padding:6px 0;font-weight:bold;">${safeName} - <a href="tel:${safePhone}" style="color:#2563eb;text-decoration:none;">${safePhone}</a></td>
+          </tr>
+          ${order.customer_email ? `
+          <tr>
+            <td style="padding:6px 0;color:#6b7280;">Email khách:</td>
+            <td style="padding:6px 0;"><a href="mailto:${safeEmail}" style="color:#2563eb;text-decoration:none;">${safeEmail}</a></td>
+          </tr>
+          ` : ''}
+          <tr>
+            <td style="padding:6px 0;color:#6b7280;">Thời gian:</td>
+            <td style="padding:6px 0;">${escapeHtml(new Date().toLocaleString('vi-VN'))}</td>
+          </tr>
+        </table>
+        ${action.feedback
+          ? `<div style="background:#f9fafb;border-left:3px solid ${statusColor};padding:12px 14px;margin:0 0 18px;font-size:13px;">
+              <strong>Nội dung khách yêu cầu:</strong><br/>
+              ${escapeHtml(action.feedback)}
+            </div>`
+          : ''
+        }
+        <p style="margin:0 0 12px;">
+          <a href="${adminOrdersUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:${statusColor};color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;padding:11px 22px;border-radius:8px;">
+            Mở trang quản trị đơn hàng
+          </a>
+        </p>
+        <p style="margin:0;font-size:12px;color:#6b7280;">
+          Trang tra cứu của khách: <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;">${trackingUrl}</a>
+        </p>
+      `,
+      footerNote: `Thông báo tự động từ đơn hàng #${safeRef} tại Ú òa Shop.`,
+    });
 
     // Gửi về cho Admin
     await dispatchEmail(
@@ -628,13 +629,13 @@ export const emailService = {
     if (order.customer_email && order.customer_email.includes('@')) {
       const custAckSubject =
         action.type === 'demo_approved'
-          ? `[Ú òa Shop] ✅ Đã nhận xác nhận CHỐT IN 3D cho đơn #${order.order_reference}`
-          : `[Ú òa Shop] ✍️ Đã tiếp nhận yêu cầu chỉnh sửa file 3D đơn #${order.order_reference}`;
+          ? `Xác nhận chốt in 3D đơn hàng #${order.order_reference} - Ú òa Shop`
+          : `Đã tiếp nhận yêu cầu chỉnh sửa 3D đơn hàng #${order.order_reference} - Ú òa Shop`;
 
       const custAckText =
         action.type === 'demo_approved'
-          ? `Chào ba mẹ ${order.customer_name},\nXưởng đã nhận được xác nhận CHỐT IN bản thiết kế 3D cho đơn #${order.order_reference}. Nghệ nhân sẽ bắt đầu bấm máy in 3D cho bé ngay nhé!\nXem tiến độ tại: ${trackingUrl}`
-          : `Chào ba mẹ ${order.customer_name},\nXưởng đã nhận được yêu cầu chỉnh sửa file 3D cho đơn #${order.order_reference} với nội dung: "${action.feedback || ''}".\nNghệ nhân sẽ điều chỉnh lại file 3D và gửi bản Demo mới qua email này cho ba mẹ duyệt lại nhé!\nXem tiến độ tại: ${trackingUrl}`;
+          ? `Chào bạn ${order.customer_name},\nXưởng đã nhận được xác nhận chốt in bản thiết kế 3D cho đơn hàng #${order.order_reference}. Chúng tôi sẽ tiến hành in 3D cho đơn hàng của bạn.\nXem tiến độ tại: ${trackingUrl}\n\nTrân trọng,\nÚ òa Shop - Hotline/Zalo: 0345.553.913`
+          : `Chào bạn ${order.customer_name},\nXưởng đã tiếp nhận yêu cầu chỉnh sửa file 3D cho đơn hàng #${order.order_reference} với nội dung: "${action.feedback || ''}".\nChúng tôi sẽ điều chỉnh lại và gửi bản xem trước mới qua email này để bạn kiểm tra.\nXem tiến độ tại: ${trackingUrl}\n\nTrân trọng,\nÚ òa Shop - Hotline/Zalo: 0345.553.913`;
 
       await dispatchEmail(
         {
@@ -642,10 +643,29 @@ export const emailService = {
           replyTo: config.admin_email,
           subject: custAckSubject,
           textBody: custAckText,
-          htmlBody: `<div style="font-family:sans-serif;padding:18px;border:1px solid #f3d6dc;border-radius:14px;"><p>${custAckText.replace(
-            /\n/g,
-            '<br/>'
-          )}</p></div>`,
+          htmlBody: buildTransactionalEmailHtml({
+            eyebrow: 'Ú òa Shop',
+            title:
+              action.type === 'demo_approved'
+                ? `Đã xác nhận chốt in đơn #${safeRef}`
+                : `Đã tiếp nhận yêu cầu chỉnh sửa đơn #${safeRef}`,
+            accentBg: '#f0fdf4',
+            accentColor: '#059669',
+            bodyHtml: `
+              <p style="margin:0 0 12px;">Chào bạn <strong>${safeName}</strong>,</p>
+              <p style="margin:0 0 16px;">${
+                action.type === 'demo_approved'
+                  ? `Xưởng đã nhận được xác nhận chốt in bản thiết kế 3D cho đơn hàng <strong>#${safeRef}</strong> và sẽ bắt đầu tiến hành in 3D.`
+                  : `Xưởng đã tiếp nhận yêu cầu chỉnh sửa file 3D cho đơn hàng <strong>#${safeRef}</strong>${action.feedback ? ` với nội dung: "${escapeHtml(action.feedback)}"` : ''}. Chúng tôi sẽ điều chỉnh và gửi lại bản xem trước mới sớm nhất.`
+              }</p>
+              <p style="margin:0;">
+                <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#059669;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;padding:11px 22px;border-radius:8px;">
+                  Theo dõi tiến độ đơn hàng
+                </a>
+              </p>
+            `,
+            footerNote: `Email xác nhận tự động cho đơn hàng #${safeRef} tại Ú òa Shop.`,
+          }),
           eventType: action.type,
           orderReference: order.order_reference,
         },
@@ -722,84 +742,69 @@ export const emailService = {
           to: config.admin_email.trim(),
           cc: config.admin_backup_email?.trim() || undefined,
           replyTo: hasCustomerEmail ? order.customer_email!.trim() : config.admin_email.trim(),
-          subject: `[Ú òa Shop] 💰 ĐÃ NHẬN CỌC ${formatVND(paidAmount)} - Đơn #${order.order_reference} (${order.customer_name})`,
+          subject: `Xác nhận đã nhận cọc ${formatVND(paidAmount)} đơn #${order.order_reference} - ${order.customer_name}`,
           textBody: [
             `Xin chào Admin Nguyễn Công Hậu,`,
             ``,
             `Hệ thống vừa xác nhận đã nhận tiền cọc cho đơn hàng #${order.order_reference}.`,
-            `• Khách hàng: ${order.customer_name} (${order.customer_phone})`,
-            hasCustomerEmail ? `• Email khách: ${order.customer_email}` : '',
-            `• Số tiền cọc đã nhận: ${formatVND(paidAmount)}`,
+            `- Khách hàng: ${order.customer_name} (${order.customer_phone})`,
+            hasCustomerEmail ? `- Email khách: ${order.customer_email}` : '',
+            `- Số tiền cọc đã nhận: ${formatVND(paidAmount)}`,
             totalAmount > 0
-              ? `• Tổng đơn: ${formatVND(totalAmount)} (Còn lại thu COD: ${formatVND(remainingAmount)})`
+              ? `- Tổng đơn: ${formatVND(totalAmount)} (Còn lại thu COD: ${formatVND(remainingAmount)})`
               : '',
-            `• Kênh xác nhận: ${gateway}`,
-            `• Thời gian: ${nowFormatted}`,
+            `- Kênh xác nhận: ${gateway}`,
+            `- Thời gian: ${nowFormatted}`,
             ``,
-            `👉 Mở Cổng Admin xử lý đơn ngay: ${adminOrdersUrl}`,
-            `👉 Link đơn hàng phía khách: ${trackingUrl}`,
+            `Mở trang quản trị đơn hàng: ${adminOrdersUrl}`,
+            `Trang tra cứu phía khách: ${trackingUrl}`,
           ]
             .filter(Boolean)
             .join('\n'),
-          htmlBody: `
-              <!DOCTYPE html>
-              <html>
-              <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-              <body style="margin:0;padding:20px;background-color:#FFF5EE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-                <div style="max-width:580px;margin:0 auto;background:#FFFFFF;border-radius:24px;border:2px solid #A7F3D0;overflow:hidden;box-shadow:0 10px 25px rgba(16,185,129,0.12);">
-                  <div style="background:linear-gradient(135deg,#ECFDF5 0%,#F0FDF4 100%);padding:24px;text-align:center;border-bottom:1px solid #A7F3D0;">
-                    <div style="display:inline-block;background:#D1FAE5;color:#047857;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:800;text-transform:uppercase;margin-bottom:8px;">
-                      💸 Xác Nhận Thanh Toán Cọc
-                    </div>
-                    <h1 style="margin:0;font-size:20px;font-weight:900;color:#065F46;">
-                      Đã Nhận Tiền Cọc Đơn #${safeRef}
-                    </h1>
-                    <p style="margin:6px 0 0;font-size:18px;font-weight:900;color:#059669;">
-                      +${formatVND(paidAmount)}
-                    </p>
-                  </div>
-                  <div style="padding:24px;color:#4A2810;">
-                    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px;">
-                      <tr>
-                        <td style="padding:7px 0;color:#8C6239;width:130px;">Khách hàng:</td>
-                        <td style="padding:7px 0;font-weight:800;">${safeName} • <a href="tel:${safePhone}" style="color:#2563EB;">${safePhone}</a></td>
-                      </tr>
-                      ${hasCustomerEmail
-              ? `<tr><td style="padding:7px 0;color:#8C6239;">Email khách:</td><td style="padding:7px 0;"><a href="mailto:${safeEmail}" style="color:#2563EB;font-weight:600;">${safeEmail}</a></td></tr>`
-              : ''
-            }
-                      ${firstItemName
-              ? `<tr><td style="padding:7px 0;color:#8C6239;">Sản phẩm chính:</td><td style="padding:7px 0;font-weight:700;">${firstItemName}</td></tr>`
-              : ''
-            }
-                      <tr>
-                        <td style="padding:7px 0;color:#8C6239;">Kênh nhận:</td>
-                        <td style="padding:7px 0;font-weight:700;">${safeGateway}</td>
-                      </tr>
-                      ${totalAmount > 0
-              ? `<tr><td style="padding:7px 0;color:#8C6239;">Tổng đơn / COD:</td><td style="padding:7px 0;"><strong>${formatVND(totalAmount)}</strong> (Còn thu COD: <strong style="color:#DB2777;">${formatVND(remainingAmount)}</strong>)</td></tr>`
-              : ''
-            }
-                      <tr>
-                        <td style="padding:7px 0;color:#8C6239;">Thời gian:</td>
-                        <td style="padding:7px 0;color:#6B7280;">${escapeHtml(nowFormatted)}</td>
-                      </tr>
-                    </table>
-                    <div style="text-align:center;margin:24px 0 12px;">
-                      <a href="${adminOrdersUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:linear-gradient(135deg,#10B981 0%,#059669 100%);color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:900;padding:14px 30px;border-radius:99px;box-shadow:0 8px 18px rgba(16,185,129,0.3);">
-                        Mở Cổng Admin Xử Lý Đơn Ngay
-                      </a>
-                    </div>
-                    <div style="text-align:center;margin-top:12px;">
-                      <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:#2563EB;text-decoration:underline;">
-                        Xem trang tra cứu đơn của khách
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </body>
-              </html>
+          htmlBody: buildTransactionalEmailHtml({
+            eyebrow: 'Ú òa Shop - Thông báo thanh toán',
+            title: `Đã nhận tiền cọc đơn #${safeRef}`,
+            subtitle: `+${formatVND(paidAmount)}`,
+            accentBg: '#f0fdf4',
+            accentColor: '#059669',
+            bodyHtml: `
+              <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px;">
+                <tr>
+                  <td style="padding:6px 0;color:#6b7280;width:130px;">Khách hàng:</td>
+                  <td style="padding:6px 0;font-weight:bold;">${safeName} - <a href="tel:${safePhone}" style="color:#2563eb;text-decoration:none;">${safePhone}</a></td>
+                </tr>
+                ${hasCustomerEmail
+                  ? `<tr><td style="padding:6px 0;color:#6b7280;">Email khách:</td><td style="padding:6px 0;"><a href="mailto:${safeEmail}" style="color:#2563eb;text-decoration:none;">${safeEmail}</a></td></tr>`
+                  : ''
+                }
+                ${firstItemName
+                  ? `<tr><td style="padding:6px 0;color:#6b7280;">Sản phẩm chính:</td><td style="padding:6px 0;">${firstItemName}</td></tr>`
+                  : ''
+                }
+                <tr>
+                  <td style="padding:6px 0;color:#6b7280;">Kênh nhận:</td>
+                  <td style="padding:6px 0;">${safeGateway}</td>
+                </tr>
+                ${totalAmount > 0
+                  ? `<tr><td style="padding:6px 0;color:#6b7280;">Tổng đơn / COD:</td><td style="padding:6px 0;"><strong>${formatVND(totalAmount)}</strong> (Còn thu COD: <strong>${formatVND(remainingAmount)}</strong>)</td></tr>`
+                  : ''
+                }
+                <tr>
+                  <td style="padding:6px 0;color:#6b7280;">Thời gian:</td>
+                  <td style="padding:6px 0;">${escapeHtml(nowFormatted)}</td>
+                </tr>
+              </table>
+              <p style="margin:0 0 12px;">
+                <a href="${adminOrdersUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#059669;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;padding:11px 22px;border-radius:8px;">
+                  Mở trang quản trị đơn hàng
+                </a>
+              </p>
+              <p style="margin:0;font-size:12px;color:#6b7280;">
+                Trang tra cứu của khách: <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;">${trackingUrl}</a>
+              </p>
             `,
+            footerNote: `Thông báo tự động từ đơn hàng #${safeRef} tại Ú òa Shop.`,
+          }),
           eventType: 'deposit_confirmed',
           orderReference: order.order_reference,
         },
@@ -814,89 +819,69 @@ export const emailService = {
         {
           to: order.customer_email!.trim(),
           replyTo: config.admin_email.trim(),
-          subject: `[Ú òa Shop] ✅ Đã nhận tiền cọc ${formatVND(paidAmount)} cho đơn #${order.order_reference}`,
+          subject: `Xác nhận đã nhận tiền cọc đơn hàng #${order.order_reference} - Ú òa Shop`,
           textBody: [
-            `Chào ba mẹ ${order.customer_name},`,
+            `Chào bạn ${order.customer_name},`,
             ``,
             `Ú òa Shop xác nhận đã nhận được khoản chuyển khoản tiền cọc ${formatVND(paidAmount)} qua ${gateway} cho đơn hàng #${order.order_reference}.`,
-            totalAmount > 0 ? `• Tổng giá trị đơn: ${formatVND(totalAmount)}` : '',
-            `• Đã thanh toán cọc: ${formatVND(paidAmount)}`,
+            totalAmount > 0 ? `- Tổng giá trị đơn: ${formatVND(totalAmount)}` : '',
+            `- Đã thanh toán cọc: ${formatVND(paidAmount)}`,
             totalAmount > 0
-              ? `• Số tiền còn lại (thanh toán khi nhận hàng): ${formatVND(remainingAmount)}`
+              ? `- Số tiền còn lại khi nhận hàng (COD): ${formatVND(remainingAmount)}`
               : '',
+            `- Thời gian ghi nhận: ${nowFormatted}`,
             ``,
-            `Xưởng đang bắt đầu dựng file 3D cá nhân hóa cho bé và sẽ gửi bản xem trước 3D để ba mẹ duyệt trước khi in.`,
+            `Xưởng đang bắt đầu dựng file 3D cá nhân hóa cho đơn hàng của bạn và sẽ gửi bản xem trước để bạn kiểm tra trước khi in.`,
             ``,
-            `👉 Theo dõi tiến độ đơn hàng trực tuyến tại: ${trackingUrl}`,
+            `Theo dõi tiến độ đơn hàng tại: ${trackingUrl}`,
             ``,
             `Trân trọng,`,
-            `Ú òa Shop – Hotline/Zalo: 0345553913`,
+            `Ú òa Shop - Hotline/Zalo: 0345.553.913`,
           ]
             .filter(Boolean)
             .join('\n'),
-          htmlBody: `
-              <!DOCTYPE html>
-              <html>
-              <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-              <body style="margin:0;padding:20px;background-color:#FFF5EE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-                <div style="max-width:580px;margin:0 auto;background:#FFFFFF;border-radius:24px;border:2px solid #FBCFE8;overflow:hidden;box-shadow:0 10px 25px rgba(244,114,182,0.14);">
-                  <div style="background:linear-gradient(135deg,#FDF2F8 0%,#ECFDF5 100%);padding:26px 24px;text-align:center;border-bottom:1px solid #FBCFE8;">
-                    <div style="display:inline-block;width:54px;height:54px;line-height:54px;border-radius:18px;background:#D1FAE5;font-size:26px;margin-bottom:10px;">
-                      🐾
-                    </div>
-                    <h1 style="margin:0;font-size:22px;font-weight:900;color:#831843;">
-                      Ú òa <span style="color:#EC4899;">Shop</span>
-                    </h1>
-                    <p style="margin:4px 0 0;font-size:12px;color:#047857;font-weight:700;">
-                      Xác nhận thanh toán cọc thành công
-                    </p>
-                  </div>
-                  <div style="padding:26px 24px;color:#4A2810;">
-                    <div style="display:inline-block;background:#ECFDF5;border:1px solid #A7F3D0;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:800;color:#047857;text-transform:uppercase;margin-bottom:12px;">
-                      ✅ Đã Nhận Tiền Cọc
-                    </div>
-                    <h2 style="margin:0 0 12px;font-size:18px;font-weight:900;color:#065F46;">
-                      Cảm ơn ba mẹ ${safeName}! Đơn hàng #${safeRef} đã được xác nhận cọc.
-                    </h2>
-                    <p style="margin:0 0 16px;font-size:13px;line-height:1.6;color:#52301B;">
-                      Hệ thống đã ghi nhận khoản chuyển khoản <strong>${formatVND(paidAmount)}</strong> qua <strong>${safeGateway}</strong> vào lúc ${escapeHtml(nowFormatted)}.
-                    </p>
-                    <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:16px;padding:16px;margin:18px 0;">
-                      <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                        <tr>
-                          <td style="padding:5px 0;color:#92400E;">Mã đơn hàng:</td>
-                          <td style="padding:5px 0;text-align:right;font-weight:900;color:#4A2810;">#${safeRef}</td>
-                        </tr>
-                        ${totalAmount > 0
-              ? `<tr><td style="padding:5px 0;color:#92400E;">Tổng giá trị đơn:</td><td style="padding:5px 0;text-align:right;font-weight:700;">${formatVND(totalAmount)}</td></tr>`
-              : ''
-            }
-                        <tr>
-                          <td style="padding:5px 0;color:#047857;font-weight:700;">Đã thanh toán cọc:</td>
-                          <td style="padding:5px 0;text-align:right;font-weight:900;color:#059669;font-size:15px;">${formatVND(paidAmount)}</td>
-                        </tr>
-                        ${totalAmount > 0
-              ? `<tr><td style="padding:5px 0;color:#92400E;">Còn lại thanh toán khi nhận hàng:</td><td style="padding:5px 0;text-align:right;font-weight:800;color:#DB2777;">${formatVND(remainingAmount)}</td></tr>`
-              : ''
-            }
-                      </table>
-                    </div>
-                    <div style="background:#FDF2F8;border-left:4px solid #EC4899;border-radius:12px;padding:12px 14px;font-size:12.5px;line-height:1.55;color:#831843;">
-                      🎨 <strong>Bước tiếp theo:</strong> Nghệ nhân Ú òa Shop đang dựng bản thiết kế 3D riêng cho bé và sẽ gửi mẫu demo 3D để ba mẹ kiểm tra & chốt trước khi bấm máy in nhé!
-                    </div>
-                    <div style="text-align:center;margin:26px 0 18px;">
-                      <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:linear-gradient(135deg,#10B981 0%,#059669 100%);color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:900;padding:14px 30px;border-radius:99px;box-shadow:0 8px 20px rgba(16,185,129,0.3);">
-                        👉 Theo Dõi Tiến Độ Đơn Hàng
-                      </a>
-                    </div>
-                    <div style="padding:12px;background:#F9FAFB;border-radius:12px;border:1px dashed #E5E7EB;word-break:break-all;font-size:11px;color:#6B7280;">
-                      Link tra cứu trực tiếp: <a href="${trackingUrl}" style="color:#2563EB;">${trackingUrl}</a>
-                    </div>
-                  </div>
-                </div>
-              </body>
-              </html>
+          htmlBody: buildTransactionalEmailHtml({
+            eyebrow: 'Ú òa Shop',
+            title: `Xác nhận đã nhận tiền cọc đơn hàng #${safeRef}`,
+            accentBg: '#fdf2f8',
+            accentColor: '#be185d',
+            bodyHtml: `
+              <p style="margin:0 0 12px;">Chào bạn <strong>${safeName}</strong>,</p>
+              <p style="margin:0 0 16px;">
+                Ú òa Shop đã ghi nhận khoản chuyển khoản <strong>${formatVND(paidAmount)}</strong> qua <strong>${safeGateway}</strong> vào lúc ${escapeHtml(nowFormatted)} cho đơn hàng <strong>#${safeRef}</strong>.
+              </p>
+              <table style="width:100%;border-collapse:collapse;font-size:13px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:16px;">
+                <tr>
+                  <td style="padding:8px 12px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Mã đơn hàng</td>
+                  <td style="padding:8px 12px;text-align:right;font-weight:bold;border-bottom:1px solid #e5e7eb;">#${safeRef}</td>
+                </tr>
+                ${totalAmount > 0
+                  ? `<tr><td style="padding:8px 12px;color:#6b7280;border-bottom:1px solid #e5e7eb;">Tổng giá trị đơn</td><td style="padding:8px 12px;text-align:right;border-bottom:1px solid #e5e7eb;">${formatVND(totalAmount)}</td></tr>`
+                  : ''
+                }
+                <tr>
+                  <td style="padding:8px 12px;color:#047857;font-weight:bold;border-bottom:1px solid #e5e7eb;">Đã thanh toán cọc</td>
+                  <td style="padding:8px 12px;text-align:right;font-weight:bold;color:#059669;border-bottom:1px solid #e5e7eb;">${formatVND(paidAmount)}</td>
+                </tr>
+                ${totalAmount > 0
+                  ? `<tr><td style="padding:8px 12px;color:#6b7280;">Còn lại khi nhận hàng (COD)</td><td style="padding:8px 12px;text-align:right;font-weight:bold;">${formatVND(remainingAmount)}</td></tr>`
+                  : ''
+                }
+              </table>
+              <p style="margin:0 0 18px;font-size:13px;color:#374151;">
+                <strong>Bước tiếp theo:</strong> Xưởng đang tiến hành thiết kế bản dựng 3D cá nhân hóa và sẽ gửi bản xem trước để bạn kiểm tra, xác nhận trước khi in.
+              </p>
+              <p style="margin:0 0 16px;">
+                <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#059669;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;padding:11px 22px;border-radius:8px;">
+                  Theo dõi tiến độ đơn hàng
+                </a>
+              </p>
+              <p style="margin:0;font-size:12px;color:#6b7280;word-break:break-all;">
+                Link tra cứu trực tiếp: <a href="${trackingUrl}" style="color:#2563eb;">${trackingUrl}</a>
+              </p>
             `,
+            footerNote: `Email này được gửi tự động để xác nhận thanh toán cho đơn hàng #${safeRef} tại Ú òa Shop.`,
+          }),
           eventType: 'deposit_confirmed',
           orderReference: order.order_reference,
         },
@@ -923,13 +908,20 @@ export const emailService = {
     if (!order.customer_email || !order.customer_email.includes('@')) return;
 
     const statusLabel = getOrderStatusLabel(newStatus);
-    const trackingUrl = buildOrderTrackingUrl(order);
-    const subject = `[Ú òa Shop] 📦 Đơn hàng #${order.order_reference} vừa chuyển sang: ${statusLabel}`;
+    const trackingUrl = buildOrderTrackingUrl(order, config);
+    const safeRef = escapeHtml(order.order_reference);
+    const safeName = escapeHtml(order.customer_name);
+    const safeStatus = escapeHtml(statusLabel);
+
+    const subject = `Cập nhật trạng thái đơn hàng #${order.order_reference}: ${statusLabel}`;
     const textBody = [
-      `Chào ba mẹ ${order.customer_name},`,
-      `Đơn hàng #${order.order_reference} của bé vừa được cập nhật trạng thái mới: "${statusLabel}".`,
+      `Chào bạn ${order.customer_name},`,
+      `Đơn hàng #${order.order_reference} của bạn vừa được cập nhật trạng thái: "${statusLabel}".`,
       ``,
-      `👉 Xem chi tiết tiến độ đơn hàng tại: ${trackingUrl}`,
+      `Xem chi tiết tiến độ đơn hàng tại: ${trackingUrl}`,
+      ``,
+      `Trân trọng,`,
+      `Ú òa Shop - Hotline/Zalo: 0345.553.913`,
     ].join('\n');
 
     await dispatchEmail(
@@ -938,11 +930,25 @@ export const emailService = {
         replyTo: config.admin_email,
         subject,
         textBody,
-        htmlBody: `<div style="font-family:sans-serif;padding:18px;border:1px solid #f3d6dc;border-radius:14px;">
-          <h3>📦 Cập nhật trạng thái đơn #${order.order_reference}</h3>
-          <p>Trạng thái hiện tại: <strong style="color:#db2777;">${statusLabel}</strong></p>
-          <p><a href="${trackingUrl}">Xem chi tiết tiến độ tại đây</a></p>
-        </div>`,
+        htmlBody: buildTransactionalEmailHtml({
+          eyebrow: 'Ú òa Shop',
+          title: `Cập nhật trạng thái đơn hàng #${safeRef}`,
+          accentBg: '#fdf2f8',
+          accentColor: '#be185d',
+          bodyHtml: `
+            <p style="margin:0 0 12px;">Chào bạn <strong>${safeName}</strong>,</p>
+            <p style="margin:0 0 16px;">Đơn hàng <strong>#${safeRef}</strong> của bạn vừa được cập nhật trạng thái hiện tại là: <strong>${safeStatus}</strong>.</p>
+            <p style="margin:0 0 14px;">
+              <a href="${trackingUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#be185d;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;padding:11px 22px;border-radius:8px;">
+                Xem chi tiết đơn hàng
+              </a>
+            </p>
+            <p style="margin:0;font-size:12px;color:#6b7280;word-break:break-all;">
+              Link tra cứu trực tiếp: <a href="${trackingUrl}" style="color:#2563eb;">${trackingUrl}</a>
+            </p>
+          `,
+          footerNote: `Email thông báo tự động cho đơn hàng #${safeRef} tại Ú òa Shop.`,
+        }),
         eventType: 'order_status_updated',
         orderReference: order.order_reference,
       },
@@ -956,17 +962,21 @@ export const emailService = {
   async sendTestEmail(config: EmailNotificationConfig): Promise<{ ok: boolean; channel: string; error?: string }> {
     return dispatchEmail(
       {
-        to: config.admin_email || 'conghaunguyen994@gmail.com.vn',
+        to: config.admin_email || 'conghaunguyen994@gmail.com',
         cc: config.admin_backup_email || undefined,
-        subject: '[Ú òa Shop] ✅ Kiểm tra kết nối thông báo Email 2 chiều thành công!',
+        subject: 'Kiểm tra kết nối thông báo email - Ú òa Shop',
         textBody:
-          'Xin chào Nguyễn Công Hậu! Hệ thống thông báo Email tự động 2 chiều (Khách hàng ⇄ Admin) của Ú òa Shop đang hoạt động tốt.',
-        htmlBody: `
-          <div style="font-family:sans-serif;padding:20px;border:2px solid #ec4899;border-radius:16px;background:#fffaf7;">
-            <h2 style="color:#db2777;margin-top:0;">🐾 Kết nối Email Ú òa Shop Thành Công!</h2>
-            <p>Hệ thống gửi thông báo tự động khi khách đặt đơn, khi Admin gửi bản Demo 3D và khi khách phản hồi / yêu cầu chỉnh sửa file 3D đã sẵn sàng hoạt động.</p>
-          </div>
-        `,
+          'Xin chào Nguyễn Công Hậu, hệ thống thông báo email tự động của Ú òa Shop đang hoạt động bình thường.',
+        htmlBody: buildTransactionalEmailHtml({
+          eyebrow: 'Ú òa Shop - Kiểm tra hệ thống',
+          title: 'Kết nối email hoạt động bình thường',
+          accentBg: '#f0fdf4',
+          accentColor: '#059669',
+          bodyHtml: `
+            <p style="margin:0;">Hệ thống gửi thông báo tự động khi có đơn mới, xác nhận cọc, gửi bản xem trước 3D và cập nhật trạng thái đơn hàng đã sẵn sàng hoạt động.</p>
+          `,
+          footerNote: 'Email kiểm tra kết nối từ trang quản trị Ú òa Shop.',
+        }),
         eventType: 'test_email',
         orderReference: 'TEST-EMAIL',
       },

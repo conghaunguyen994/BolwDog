@@ -12,11 +12,19 @@ export interface ServerEmailPayload {
   to: string;
   cc?: string;
   replyTo?: string;
+  senderName?: string;
   subject: string;
   textBody: string;
   htmlBody: string;
   eventType: ServerEmailEventType;
   orderReference?: string;
+}
+
+export function normalizeEmailAddress(email?: string | null): string {
+  const trimmed = String(email ?? '').trim();
+  if (!trimmed || !trimmed.includes('@')) return '';
+  // Sửa lỗi typo phổ biến @gmail.com.vn -> @gmail.com để tránh lệch Reply-To gây vào Spam
+  return trimmed.replace(/@gmail\.com\.vn$/i, '@gmail.com');
 }
 
 export interface ServerDispatchResult {
@@ -72,15 +80,29 @@ export async function dispatchServerEmail(
     emailjsPrivateKey,
   } = getServerEmailCredentials();
 
+  const normalizedTo = normalizeEmailAddress(payload.to);
+  const normalizedCcRaw = normalizeEmailAddress(payload.cc);
+  const normalizedCc =
+    normalizedCcRaw && normalizedCcRaw.toLowerCase() !== normalizedTo.toLowerCase()
+      ? normalizedCcRaw
+      : '';
+  const normalizedReplyTo = normalizeEmailAddress(payload.replyTo);
+  const senderName = (payload.senderName || 'Ú òa Shop').trim();
+
+  if (!normalizedTo) {
+    return { ok: false, channel: 'none', reason: 'invalid_recipient' };
+  }
+
   if (webhookUrl && webhookUrl.startsWith('https://')) {
     try {
       const res = await fetchWithTimeout(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
-          to: payload.to,
-          cc: payload.cc || '',
-          replyTo: payload.replyTo || '',
+          to: normalizedTo,
+          cc: normalizedCc,
+          replyTo: normalizedReplyTo,
+          senderName,
           subject: payload.subject,
           textBody: payload.textBody,
           htmlBody: payload.htmlBody,
@@ -104,9 +126,10 @@ export async function dispatchServerEmail(
         template_id: emailjsTemplateId,
         user_id: emailjsPublicKey,
         template_params: {
-          to_email: payload.to,
-          cc_email: payload.cc || '',
-          reply_to: payload.replyTo || payload.to,
+          to_email: normalizedTo,
+          cc_email: normalizedCc,
+          reply_to: normalizedReplyTo || normalizedTo,
+          from_name: senderName,
           subject: payload.subject,
           message: payload.textBody,
           html_content: payload.htmlBody,
