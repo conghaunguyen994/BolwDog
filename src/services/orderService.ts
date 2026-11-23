@@ -96,7 +96,7 @@ export const orderService = {
       const db = requireSupabase();
       localStorage.removeItem('bowldog_mock_orders');
 
-      const rpcParams: Record<string, any> = {
+      const baseRpcParams: Record<string, any> = {
         p_customer_name: cleanName,
         p_customer_phone: cleanPhone,
         p_customer_email: cleanEmail || null,
@@ -109,11 +109,21 @@ export const orderService = {
           customization_data: i.customization,
         })),
       };
-      if (cleanFreeshipCode) {
-        rpcParams.p_freeship_code = cleanFreeshipCode;
-      }
 
-      const { data, error } = await db.rpc('create_secure_order', rpcParams);
+      // Luôn truyền đủ 7 tham số (kể cả p_freeship_code = null) để tránh lỗi Postgres
+      // "Could not choose the best candidate function" khi DB có cả bản 6 tham số và 7 tham số.
+      let { data, error } = await db.rpc('create_secure_order', {
+        ...baseRpcParams,
+        p_freeship_code: cleanFreeshipCode || null,
+      });
+
+      // Dự phòng nếu DB cũ chỉ có bản 6 tham số (chưa chạy SALE_CAMPAIGN.sql)
+      if (
+        error &&
+        /Could not find the function.*p_freeship_code/i.test(error.message || '')
+      ) {
+        ({ data, error } = await db.rpc('create_secure_order', baseRpcParams));
+      }
 
       if (error || !data) {
         throw new Error(error?.message || 'Không thể khởi tạo đơn hàng trên cơ sở dữ liệu.');
